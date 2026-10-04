@@ -78,6 +78,7 @@ class EvidenceBundle:
     # Step 2: what the retrieval plan fetched and what the date/relevance checks dropped (see evidence_filter.py). Internal; never part of the public response.
     plan_kind: str | None = None
     filter_report: dict = field(default_factory=dict)
+    premise: dict = field(default_factory=dict)
 
     # Phase 5E.5: real developments, not raw row count. Populated by
     # collect() via the shared evidence_clustering primitive (5E.3) —
@@ -139,7 +140,47 @@ class EvidenceBundle:
         return [a for a in self.announcements if not self._is_redundant("announcement", a.get("id"))]
 
     def to_context_text(self) -> str:
-        return "\n\n".join(self.context_lines)
+        """Context lines tagged [C1], [C2]... plus the announcement block tagged [A1]... Built AFTER the age/relevance filter, so nothing the filter dropped can reach the prompt
+        through free text (announcement lines used to be written into context_lines before filtering)."""
+        parts = [f"[C{i}] {line}" for i, line in enumerate(self.context_lines, 1)]
+        block = self.announcements_block()
+        if block:
+            parts.append(block)
+        return "\n\n".join(parts)
+
+    def announcements_block(self) -> str:
+        rows = self.deduped_announcements()
+        if not rows:
+            return ""
+        return "Recent filed announcements (real, from NSE):\n" + "\n".join(
+            f"- [A{i}] {a.get('symbol') + ': ' if a.get('symbol') else ''}{a.get('subject', '')} ({a.get('category') or 'filing'}, {str(a.get('announcement_date', ''))[:10]})"
+            for i, a in enumerate(rows[:8], 1))
+
+    def index(self) -> list[dict]:
+        """Stable evidence IDs for THIS answer. E = events, N = news, P = policies, A = announcements, C = context lines, in the same order the prompt lists them, so an ID
+        in the prompt and an ID in claim_sources always mean the same item."""
+        out: list[dict] = []
+        for i, e in enumerate(self.deduped_events(), 1):
+            out.append({"id": f"E{i}", "kind": "event", "title": e.get("title"), "summary": (e.get("summary") or "")[:200], "date": e.get("event_date") or e.get("published_at") or e.get("date"), "source": e.get("source"),
+                        "companies": [c.get("symbol") for c in (e.get("companies") or []) if isinstance(c, dict)], "ref": f"event:{e.get('id')}"})
+        for i, n in enumerate(self.deduped_news(), 1):
+            out.append({"id": f"N{i}", "kind": "news", "title": n.get("headline"), "summary": (n.get("summary") or "")[:200], "date": n.get("published_at"), "source": n.get("source"), "companies": [], "ref": f"news:{n.get('id')}"})
+        for i, p in enumerate(self.policies, 1):
+            out.append({"id": f"P{i}", "kind": "policy", "title": p.get("title"), "summary": (p.get("summary") or "")[:200], "date": None, "source": p.get("ministry"), "companies": [], "ref": f"policy:{p.get('id')}"})
+        for i, a in enumerate(self.deduped_announcements()[:8], 1):
+            out.append({"id": f"A{i}", "kind": "announcement", "title": a.get("subject"), "date": a.get("announcement_date"), "source": "NSE",
+                        "companies": [a["symbol"]] if a.get("symbol") else [], "ref": f"announcement:{a.get('id')}"})
+        for i, line in enumerate(self.context_lines, 1):
+            out.append({"id": f"C{i}", "kind": "context", "title": line[:160], "date": None, "source": "MarketRipple data", "companies": [], "ref": f"context:{i}"})
+        return out
+
+    def premise_notice(self) -> str:
+        """Prompt text for a question that asserts an event nothing in the evidence confirms; empty otherwise."""
+        p = self.premise or {}
+        if p.get("required") and not p.get("supported"):
+            return ("\n\nVERIFICATION NOTE: the question describes an event (" + ", ".join(p.get("terms") or []) + "), but none of the retrieved evidence confirms it. "
+                    "Say plainly that the event could not be verified from MarketRipple's data. Do not state its size, value, timing, counterparties or effects as fact.")
+        return ""
 
     def to_source_ids(self) -> list[str]:
         """Stable evidence IDs for source-attribution tagging."""
@@ -577,11 +618,7 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
                         block += f" · Mood: {ctx['market_mood']}"
                     bundle.context_lines.append(block)
             if isinstance(ann, list) and ann:
-                bundle.announcements = ann
-                ann_txt = "; ".join(
-                    f"{a.get('subject', '')} ({a.get('category', '')}, {a.get('announcement_date', '')})" for a in ann[:5]
-                )
-                bundle.context_lines.append(f"Recent real filed announcements for {sym}: {ann_txt}")
+                bundle.announcements = [{**a, "symbol": sym} for a in ann]   # rendered after the filter (announcements_block), not as an unfiltered context line
 
             # Phase 6F — Development Memory. Shared builder with V2 (see
             # app/services/development_memory/ai_search_context.py's own
@@ -602,9 +639,7 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
                 ann = await get_recent_announcements(sym, limit=8)
                 results_ann = [a for a in ann if any(k in (a.get("category", "") or "").lower() for k in ("result", "financial"))]
                 if results_ann:
-                    bundle.results_announcements.extend(results_ann)
-                    lines = "; ".join(f"{a['subject']} ({a['announcement_date']})" for a in results_ann[:3])
-                    bundle.context_lines.append(f"Real filed results announcements for {sym}: {lines}")
+                    bundle.results_announcements.extend({**a, "symbol": sym} for a in results_ann)   # merged into announcements below and rendered after the filter
         except Exception:
             pass
 
@@ -618,11 +653,12 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
             rows = await get_recent_announcements(sym, limit=8)
         except Exception:
             rows = []
-        if rows:
-            bundle.announcements = (bundle.announcements or []) + [r for r in rows if r not in (bundle.announcements or [])]
-            bundle.context_lines.append(
-                f"Recent real filed announcements for {sym}: " + "; ".join(f"{a.get('subject', '')} ({a.get('category', '')}, {a.get('announcement_date', '')})" for a in rows[:5])
-            )
+        have = {str(a.get("id")) for a in (bundle.announcements or [])}
+        bundle.announcements = (bundle.announcements or []) + [{**r, "symbol": sym} for r in rows if str(r.get("id")) not in have]
+
+    # results announcements are announcements too: one list, one age filter, one rendering path
+    have = {str(a.get("id")) for a in (bundle.announcements or [])}
+    bundle.announcements = (bundle.announcements or []) + [r for r in bundle.results_announcements if str(r.get("id")) not in have]
 
     # Step 2: date and relevance checks BEFORE the evidence reaches the prompt or the response.
     bundle.filter_report = evidence_filter.filter_bundle(bundle, plan, query, entities)

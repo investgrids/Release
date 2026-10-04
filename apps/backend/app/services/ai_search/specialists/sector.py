@@ -21,10 +21,11 @@ from app.services.ai_search.schema import (
     EXTRAS_GROUP,
     MONITORING_COUNT_NOTE,
     TIMELINE_GROUP,
+    CLAIM_SOURCES_GROUP,
     render_decision_group,
     render_investment_group,
 )
-from app.services.ai_search.specialists.base import PRIORITY_INSTRUCTIONS, parse_specialist_json, research_framing_rules
+from app.services.ai_search.specialists.base import PRIORITY_INSTRUCTIONS, premise_note, parse_specialist_json, research_framing_rules
 
 SPECIALIST_SYSTEM = (
     "You are a senior Indian equity sector strategist at an institutional fund. "
@@ -54,8 +55,8 @@ def build_prompt(query: str, evidence, intent_data: dict, entities: dict) -> str
     target_sector = _identify_sector(query, sector_rows)
     sector_lines = "\n".join(f"- {s['name']}: {s['value']} (1-day change, real live data)" for s in sector_rows[:12]) or "None available"
     # Phase 5E.5: deduped view — see specialists/company.py's comment.
-    evs = "\n".join(f"- [{e['category']}] {e['title']} (score:{e['impact_score']:.0f})" for e in evidence.deduped_events()[:6]) or "None"
-    pols = "\n".join(f"- {p['title']} [{p['ministry']}]" for p in evidence.policies[:4]) or "None"
+    evs = "\n".join(f"- [E{i}] [{e['category']}] {e['title']} (score:{e['impact_score']:.0f})" for i, e in enumerate(evidence.deduped_events()[:6], 1)) or "None"
+    pols = "\n".join(f"- [P{i}] {p['title']} [{p['ministry']}]" for i, p in enumerate(evidence.policies[:4], 1)) or "None"
     extra_context = evidence.to_context_text()
 
     investment_group = render_investment_group()
@@ -71,12 +72,14 @@ Real live sector performance (1-day % change, all tracked sectors — use this t
 Related policy actions (real, filed/announced): {pols}
 Related market events (real, from DB): {evs}
 {f"Additional real context: {extra_context}" if extra_context else ""}
+{premise_note(evidence)}
 
 {PRIORITY_INSTRUCTIONS}
 Return ONLY this JSON (no fences, no extra keys):
 {{
 {investment_group}
 {decision_group}
+{CLAIM_SOURCES_GROUP}
   "evidence": {{
     "what_happened": "1 factual sentence",
     "why_it_happened": "1 contextual sentence",

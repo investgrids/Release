@@ -1,0 +1,2391 @@
+[
+  {
+    "id": "CR1",
+    "type": "company_research",
+    "query": "What is the outlook for Kotak Mahindra Bank?",
+    "elapsed_s": 33.48,
+    "short_circuit": null,
+    "specialist": "company",
+    "ui_mode": "direct_company_research",
+    "intent": "general",
+    "entities": {
+      "companies": [
+        "KOTAKBANK"
+      ],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [],
+      "news": [],
+      "policies": [],
+      "announcements": [
+        {
+          "subject": "Kotak Mahindra Bank Limited has informed the Exchange about General Updates.",
+          "category": null,
+          "date": "2026-08-24T00:00:00"
+        },
+        {
+          "subject": "Kotak Mahindra Bank Limited has informed the Exchange about General Updates",
+          "category": null,
+          "date": "2026-08-18T00:00:00"
+        },
+        {
+          "subject": "Investor Presentation",
+          "category": "Kotak Mahindra Bank Limited has informed the Exchange about Investor Presentation",
+          "date": "2026-08-17T06:27:05"
+        },
+        {
+          "subject": "Kotak Mahindra Bank Limited has informed the Exchange about Investor Presentation",
+          "category": null,
+          "date": "2026-08-17T00:00:00"
+        }
+      ],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": true,
+      "context_lines": 3,
+      "context_chars": 1210,
+      "development_count": 3,
+      "source_count": 0
+    },
+    "plan_kind": "company",
+    "filter_report": {
+      "plan": "company",
+      "events": {
+        "kept": 0,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 0,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 0
+      },
+      "news": {
+        "kept": 0,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 0,
+        "dropped_undated": 0,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 0
+      },
+      "announcements": {
+        "kept": 4,
+        "dropped_stale": 0
+      },
+      "policies": {
+        "kept": 0,
+        "dropped_irrelevant": 0
+      },
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      }
+    }
+  },
+  {
+    "id": "CR2",
+    "type": "company_research",
+    "query": "How is 3M India doing as a business?",
+    "elapsed_s": 0.33,
+    "short_circuit": null,
+    "specialist": "company",
+    "ui_mode": "direct_company_research",
+    "intent": "general",
+    "entities": {
+      "companies": [
+        "3MINDIA"
+      ],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [],
+      "news": [],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": true,
+      "context_lines": 2,
+      "context_chars": 581,
+      "development_count": 0,
+      "source_count": 0
+    },
+    "plan_kind": "company",
+    "filter_report": {
+      "plan": "company",
+      "events": {
+        "kept": 0,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 0,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 0
+      },
+      "news": {
+        "kept": 0,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 0,
+        "dropped_undated": 0,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 0
+      },
+      "announcements": {
+        "kept": 0,
+        "dropped_stale": 0
+      },
+      "policies": {
+        "kept": 0,
+        "dropped_irrelevant": 0
+      },
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      }
+    }
+  },
+  {
+    "id": "CR3",
+    "type": "company_research",
+    "query": "What is happening with TCS lately?",
+    "elapsed_s": 0.31,
+    "short_circuit": null,
+    "specialist": "company",
+    "ui_mode": "direct_company_research",
+    "intent": "general",
+    "entities": {
+      "companies": [
+        "TCS"
+      ],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "US enterprise IT spending contracts for second consecutive quarter",
+          "date": "Jul 10, 2026",
+          "age_days": 85.6,
+          "source": "",
+          "impact": 7.4,
+          "tagged_symbols": [
+            "TCS",
+            "INFY",
+            "WIPRO"
+          ],
+          "about_query_company": true
+        }
+      ],
+      "news": [
+        {
+          "headline": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "published_at_raw": "18m ago",
+          "source": "Business Standard"
+        }
+      ],
+      "policies": [],
+      "announcements": [
+        {
+          "subject": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+          "category": null,
+          "date": "2026-10-01T00:00:00"
+        },
+        {
+          "subject": "Tata Consultancy Services Limited has informed the Exchange regarding a press release date",
+          "category": null,
+          "date": "2026-10-01T00:00:00"
+        }
+      ],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": true,
+      "context_lines": 3,
+      "context_chars": 1240,
+      "development_count": 4,
+      "source_count": 2
+    },
+    "plan_kind": "company",
+    "filter_report": {
+      "plan": "company",
+      "events": {
+        "kept": 1,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 0,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 0
+      },
+      "news": {
+        "kept": 1,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 0,
+        "dropped_undated": 0,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 0
+      },
+      "announcements": {
+        "kept": 2,
+        "dropped_stale": 0
+      },
+      "policies": {
+        "kept": 0,
+        "dropped_irrelevant": 0
+      },
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      }
+    }
+  },
+  {
+    "id": "EI1",
+    "type": "event_impact",
+    "query": "BEL just won a new defence order, what does this mean for the stock?",
+    "elapsed_s": 0.23,
+    "short_circuit": null,
+    "specialist": "company",
+    "ui_mode": "event_impact",
+    "intent": "news_reaction",
+    "entities": {
+      "companies": [
+        "BEL"
+      ],
+      "sectors": [
+        "defence"
+      ],
+      "policies": []
+    },
+    "evidence": {
+      "events": [],
+      "news": [],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 1,
+      "context_chars": 271,
+      "development_count": 0,
+      "source_count": 0
+    },
+    "plan_kind": "company",
+    "filter_report": {
+      "plan": "company",
+      "events": {
+        "kept": 0,
+        "dropped_stale": 1,
+        "dropped_irrelevant": 0,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 0
+      },
+      "news": {
+        "kept": 0,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 0,
+        "dropped_undated": 0,
+        "dropped_tips": 1,
+        "dropped_single_company_filing": 0
+      },
+      "announcements": {
+        "kept": 0,
+        "dropped_stale": 2
+      },
+      "policies": {
+        "kept": 0,
+        "dropped_irrelevant": 0
+      },
+      "premise": {
+        "required": true,
+        "terms": [
+          "order"
+        ],
+        "supported": false,
+        "supporting": []
+      }
+    }
+  },
+  {
+    "id": "EI2",
+    "type": "event_impact",
+    "query": "TCS just announced a new AI research center, what does this mean?",
+    "elapsed_s": 0.28,
+    "short_circuit": null,
+    "specialist": "company",
+    "ui_mode": "event_impact",
+    "intent": "news_reaction",
+    "entities": {
+      "companies": [
+        "TCS"
+      ],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [],
+      "news": [
+        {
+          "headline": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "published_at_raw": "18m ago",
+          "source": "Business Standard"
+        }
+      ],
+      "policies": [],
+      "announcements": [
+        {
+          "subject": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+          "category": null,
+          "date": "2026-10-01T00:00:00"
+        },
+        {
+          "subject": "Tata Consultancy Services Limited has informed the Exchange regarding a press release date",
+          "category": null,
+          "date": "2026-10-01T00:00:00"
+        }
+      ],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 1,
+      "context_chars": 652,
+      "development_count": 3,
+      "source_count": 1
+    },
+    "plan_kind": "company",
+    "filter_report": {
+      "plan": "company",
+      "events": {
+        "kept": 0,
+        "dropped_stale": 1,
+        "dropped_irrelevant": 0,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 0
+      },
+      "news": {
+        "kept": 1,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 0,
+        "dropped_undated": 0,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 0
+      },
+      "announcements": {
+        "kept": 2,
+        "dropped_stale": 0
+      },
+      "policies": {
+        "kept": 0,
+        "dropped_irrelevant": 0
+      },
+      "premise": {
+        "required": true,
+        "terms": [
+          "research center"
+        ],
+        "supported": false,
+        "supporting": []
+      }
+    }
+  },
+  {
+    "id": "EI3",
+    "type": "event_impact",
+    "query": "Banking sector just reported stronger credit growth, what is the impact?",
+    "elapsed_s": 0.7,
+    "short_circuit": null,
+    "specialist": "sector",
+    "ui_mode": "event_impact",
+    "intent": "news_reaction",
+    "entities": {
+      "companies": [],
+      "sectors": [
+        "banking"
+      ],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "RBI Remains Cautious On Crypto, Backs Underlying Technology: Governor Sanjay Malhotra",
+          "date": "Oct 03, 2026",
+          "age_days": 0.6,
+          "source": "NDTV Profit",
+          "impact": 68.2,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+          "date": "Aug 14, 2026",
+          "age_days": 50.8,
+          "source": "Economic Times",
+          "impact": 62.4,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "RBI to close FCNR(B) swaps a month earlier due to gush",
+          "date": "Aug 15, 2026",
+          "age_days": 49.8,
+          "source": "Economic Times",
+          "impact": 61.6,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-",
+          "date": "Aug 12, 2026",
+          "age_days": 52.3,
+          "source": "NSE",
+          "impact": 58.2,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "Economic Times",
+          "impact": 57.1,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+          "date": "Aug 14, 2026",
+          "age_days": 50.5,
+          "source": "Economic Times",
+          "impact": 55.3,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+          "date": "Aug 12, 2026",
+          "age_days": 52.3,
+          "source": "Economic Times",
+          "impact": 51.3,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Pursuant to the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015 and the Code of Fair ",
+          "date": "Oct 03, 2026",
+          "age_days": 0.4,
+          "source": "NSE",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        }
+      ],
+      "news": [
+        {
+          "headline": "Yes Bank Q2 Business Update: Deposits And Loans Grow Nearly 24% With Slight Decline In CASA Ratio",
+          "published_at_raw": "15m ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "headline": "RBI MPC policy, oil prices, bond yields may drive market this week - Business Standard",
+          "published_at_raw": "18m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "published_at_raw": "18m ago",
+          "source": "Business Standard"
+        },
+        {
+          "headline": "RBI Repo Rate May Climb To 6% In FY27 As G-Sec Yields Face Upward Pressure: Report",
+          "published_at_raw": "2h ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "headline": "Rate cut cycle near turning point. What lies ahead for Indian bonds?",
+          "published_at_raw": "2h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "RBI's dollar inflow measures buy time, but external risks remain",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch - Business Today",
+          "published_at_raw": "11m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses - BusinessLine",
+          "published_at_raw": "46m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Zerodha now wants to enter investment banking space, seeks Sebi nod",
+          "published_at_raw": "12m ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most activ",
+          "published_at_raw": "7m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Kotak Mahindra Bank, HDFC Bank, DCX Systems, among buzzing stocks as SENSEX falls over 350 pts, NIFTY below 24",
+          "published_at_raw": "1h ago",
+          "source": "Google News"
+        }
+      ],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [
+        {
+          "name": "IT",
+          "value": "+1.7%"
+        },
+        {
+          "name": "Banking",
+          "value": "-0.4%"
+        },
+        {
+          "name": "Pharma",
+          "value": "-0.1%"
+        },
+        {
+          "name": "Auto",
+          "value": "-3.2%"
+        },
+        {
+          "name": "Energy",
+          "value": "-0.9%"
+        },
+        {
+          "name": "FMCG",
+          "value": "-1.6%"
+        },
+        {
+          "name": "Infra",
+          "value": "-0.9%"
+        },
+        {
+          "name": "Metal",
+          "value": "-2.2%"
+        },
+        {
+          "name": "Realty",
+          "value": "-0.6%"
+        },
+        {
+          "name": "PSU Bank",
+          "value": "-0.7%"
+        },
+        {
+          "name": "Private Bank",
+          "value": "+1.3%"
+        }
+      ],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 2,
+      "context_chars": 373,
+      "development_count": 18,
+      "source_count": 19
+    },
+    "plan_kind": "topic",
+    "filter_report": {
+      "plan": "topic",
+      "events": {
+        "kept": 8,
+        "dropped_stale": 5,
+        "dropped_irrelevant": 3,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 14
+      },
+      "news": {
+        "kept": 11,
+        "dropped_stale": 8,
+        "dropped_irrelevant": 0,
+        "dropped_undated": 0,
+        "dropped_tips": 1,
+        "dropped_single_company_filing": 0
+      },
+      "announcements": {
+        "kept": 0,
+        "dropped_stale": 0
+      },
+      "policies": {
+        "kept": 0,
+        "dropped_irrelevant": 0
+      },
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      }
+    }
+  },
+  {
+    "id": "SR1",
+    "type": "sector_research",
+    "query": "How is the banking sector doing right now?",
+    "elapsed_s": 0.25,
+    "short_circuit": null,
+    "specialist": "sector",
+    "ui_mode": "sector_theme_research",
+    "intent": "general",
+    "entities": {
+      "companies": [],
+      "sectors": [
+        "banking"
+      ],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "RBI Remains Cautious On Crypto, Backs Underlying Technology: Governor Sanjay Malhotra",
+          "date": "Oct 03, 2026",
+          "age_days": 0.6,
+          "source": "NDTV Profit",
+          "impact": 68.2,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+          "date": "Aug 14, 2026",
+          "age_days": 50.8,
+          "source": "Economic Times",
+          "impact": 62.4,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "RBI to close FCNR(B) swaps a month earlier due to gush",
+          "date": "Aug 15, 2026",
+          "age_days": 49.8,
+          "source": "Economic Times",
+          "impact": 61.6,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-",
+          "date": "Aug 12, 2026",
+          "age_days": 52.3,
+          "source": "NSE",
+          "impact": 58.2,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "Economic Times",
+          "impact": 57.1,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+          "date": "Aug 14, 2026",
+          "age_days": 50.5,
+          "source": "Economic Times",
+          "impact": 55.3,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+          "date": "Aug 12, 2026",
+          "age_days": 52.3,
+          "source": "Economic Times",
+          "impact": 51.3,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Pursuant to the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015 and the Code of Fair ",
+          "date": "Oct 03, 2026",
+          "age_days": 0.4,
+          "source": "NSE",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        }
+      ],
+      "news": [
+        {
+          "headline": "Yes Bank Q2 Business Update: Deposits And Loans Grow Nearly 24% With Slight Decline In CASA Ratio",
+          "published_at_raw": "15m ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "headline": "RBI MPC policy, oil prices, bond yields may drive market this week - Business Standard",
+          "published_at_raw": "18m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "published_at_raw": "18m ago",
+          "source": "Business Standard"
+        },
+        {
+          "headline": "RBI Repo Rate May Climb To 6% In FY27 As G-Sec Yields Face Upward Pressure: Report",
+          "published_at_raw": "2h ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "headline": "Rate cut cycle near turning point. What lies ahead for Indian bonds?",
+          "published_at_raw": "2h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "RBI's dollar inflow measures buy time, but external risks remain",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch - Business Today",
+          "published_at_raw": "11m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses - BusinessLine",
+          "published_at_raw": "46m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Zerodha now wants to enter investment banking space, seeks Sebi nod",
+          "published_at_raw": "12m ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most activ",
+          "published_at_raw": "7m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Kotak Mahindra Bank, HDFC Bank, DCX Systems, among buzzing stocks as SENSEX falls over 350 pts, NIFTY below 24",
+          "published_at_raw": "1h ago",
+          "source": "Google News"
+        }
+      ],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [
+        {
+          "name": "IT",
+          "value": "+1.7%"
+        },
+        {
+          "name": "Banking",
+          "value": "-0.4%"
+        },
+        {
+          "name": "Pharma",
+          "value": "-0.1%"
+        },
+        {
+          "name": "Auto",
+          "value": "-3.2%"
+        },
+        {
+          "name": "Energy",
+          "value": "-0.9%"
+        },
+        {
+          "name": "FMCG",
+          "value": "-1.6%"
+        },
+        {
+          "name": "Infra",
+          "value": "-0.9%"
+        },
+        {
+          "name": "Metal",
+          "value": "-2.2%"
+        },
+        {
+          "name": "Realty",
+          "value": "-0.6%"
+        },
+        {
+          "name": "PSU Bank",
+          "value": "-0.7%"
+        },
+        {
+          "name": "Private Bank",
+          "value": "+1.3%"
+        }
+      ],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 2,
+      "context_chars": 373,
+      "development_count": 18,
+      "source_count": 19
+    },
+    "plan_kind": "topic",
+    "filter_report": {
+      "plan": "topic",
+      "events": {
+        "kept": 8,
+        "dropped_stale": 5,
+        "dropped_irrelevant": 3,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 14
+      },
+      "news": {
+        "kept": 11,
+        "dropped_stale": 8,
+        "dropped_irrelevant": 0,
+        "dropped_undated": 0,
+        "dropped_tips": 1,
+        "dropped_single_company_filing": 0
+      },
+      "announcements": {
+        "kept": 0,
+        "dropped_stale": 0
+      },
+      "policies": {
+        "kept": 0,
+        "dropped_irrelevant": 0
+      },
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      }
+    }
+  },
+  {
+    "id": "SR2",
+    "type": "sector_research",
+    "query": "What is the outlook for the IT services sector?",
+    "elapsed_s": 0.3,
+    "short_circuit": null,
+    "specialist": "sector",
+    "ui_mode": "sector_theme_research",
+    "intent": "general",
+    "entities": {
+      "companies": [],
+      "sectors": [
+        "it"
+      ],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "TCS, Infosys, Wipro shares ahead of Q2 results: Explained | What Accenture's strong earnings mean for Indian I",
+          "date": "Oct 03, 2026",
+          "age_days": 0.5,
+          "source": "Livemint",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "IT Q2 Results Dates: When TCS, Infosys, Wipro, HCLTech, Tech Mahindra Will Report FY27 Earnings",
+          "date": "Oct 03, 2026",
+          "age_days": 0.7,
+          "source": "NDTV Profit",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Accenture Shares Jump Record 22% On Earnings Boost; Infosys, Wipro ADRs Spike Up To 10%",
+          "date": "Oct 01, 2026",
+          "age_days": 2.4,
+          "source": "NDTV Profit",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Infosys, Wipro ADRs jump up to 10% after Accenture Q4 results beat Wall Street estimates",
+          "date": "Oct 01, 2026",
+          "age_days": 2.5,
+          "source": "Livemint",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Infosys, Wipro ADRs Spike Over 8% Pre-Market As Solid Accenture Earnings Boosts IT Outlook",
+          "date": "Oct 01, 2026",
+          "age_days": 2.5,
+          "source": "NDTV Profit",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Nifty IT crashes 11% in September: TCS, Infosys, Wipro among top losers — Can Q2 earnings spark a rebound?",
+          "date": "Oct 01, 2026",
+          "age_days": 2.5,
+          "source": "Livemint",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Infosys, Wipro ADRs soar up to 8% as strong Accenture earnings forecast lifts mood",
+          "date": "Oct 01, 2026",
+          "age_days": 2.5,
+          "source": "Economic Times",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Nifty IT jumps 2%; Mphasis, Coforge, Infosys, TCS among top gainers - Reason behind the rally, Q2 results expe",
+          "date": "Oct 01, 2026",
+          "age_days": 2.5,
+          "source": "Livemint",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        }
+      ],
+      "news": [
+        {
+          "headline": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "published_at_raw": "18m ago",
+          "source": "Business Standard"
+        },
+        {
+          "headline": "IT Q2 preview: Muted growth, steady margins likely; deal conversion, AI deflation in focus",
+          "published_at_raw": "31m ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Weekly Market Wrap: NIFTY50, SENSEX end lower as metal, IT indices fall 4%; Infosys leads losses - Upstox",
+          "published_at_raw": "1d ago",
+          "source": "Google News"
+        }
+      ],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [
+        {
+          "name": "IT",
+          "value": "+1.7%"
+        },
+        {
+          "name": "Banking",
+          "value": "-0.4%"
+        },
+        {
+          "name": "Pharma",
+          "value": "-0.1%"
+        },
+        {
+          "name": "Auto",
+          "value": "-3.2%"
+        },
+        {
+          "name": "Energy",
+          "value": "-0.9%"
+        },
+        {
+          "name": "FMCG",
+          "value": "-1.6%"
+        },
+        {
+          "name": "Infra",
+          "value": "-0.9%"
+        },
+        {
+          "name": "Metal",
+          "value": "-2.2%"
+        },
+        {
+          "name": "Realty",
+          "value": "-0.6%"
+        },
+        {
+          "name": "PSU Bank",
+          "value": "-0.7%"
+        },
+        {
+          "name": "Private Bank",
+          "value": "+1.3%"
+        }
+      ],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 2,
+      "context_chars": 389,
+      "development_count": 11,
+      "source_count": 11
+    },
+    "plan_kind": "topic",
+    "filter_report": {
+      "plan": "topic",
+      "events": {
+        "kept": 8,
+        "dropped_stale": 1,
+        "dropped_irrelevant": 0,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 21
+      },
+      "news": {
+        "kept": 3,
+        "dropped_stale": 15,
+        "dropped_irrelevant": 1,
+        "dropped_undated": 0,
+        "dropped_tips": 1,
+        "dropped_single_company_filing": 0
+      },
+      "announcements": {
+        "kept": 0,
+        "dropped_stale": 0
+      },
+      "policies": {
+        "kept": 0,
+        "dropped_irrelevant": 0
+      },
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      }
+    }
+  },
+  {
+    "id": "SR3",
+    "type": "sector_research",
+    "query": "Which sectors look weak in the market at the moment?",
+    "elapsed_s": 0.27,
+    "short_circuit": null,
+    "specialist": "sector",
+    "ui_mode": "sector_theme_research",
+    "intent": "general",
+    "entities": {
+      "companies": [],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [],
+      "news": [],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [
+        {
+          "name": "IT",
+          "value": "+1.7%"
+        },
+        {
+          "name": "Banking",
+          "value": "-0.4%"
+        },
+        {
+          "name": "Pharma",
+          "value": "-0.1%"
+        },
+        {
+          "name": "Auto",
+          "value": "-3.2%"
+        },
+        {
+          "name": "Energy",
+          "value": "-0.9%"
+        },
+        {
+          "name": "FMCG",
+          "value": "-1.6%"
+        },
+        {
+          "name": "Infra",
+          "value": "-0.9%"
+        },
+        {
+          "name": "Metal",
+          "value": "-2.2%"
+        },
+        {
+          "name": "Realty",
+          "value": "-0.6%"
+        },
+        {
+          "name": "PSU Bank",
+          "value": "-0.7%"
+        },
+        {
+          "name": "Private Bank",
+          "value": "+1.3%"
+        }
+      ],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 2,
+      "context_chars": 389,
+      "development_count": 0,
+      "source_count": 0
+    },
+    "plan_kind": "topic",
+    "filter_report": {
+      "plan": "topic",
+      "events": {
+        "kept": 0,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 25,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 5
+      },
+      "news": {
+        "kept": 0,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 18,
+        "dropped_undated": 0,
+        "dropped_tips": 2,
+        "dropped_single_company_filing": 0
+      },
+      "announcements": {
+        "kept": 0,
+        "dropped_stale": 0
+      },
+      "policies": {
+        "kept": 0,
+        "dropped_irrelevant": 0
+      },
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      }
+    }
+  },
+  {
+    "id": "MP1",
+    "type": "macro_policy",
+    "query": "What happens to Indian banks if the RBI cuts the repo rate?",
+    "elapsed_s": 2.61,
+    "short_circuit": null,
+    "specialist": "company",
+    "ui_mode": "policy_macro_impact",
+    "intent": "general",
+    "entities": {
+      "companies": [],
+      "sectors": [
+        "banking"
+      ],
+      "policies": [
+        "rbi",
+        "repo rate"
+      ]
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "RBI Remains Cautious On Crypto, Backs Underlying Technology: Governor Sanjay Malhotra",
+          "date": "Oct 03, 2026",
+          "age_days": 0.6,
+          "source": "NDTV Profit",
+          "impact": 68.2,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+          "date": "Aug 14, 2026",
+          "age_days": 50.8,
+          "source": "Economic Times",
+          "impact": 62.4,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "RBI to close FCNR(B) swaps a month earlier due to gush",
+          "date": "Aug 15, 2026",
+          "age_days": 49.8,
+          "source": "Economic Times",
+          "impact": 61.6,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-",
+          "date": "Aug 12, 2026",
+          "age_days": 52.3,
+          "source": "NSE",
+          "impact": 58.2,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "Economic Times",
+          "impact": 57.1,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+          "date": "Aug 14, 2026",
+          "age_days": 50.5,
+          "source": "Economic Times",
+          "impact": 55.3,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Federal Reserve announces the leadership and objectives of its task forces to advance the conduct of monetary ",
+          "date": "Aug 13, 2026",
+          "age_days": 51.4,
+          "source": "Fed",
+          "impact": 51.3,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+          "date": "Aug 12, 2026",
+          "age_days": 52.3,
+          "source": "Economic Times",
+          "impact": 51.3,
+          "tagged_symbols": [],
+          "about_query_company": null
+        }
+      ],
+      "news": [
+        {
+          "headline": "Yes Bank Q2 Business Update: Deposits And Loans Grow Nearly 24% With Slight Decline In CASA Ratio",
+          "published_at_raw": "15m ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "headline": "RBI MPC policy, oil prices, bond yields may drive market this week - Business Standard",
+          "published_at_raw": "18m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "published_at_raw": "18m ago",
+          "source": "Business Standard"
+        },
+        {
+          "headline": "RBI Repo Rate May Climb To 6% In FY27 As G-Sec Yields Face Upward Pressure: Report",
+          "published_at_raw": "2h ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "headline": "Rate cut cycle near turning point. What lies ahead for Indian bonds?",
+          "published_at_raw": "2h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "RBI's dollar inflow measures buy time, but external risks remain",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch - Business Today",
+          "published_at_raw": "11m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "US Stock Market: Wall Street eyes jobs data as rate hike bets and tech volatility intensify",
+          "published_at_raw": "21m ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses - BusinessLine",
+          "published_at_raw": "46m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Zerodha now wants to enter investment banking space, seeks Sebi nod",
+          "published_at_raw": "12m ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most activ",
+          "published_at_raw": "7m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Kotak Mahindra Bank, HDFC Bank, DCX Systems, among buzzing stocks as SENSEX falls over 350 pts, NIFTY below 24",
+          "published_at_raw": "1h ago",
+          "source": "Google News"
+        }
+      ],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [
+        {
+          "title": "",
+          "similarity": 33.6
+        },
+        {
+          "title": "",
+          "similarity": 33.1
+        },
+        {
+          "title": "",
+          "similarity": 33.1
+        },
+        {
+          "title": "",
+          "similarity": 33.1
+        },
+        {
+          "title": "",
+          "similarity": 33.1
+        }
+      ],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [
+        "NIFTY 50",
+        "SENSEX",
+        "BANK NIFTY",
+        "INDIA VIX"
+      ],
+      "company_story": false,
+      "context_lines": 3,
+      "context_chars": 2583,
+      "development_count": 19,
+      "source_count": 20
+    },
+    "plan_kind": "topic",
+    "filter_report": {
+      "plan": "topic",
+      "events": {
+        "kept": 8,
+        "dropped_stale": 4,
+        "dropped_irrelevant": 12,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 6
+      },
+      "news": {
+        "kept": 12,
+        "dropped_stale": 7,
+        "dropped_irrelevant": 0,
+        "dropped_undated": 0,
+        "dropped_tips": 1,
+        "dropped_single_company_filing": 0
+      },
+      "announcements": {
+        "kept": 0,
+        "dropped_stale": 0
+      },
+      "policies": {
+        "kept": 0,
+        "dropped_irrelevant": 1
+      },
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      }
+    }
+  },
+  {
+    "id": "MP2",
+    "type": "macro_policy",
+    "query": "How would higher crude oil prices affect Indian markets?",
+    "elapsed_s": 0.27,
+    "short_circuit": null,
+    "specialist": "company",
+    "ui_mode": "direct_company_research",
+    "intent": "general",
+    "entities": {
+      "companies": [],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "Week Ahead On D-Street: US Fed Minutes, FPI Inflows, Crude Oil Prices, US-Iran Conflict To Drive Sensex, Nifty",
+          "date": "Aug 16, 2026",
+          "age_days": 48.5,
+          "source": "NDTV Profit",
+          "impact": 62.2,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Week Ahead On D-Street: US Fed Minutes, Crude Oil Prices, US-Iran Conflict To Drive Sensex, Nifty",
+          "date": "Aug 16, 2026",
+          "age_days": 48.6,
+          "source": "NDTV Profit",
+          "impact": 49.3,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Pulse of the Street: Eight-week slide puts RBI, earnings in focus",
+          "date": "Oct 01, 2026",
+          "age_days": 2.4,
+          "source": "Livemint",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Gold price extends gains despite US Fed rate hike: Should investors chase the rally? Key outlook explained",
+          "date": "Sep 18, 2026",
+          "age_days": 15.4,
+          "source": "Livemint",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "RBI Rate Hike Bets Rise After US Fed Move: Why October Policy Is Now A Close Call",
+          "date": "Sep 18, 2026",
+          "age_days": 15.4,
+          "source": "NDTV Profit",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "How will Nifty, Sensex behave on Monday? US Fed rate hike bets, among 4 factors to drive D-Street action",
+          "date": "Sep 06, 2026",
+          "age_days": 27.4,
+          "source": "Economic Times",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Oil Price Today (September 2): Crude oil nears $97 as war tensions escalate. Will it hit $100 again?",
+          "date": "Sep 02, 2026",
+          "age_days": 31.9,
+          "source": "Economic Times",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "RBI intervention, dollar flows push Indian rupee to two-month peak",
+          "date": "Sep 01, 2026",
+          "age_days": 32.5,
+          "source": "Economic Times",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Rain Industries share price: Petrochemical stock jumps 4% amid soaring crude oil prices on US-Iran war",
+          "date": "Aug 24, 2026",
+          "age_days": 40.7,
+          "source": "Livemint",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Nvidia Earnings, Jackson Hole, US Oil Inventories, India's PPI — The Week Ahead",
+          "date": "Aug 23, 2026",
+          "age_days": 41.9,
+          "source": "NDTV Profit",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        }
+      ],
+      "news": [
+        {
+          "headline": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "published_at_raw": "18m ago",
+          "source": "Business Standard"
+        },
+        {
+          "headline": "FPIs Offload Over Rs 35,000 Crore Worth Indian Equities In Sept: Five Key Factors Behind Selloff",
+          "published_at_raw": "1h ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "headline": "Foreign investors are short on Indian markets as global risks weigh",
+          "published_at_raw": "1h ago",
+          "source": "Business Standard"
+        },
+        {
+          "headline": "What will bring foreign investors back to Indian stock market? 5 things that should go right",
+          "published_at_raw": "2h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Nifty and Sensex post weekly gains as crude oil prices decline - Telangana Today",
+          "published_at_raw": "1d ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Sensex, Nifty open flat as crude stays low, FII mood improves - India Today",
+          "published_at_raw": "26m ago",
+          "source": "Google News"
+        }
+      ],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [
+        {
+          "title": "",
+          "similarity": 30.0
+        }
+      ],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [
+        "NIFTY 50",
+        "SENSEX",
+        "BANK NIFTY",
+        "INDIA VIX"
+      ],
+      "company_story": false,
+      "context_lines": 3,
+      "context_chars": 965,
+      "development_count": 15,
+      "source_count": 16
+    },
+    "plan_kind": "topic",
+    "filter_report": {
+      "plan": "topic",
+      "events": {
+        "kept": 12,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 7,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 1
+      },
+      "news": {
+        "kept": 6,
+        "dropped_stale": 7,
+        "dropped_irrelevant": 6,
+        "dropped_undated": 0,
+        "dropped_tips": 1,
+        "dropped_single_company_filing": 0
+      },
+      "announcements": {
+        "kept": 0,
+        "dropped_stale": 0
+      },
+      "policies": {
+        "kept": 0,
+        "dropped_irrelevant": 0
+      },
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      }
+    }
+  },
+  {
+    "id": "MP3",
+    "type": "macro_policy",
+    "query": "How would a weaker rupee affect Indian IT exporters?",
+    "elapsed_s": 0.28,
+    "short_circuit": null,
+    "specialist": "company",
+    "ui_mode": "direct_company_research",
+    "intent": "general",
+    "entities": {
+      "companies": [],
+      "sectors": [
+        "it"
+      ],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "Economic Times",
+          "impact": 57.1,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+          "date": "Aug 14, 2026",
+          "age_days": 50.5,
+          "source": "Economic Times",
+          "impact": 55.3,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+          "date": "Aug 12, 2026",
+          "age_days": 52.3,
+          "source": "Economic Times",
+          "impact": 51.3,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "TCS, Infosys, Wipro shares ahead of Q2 results: Explained | What Accenture's strong earnings mean for Indian I",
+          "date": "Oct 03, 2026",
+          "age_days": 0.5,
+          "source": "Livemint",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "IT Q2 Results Dates: When TCS, Infosys, Wipro, HCLTech, Tech Mahindra Will Report FY27 Earnings",
+          "date": "Oct 03, 2026",
+          "age_days": 0.7,
+          "source": "NDTV Profit",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "India's forex reserves fall $18.3 bn as RBI steps in to defend rupee",
+          "date": "Oct 03, 2026",
+          "age_days": 0.7,
+          "source": "Economic Times",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Accenture Shares Jump Record 22% On Earnings Boost; Infosys, Wipro ADRs Spike Up To 10%",
+          "date": "Oct 01, 2026",
+          "age_days": 2.4,
+          "source": "NDTV Profit",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Infosys, Wipro ADRs jump up to 10% after Accenture Q4 results beat Wall Street estimates",
+          "date": "Oct 01, 2026",
+          "age_days": 2.5,
+          "source": "Livemint",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Infosys, Wipro ADRs Spike Over 8% Pre-Market As Solid Accenture Earnings Boosts IT Outlook",
+          "date": "Oct 01, 2026",
+          "age_days": 2.5,
+          "source": "NDTV Profit",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Nifty IT crashes 11% in September: TCS, Infosys, Wipro among top losers — Can Q2 earnings spark a rebound?",
+          "date": "Oct 01, 2026",
+          "age_days": 2.5,
+          "source": "Livemint",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        }
+      ],
+      "news": [
+        {
+          "headline": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "published_at_raw": "18m ago",
+          "source": "Business Standard"
+        },
+        {
+          "headline": "IT Q2 preview: Muted growth, steady margins likely; deal conversion, AI deflation in focus",
+          "published_at_raw": "31m ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "What will bring foreign investors back to Indian stock market? 5 things that should go right",
+          "published_at_raw": "2h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "RBI's dollar inflow measures buy time, but external risks remain",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Weekly Market Wrap: NIFTY50, SENSEX end lower as metal, IT indices fall 4%; Infosys leads losses - Upstox",
+          "published_at_raw": "1d ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Rupee treads water, traders await range break to gauge directional trend",
+          "published_at_raw": "31m ago",
+          "source": "Economic Times"
+        }
+      ],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [
+        "NIFTY 50",
+        "SENSEX",
+        "BANK NIFTY",
+        "INDIA VIX"
+      ],
+      "company_story": false,
+      "context_lines": 2,
+      "context_chars": 455,
+      "development_count": 16,
+      "source_count": 16
+    },
+    "plan_kind": "topic",
+    "filter_report": {
+      "plan": "topic",
+      "events": {
+        "kept": 15,
+        "dropped_stale": 1,
+        "dropped_irrelevant": 1,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 13
+      },
+      "news": {
+        "kept": 6,
+        "dropped_stale": 11,
+        "dropped_irrelevant": 2,
+        "dropped_undated": 0,
+        "dropped_tips": 1,
+        "dropped_single_company_filing": 0
+      },
+      "announcements": {
+        "kept": 0,
+        "dropped_stale": 0
+      },
+      "policies": {
+        "kept": 0,
+        "dropped_irrelevant": 0
+      },
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      }
+    }
+  },
+  {
+    "id": "CC1",
+    "type": "company_comparison",
+    "query": "TCS vs Infosys, which is stronger?",
+    "elapsed_s": 1.25,
+    "short_circuit": null,
+    "specialist": "comparison",
+    "ui_mode": "company_comparison",
+    "intent": "compare",
+    "entities": {
+      "companies": [
+        "TCS",
+        "INFY"
+      ],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "US enterprise IT spending contracts for second consecutive quarter",
+          "date": "Jul 10, 2026",
+          "age_days": 85.6,
+          "source": "",
+          "impact": 7.4,
+          "tagged_symbols": [
+            "TCS",
+            "INFY",
+            "WIPRO"
+          ],
+          "about_query_company": true
+        }
+      ],
+      "news": [
+        {
+          "headline": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "published_at_raw": "18m ago",
+          "source": "Business Standard"
+        }
+      ],
+      "policies": [],
+      "announcements": [
+        {
+          "subject": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+          "category": null,
+          "date": "2026-10-01T00:00:00"
+        },
+        {
+          "subject": "Tata Consultancy Services Limited has informed the Exchange regarding a press release date",
+          "category": null,
+          "date": "2026-10-01T00:00:00"
+        },
+        {
+          "subject": "Infosys Limited has informed the Exchange regarding 'Infosys and Columbia University Launc",
+          "category": null,
+          "date": "2026-10-01T00:00:00"
+        },
+        {
+          "subject": "Infosys Limited has informed the Exchange regarding 'Investor Conference'.",
+          "category": null,
+          "date": "2026-09-01T00:00:00"
+        },
+        {
+          "subject": "Infosys Limited has informed the Exchange regarding Allotment of 175865  Shares.",
+          "category": null,
+          "date": "2026-08-24T00:00:00"
+        },
+        {
+          "subject": "Infosys Limited has informed the Exchange about change in Management",
+          "category": null,
+          "date": "2026-08-24T00:00:00"
+        }
+      ],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [
+        "INFY",
+        "TCS"
+      ],
+      "valuation": {
+        "TCS": {
+          "pe": 15.1,
+          "pb": 6.85
+        },
+        "INFY": {
+          "pe": 13.3,
+          "pb": 4.54
+        }
+      },
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 3,
+      "context_chars": 1296,
+      "development_count": 8,
+      "source_count": 2
+    },
+    "plan_kind": "comparison",
+    "filter_report": {
+      "plan": "comparison",
+      "events": {
+        "kept": 1,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 0,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 0
+      },
+      "news": {
+        "kept": 1,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 0,
+        "dropped_undated": 0,
+        "dropped_tips": 1,
+        "dropped_single_company_filing": 0
+      },
+      "announcements": {
+        "kept": 6,
+        "dropped_stale": 0
+      },
+      "policies": {
+        "kept": 0,
+        "dropped_irrelevant": 0
+      },
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      }
+    }
+  },
+  {
+    "id": "CC2",
+    "type": "company_comparison",
+    "query": "Compare HDFC Bank and ICICI Bank.",
+    "elapsed_s": 1.19,
+    "short_circuit": null,
+    "specialist": "comparison",
+    "ui_mode": "company_comparison",
+    "intent": "compare",
+    "entities": {
+      "companies": [
+        "HDFCBANK",
+        "ICICIBANK"
+      ],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [],
+      "news": [],
+      "policies": [],
+      "announcements": [
+        {
+          "subject": "HDFC Bank Limited has informed the Exchange about General Updates",
+          "category": null,
+          "date": "2026-08-24T00:00:00"
+        },
+        {
+          "subject": "ICICI Bank Limited has informed the Exchange about Disclosure under Regulation 30 of the S",
+          "category": null,
+          "date": "2026-09-02T00:00:00"
+        },
+        {
+          "subject": "ICICI Bank Limited has informed the Exchange regarding Allotment of 598493  Shares.",
+          "category": null,
+          "date": "2026-09-01T00:00:00"
+        },
+        {
+          "subject": "ICICI Bank Limited has informed the Exchange about Credit Rating",
+          "category": null,
+          "date": "2026-09-01T00:00:00"
+        },
+        {
+          "subject": "ICICI Bank Limited has informed the Exchange about disclosure under Regulation 30 read wit",
+          "category": null,
+          "date": "2026-08-24T00:00:00"
+        },
+        {
+          "subject": "ICICI Bank Limited has informed the Exchange regarding Allotment of 181843 Equity Shares u",
+          "category": null,
+          "date": "2026-08-24T00:00:00"
+        }
+      ],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [
+        "HDFCBANK",
+        "ICICIBANK"
+      ],
+      "valuation": {
+        "HDFCBANK": {
+          "pe": 15.8,
+          "pb": 1.83
+        },
+        "ICICIBANK": {
+          "pe": 16.9,
+          "pb": 2.47
+        }
+      },
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 3,
+      "context_chars": 1373,
+      "development_count": 6,
+      "source_count": 0
+    },
+    "plan_kind": "comparison",
+    "filter_report": {
+      "plan": "comparison",
+      "events": {
+        "kept": 0,
+        "dropped_stale": 1,
+        "dropped_irrelevant": 0,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 0
+      },
+      "news": {
+        "kept": 0,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 0,
+        "dropped_undated": 0,
+        "dropped_tips": 1,
+        "dropped_single_company_filing": 0
+      },
+      "announcements": {
+        "kept": 6,
+        "dropped_stale": 0
+      },
+      "policies": {
+        "kept": 0,
+        "dropped_irrelevant": 0
+      },
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      }
+    }
+  },
+  {
+    "id": "CC3",
+    "type": "company_comparison",
+    "query": "I hold BEL. Should I switch to HAL?",
+    "elapsed_s": 1.17,
+    "short_circuit": null,
+    "specialist": "comparison",
+    "ui_mode": "switch_analysis",
+    "intent": "switch",
+    "entities": {
+      "companies": [
+        "HAL",
+        "BEL"
+      ],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "Defence capital expenditure raised by Rs. 45,000 Cr in revised estimates",
+          "date": "Jul 08, 2026",
+          "age_days": 87.6,
+          "source": "",
+          "impact": 9.1,
+          "tagged_symbols": [
+            "BEL",
+            "HAL",
+            "BHARATFORG"
+          ],
+          "about_query_company": true
+        }
+      ],
+      "news": [],
+      "policies": [],
+      "announcements": [
+        {
+          "subject": "Newspaper Publication   Addendum to the Notice of the 72nd Annual General Meeting (AGM) of",
+          "category": null,
+          "date": "2026-08-19T00:00:00"
+        },
+        {
+          "subject": "Addendum to the Notice of the 72nd Annual General Meeting of the Company scheduled to be h",
+          "category": null,
+          "date": "2026-08-18T00:00:00"
+        }
+      ],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [
+        "BEL",
+        "HAL"
+      ],
+      "valuation": {
+        "HAL": {
+          "pe": 33.0,
+          "pb": 7.5
+        },
+        "BEL": {
+          "pe": 45.7,
+          "pb": 11.67
+        }
+      },
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 3,
+      "context_chars": 559,
+      "development_count": 2,
+      "source_count": 1
+    },
+    "plan_kind": "comparison",
+    "filter_report": {
+      "plan": "comparison",
+      "events": {
+        "kept": 1,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 0,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 0
+      },
+      "news": {
+        "kept": 0,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 0,
+        "dropped_undated": 0,
+        "dropped_tips": 1,
+        "dropped_single_company_filing": 0
+      },
+      "announcements": {
+        "kept": 2,
+        "dropped_stale": 0
+      },
+      "policies": {
+        "kept": 0,
+        "dropped_irrelevant": 0
+      },
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      }
+    }
+  },
+  {
+    "id": "GE1",
+    "type": "general_explanation",
+    "query": "What is a P/E ratio and how should I read it?",
+    "elapsed_s": 0.14,
+    "short_circuit": null,
+    "specialist": "company",
+    "ui_mode": "direct_company_research",
+    "intent": "decision",
+    "entities": {
+      "companies": [],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [],
+      "news": [],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 1,
+      "context_chars": 271,
+      "development_count": 0,
+      "source_count": 0
+    },
+    "plan_kind": "explanation",
+    "filter_report": {
+      "plan": "explanation",
+      "events": {
+        "kept": 0,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 0,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 0
+      },
+      "news": {
+        "kept": 0,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 0,
+        "dropped_undated": 0,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 0
+      },
+      "announcements": {
+        "kept": 0,
+        "dropped_stale": 0
+      },
+      "policies": {
+        "kept": 0,
+        "dropped_irrelevant": 0
+      },
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      }
+    }
+  },
+  {
+    "id": "GE2",
+    "type": "general_explanation",
+    "query": "What does FII selling mean for the Indian market?",
+    "elapsed_s": 0.16,
+    "short_circuit": null,
+    "specialist": "company",
+    "ui_mode": "direct_company_research",
+    "intent": "general",
+    "entities": {
+      "companies": [],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [],
+      "news": [],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [
+        "NIFTY 50",
+        "SENSEX",
+        "BANK NIFTY",
+        "INDIA VIX"
+      ],
+      "company_story": false,
+      "context_lines": 2,
+      "context_chars": 455,
+      "development_count": 0,
+      "source_count": 0
+    },
+    "plan_kind": "explanation",
+    "filter_report": {
+      "plan": "explanation",
+      "events": {
+        "kept": 0,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 0,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 0
+      },
+      "news": {
+        "kept": 0,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 0,
+        "dropped_undated": 0,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 0
+      },
+      "announcements": {
+        "kept": 0,
+        "dropped_stale": 0
+      },
+      "policies": {
+        "kept": 0,
+        "dropped_irrelevant": 0
+      },
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      }
+    }
+  },
+  {
+    "id": "GE3",
+    "type": "general_explanation",
+    "query": "How does the MarketRipple Score work?",
+    "elapsed_s": 0.14,
+    "short_circuit": null,
+    "specialist": "company",
+    "ui_mode": "direct_company_research",
+    "intent": "general",
+    "entities": {
+      "companies": [],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [],
+      "news": [],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 1,
+      "context_chars": 271,
+      "development_count": 0,
+      "source_count": 0
+    },
+    "plan_kind": "explanation",
+    "filter_report": {
+      "plan": "explanation",
+      "events": {
+        "kept": 0,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 0,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 0
+      },
+      "news": {
+        "kept": 0,
+        "dropped_stale": 0,
+        "dropped_irrelevant": 0,
+        "dropped_undated": 0,
+        "dropped_tips": 0,
+        "dropped_single_company_filing": 0
+      },
+      "announcements": {
+        "kept": 0,
+        "dropped_stale": 0
+      },
+      "policies": {
+        "kept": 0,
+        "dropped_irrelevant": 0
+      },
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      }
+    }
+  }
+]

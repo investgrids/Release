@@ -16,6 +16,9 @@ import json
 import re
 from datetime import datetime, timezone
 
+from app.services.ai_search import claim_sources as CS
+from app.services.ai_search import evidence_scope as ES
+
 NOW = datetime(2026, 10, 4, tzinfo=timezone.utc)
 
 # ── evidence snapshot ────────────────────────────────────────────────────────
@@ -33,6 +36,8 @@ def snapshot_evidence(bundle) -> dict:
         "valuation": bundle.valuation, "vix": bundle.vix_level,
         "sector_rows": bundle.sector_rows, "macro_indices": bundle.macro_indices,
         "context_lines": list(bundle.context_lines or []),
+        "premise": getattr(bundle, "premise", None),
+        "index": bundle.index() if hasattr(bundle, "index") else None,
         "historical": [{"title": h.get("title") or h.get("event"), "similarity": h.get("similarity")} for h in (bundle.similar_historical or [])],
     }
 
@@ -154,59 +159,10 @@ _INSTITUTION_AFTER = re.compile(
 _SINGLE_FILING = re.compile(r"\bhas\s+informed\s+the\s+exchange\b|\binformed\s+the\s+stock\s+exchanges?\b", re.IGNORECASE)
 
 
-def company_terms(symbol: str, universe: list[dict]) -> dict:
-    """Registered name stem, symbol and aliases for a company; `strong` are the forms that identify the company by itself."""
-    co = next((c for c in universe if c["symbol"] == symbol), None)
-    if not co:
-        return {"strong": [symbol.lower()], "weak": []}
-    name = re.sub(r"\s+(?:ltd\.?|limited|inc\.?|plc)$", "", co["name"].lower()).strip()
-    strong = [name, symbol.lower()]
-    weak = [a.lower() for a in (co.get("aliases") or []) if a.lower() not in strong]
-    return {"strong": list(dict.fromkeys(strong)), "weak": weak}
-
-
-def names_company(text: str, terms: dict) -> str | None:
-    """'strong' when the text uses the registered name / symbol; 'weak' when only a short brand alias appears and it is not part of another entity's name; None otherwise."""
-    t = (text or "").lower()
-    for s in terms["strong"]:
-        if re.search(r"(?<![a-z0-9])" + re.escape(s) + r"(?![a-z0-9])", t):
-            return "strong"
-    for w in terms["weak"]:
-        for m in re.finditer(r"(?<![a-z0-9])" + re.escape(w) + r"(?![a-z0-9])", t):
-            if not _INSTITUTION_AFTER.match(t[m.end():m.end() + 30]):
-                return "weak"
-    return None
-
-
-def eligible_for_company(item: dict, symbol: str, universe: list[dict]) -> tuple[bool, str]:
-    """May this item support a claim about the company? Tagged events: yes. Otherwise the text must use the registered name or symbol; a brand-only mention that sits inside
-    another entity's name ("Kotak Institutional Equities") never counts, and a brand-only mention in news is treated as not eligible."""
-    if symbol in (item.get("companies") or []):
-        return True, "event tagged to the company"
-    terms = company_terms(symbol, universe)
-    text = f"{item.get('title') or ''} {item.get('summary') or ''}"
-    hit = names_company(text, terms)
-    if hit == "strong":
-        return True, "uses the registered name or symbol"
-    if hit == "weak":
-        return False, "brand alias only (not the registered name or symbol); could be another entity"
-    return False, "does not name the company"
-
-
-def eligible_for_sector(item: dict) -> tuple[bool, str]:
-    """A single-company filing cannot support a sector or market claim; an event tagged to three or more companies, or a news/policy item, can."""
-    if item["kind"] == "announcement":
-        return False, "single-company filing"
-    if item["kind"] == "event":
-        tagged = item.get("companies") or []
-        if len(tagged) >= 3:
-            return True, "event tagged to several companies"
-        if _SINGLE_FILING.search(item.get("title") or ""):
-            return False, "single-company exchange filing"
-        return True, "market or sector event"
-    if _SINGLE_FILING.search(item.get("title") or ""):
-        return False, "single-company exchange filing"
-    return True, "news or policy item"
+company_terms = ES.company_terms
+names_company = ES.names_company
+eligible_for_company = ES.eligible_for_company
+eligible_for_sector = ES.eligible_for_sector
 
 
 # ── claim support ────────────────────────────────────────────────────────────
@@ -334,15 +290,63 @@ _INSUFFICIENT = re.compile(
 def insufficient_evidence_check(res: dict, ev: dict, query: str, universe: list[dict], resolved: list[str]) -> dict:
     """For a question whose retrieval found nothing relevant and recent: PASS only if the answer says so and does not assert company-specific facts or numbers.
     Not applicable (None status) when evidence exists."""
-    if evidence_total(ev) > 0:
+    irr = bundle_irrelevance(ev, resolved, [])
+    premise = ev.get("premise") or {}
+    premise_unsupported = bool(premise.get("required")) and not premise.get("supported")
+    if evidence_total(ev) > 0 and irr["relevant_total"] > 0 and not premise_unsupported:
         return {"applicable": False}
+    reason = "empty bundle" if evidence_total(ev) == 0 else "no relevant evidence in the bundle" if irr["relevant_total"] == 0 else "the question's event premise is unsupported"
     text = " ".join(t for _f, t in answer_pieces(res))
     says = bool(_INSUFFICIENT.search(text))
     nums = unsupported_numbers(res, ev, query)
     claims = [c for c in claim_checks(res, ev, query, resolved, [], universe) if c["status"] != "supported"]
     status = "PASS" if (says and not nums and not claims) else "FAIL"
-    return {"applicable": True, "status": status, "states_insufficient_evidence": says, "unsupported_numbers": len(nums), "unsupported_claims": len(claims),
+    return {"applicable": True, "applies_because": reason, "status": status, "states_insufficient_evidence": says, "unsupported_numbers": len(nums), "unsupported_claims": len(claims),
             "examples": [c["sentence"] for c in claims[:3]] + [n["sentence"] for n in nums[:2]]}
+
+
+# ── irrelevant evidence (not just an empty bundle) ───────────────────────────
+
+def bundle_irrelevance(ev: dict, resolved: list[str], sectors: list[str]) -> dict:
+    """Independent re-check of the bundle the model was given. An item is irrelevant when it can never support a claim at the scope of the question: a stock-tips article anywhere;
+    a single-company filing in a sector/market bundle; an item about no resolved company in a company-scoped bundle (announcements are fetched per symbol, so they count)."""
+    from app.api.companies import _NSE_UNIVERSE
+    plan = ev.get("plan_kind")
+    flagged, relevant = [], 0
+    for it in all_items(ev):
+        item = {"kind": it["kind"], "title": it.get("title") or "", "summary": it.get("summary") or "", "companies": it.get("companies") or []}
+        if ES.is_tips_article(item["title"], item["summary"]):
+            flagged.append({"id": it.get("id"), "title": item["title"][:90], "why": "stock-tips article"})
+            continue
+        if plan in ("topic", "explanation"):
+            ok, why = ES.eligible_for_sector(item)
+        elif plan in ("company", "comparison") and resolved:
+            ok, why = (True, "announcement fetched for the company") if item["kind"] == "announcement" else max(
+                (ES.eligible_for_company(item, s, _NSE_UNIVERSE) for s in resolved), key=lambda t: t[0])
+        else:
+            ok, why = True, "no scope"
+        if ok:
+            relevant += 1
+        else:
+            flagged.append({"id": it.get("id"), "title": item["title"][:90], "why": why})
+    return {"irrelevant_items": flagged, "relevant_total": relevant, "status": "PASS" if not flagged else "FAIL"}
+
+
+# ── claim-level source IDs ───────────────────────────────────────────────────
+
+def claim_source_check(res: dict, ev: dict, entities: dict) -> dict:
+    """Re-validates the response's claim_sources against the evidence index saved with the answer, independently of the pipeline's own validation. UNVERIFIED-style output
+    (checkable False) when the model returned no claim_sources."""
+    from app.api.companies import _NSE_UNIVERSE
+    raw = [{"claim": c.get("claim"), "sources": c.get("sources")} for c in (res.get("claim_sources") or [])]
+    index = ev.get("index") or []
+    if not raw:
+        return {"checkable": False, "reason": "no claim_sources in the response"}
+    answer = {"answer": res.get("answer"), "key_drivers": res.get("key_drivers"), "companies": res.get("companies"), "decision_engine_v2": res.get("decision_engine_v2")}
+    v = CS.validate_claim_sources(raw, index, answer, entities, _NSE_UNIVERSE, ev.get("premise"))
+    disagree = [c["claim"][:80] for c, mine in zip(res.get("claim_sources") or [], v["claims"]) if c.get("status") != mine["status"]]
+    return {"checkable": True, "status": v["status"], "summary": v["summary"], "problems": [c for c in v["claims"] if c["status"] != "ok"][:8],
+            "uncovered": v.get("uncovered", [])[:6], "disagrees_with_pipeline_on": disagree}
 
 
 # ── citations ────────────────────────────────────────────────────────────────
@@ -361,7 +365,7 @@ def citation_check(res: dict, ev: dict) -> dict:
         "citation_sources_not_in_news": sorted(c for c in cites if c not in news_sources),
         "shown_events_not_in_evidence": [e.get("title") for e in shown_events if str(e.get("id")) not in ev_ids],
         "shown_news_not_in_evidence": [n.get("headline") for n in shown_news if str(n.get("id")) not in news_ids],
-        "claim_level_attribution_available": False,   # the pipeline attributes the whole bundle, not individual claims
+        "claim_level_attribution_available": bool(res.get("claim_sources")),   # False means the pipeline attributed only the whole bundle
     }
 
 

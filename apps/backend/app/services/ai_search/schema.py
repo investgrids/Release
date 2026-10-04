@@ -97,6 +97,8 @@ def flatten_nested(nested: dict) -> dict:
             "opportunity_score": None,
         },
         "follow_up_questions": ext.get("follow_up_questions", []),
+        # claim-level source IDs the model attached to its factual sentences (see CLAIM_SOURCES_GROUP); validated against the evidence index in claim_sources.py
+        "claim_sources": nested.get("claim_sources", []),
         "timeline": tl.get("milestones", []),
         "insights": ext.get("insights", []),
         "scenarios": ext.get("scenarios", {}),
@@ -172,6 +174,20 @@ DECISION_GROUP = """  "decision": {
 
 DECISION_GROUP_EXPLAIN_WHY_NOT = """,
     "explain_why_not": {"alternative": "the non-winning entity's name", "reason_rejected": "1-2 sentences, specific"}"""
+
+
+# Claim-level source IDs. The evidence lists in the prompt tag every item (E events, N news, P policies, A announcements, C context lines); the model must attach those IDs to
+# each factual sentence so a claim can be traced to the item that supports it and checked for eligibility.
+CLAIM_SOURCES_GROUP = """  "claim_sources": [
+    {"claim": "one factual sentence copied EXACTLY from your answer text", "sources": ["E1", "N2"]}
+  ],"""
+
+CLAIM_SOURCES_RULES = (
+    '- "claim_sources": list every sentence of your answer that states a fact, number, date, order, announcement or result. For each one, copy the sentence EXACTLY and list the '
+    "evidence IDs (E = event, N = news, P = policy, A = announcement, C = context line) from the lists above that support it. Use only IDs that appear above and never invent one. "
+    "If no listed item supports a fact, do not state it as fact. Opinions and reasoning need no entry. A stock-tips article, a filing by a different company, or a brand name inside "
+    "another firm's name does not support a claim about the company or the sector."
+)
 
 
 def render_investment_group() -> str:

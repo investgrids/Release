@@ -17,6 +17,7 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.ai_search import cache as cache_mod
+from app.services.ai_search import claim_sources as claim_sources_mod
 from app.services.ai_search.company_matching import filter_events_to_companies
 from app.services.ai_search.degraded_shape import build_degraded_shape
 from app.services.ai_search import entities as entities_mod
@@ -428,6 +429,13 @@ def _filter_events_to_entities(events: list[dict], symbols: list[str]) -> list[d
     return filter_events_to_companies(events, symbols)
 
 
+def _premise_check(evidence) -> dict:
+    p = getattr(evidence, "premise", None) or {}
+    if not p.get("required"):
+        return {"status": "not_applicable", "terms": []}
+    return {"status": "supported" if p.get("supported") else "unsupported", "terms": p.get("terms") or [], "supporting": p.get("supporting") or []}
+
+
 def degraded_evidence_sentence(shown_events: int) -> str:
     """One sentence about the evidence shown with a degraded answer, derived from the count actually displayed."""
     if shown_events <= 0:
@@ -625,6 +633,11 @@ async def _assemble_response(
         evidence.vix_level, evidence.similar_historical, ai.get("medium_term"), ai.get("long_term"),
     )
 
+    # Claim-level source IDs: the evidence index the prompt used, and the model's claim_sources checked against it (non-blocking, see claim_sources.py).
+    from app.api.companies import _NSE_UNIVERSE as _UNIVERSE
+    evidence_index = evidence.index()
+    claim_validation = claim_sources_mod.validate_claim_sources(ai.get("claim_sources"), evidence_index, ai, entities, _UNIVERSE, getattr(evidence, "premise", None))
+
     response = {
         "query": query,
         # Identifies this generated ANSWER (stable across repeat cache-hit
@@ -776,6 +789,10 @@ async def _assemble_response(
         # local end-to-end UI work while AEV2 assembly stays off publicly.
         "confidence": postprocess.build_confidence_contract(confidence_breakdown),
         "source_attribution": evidence.to_source_ids(),
+        "evidence_index": claim_sources_mod.compact_index(evidence_index),
+        "claim_sources": claim_validation["claims"],
+        "claim_validation": {"status": claim_validation["status"], "summary": claim_validation["summary"], "uncovered": claim_validation.get("uncovered", [])},
+        "premise_check": _premise_check(evidence),
         "validation": {
             "repairs": validation_report.repairs,
             "omissions": validation_report.omissions,

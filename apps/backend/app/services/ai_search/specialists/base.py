@@ -178,5 +178,17 @@ def research_framing_rules(outlook_labels: list[str]) -> str:
         "— a bullish call needs a bullish-or-neutral immediate read, not a negative one.\n"
         '- Every company named in "investment.summary"/"investment.bottom_line" must also appear '
         'in the "companies" list, and vice versa — don\'t discuss a company in prose that isn\'t '
-        "in the structured list, or list one you never mention."
+        "in the structured list, or list one you never mention.\n"
+        + _claim_rules()
     )
+
+
+def premise_note(evidence) -> str:
+    """The unverified-event notice for the prompt, tolerant of an evidence object that predates the premise check (tests use minimal stand-ins)."""
+    fn = getattr(evidence, "premise_notice", None)
+    return fn() if callable(fn) else ""
+
+
+def _claim_rules() -> str:
+    from app.services.ai_search.schema import CLAIM_SOURCES_RULES
+    return CLAIM_SOURCES_RULES

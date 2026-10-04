@@ -15,6 +15,7 @@ generic boilerplate more than almost any other category.
 from __future__ import annotations
 
 from app.services.ai_search.schema import (
+    CLAIM_SOURCES_GROUP,
     EXTRAS_GROUP,
     MONITORING_COUNT_NOTE,
     TIMELINE_GROUP,
@@ -23,6 +24,7 @@ from app.services.ai_search.schema import (
 )
 from app.services.ai_search.specialists.base import (
     PRIORITY_INSTRUCTIONS,
+    premise_note,
     degraded_response,
     parse_specialist_json,
     research_framing_rules,
@@ -76,6 +78,7 @@ def _build_multi_compare_prompt(query: str, evidence, entities: dict) -> str:
     case; everything else matches it exactly."""
     from app.services.ai_search.regexes import _OUTLOOK_LABELS
     from app.services.ai_search.schema import (
+        CLAIM_SOURCES_GROUP,
         EVIDENCE_GROUP,
         RISKS_GROUP,
         TIMELINE_GROUP,
@@ -89,8 +92,8 @@ def _build_multi_compare_prompt(query: str, evidence, entities: dict) -> str:
     display_names = (names if names else symbols)[:3]  # capped tighter than other blocks' usual 6 -- see token-budget note above
     entity_list = ", ".join(display_names)
 
-    evs = "\n".join(f"- {e['title']}" for e in evidence.deduped_events()[:4]) or "None"
-    nws = "\n".join(f"- {a['headline']}" for a in evidence.deduped_news()[:4]) or "None"
+    evs = "\n".join(f"- [E{i}] {e['title']}" for i, e in enumerate(evidence.deduped_events()[:4], 1)) or "None"
+    nws = "\n".join(f"- [N{i}] {a['headline']}" for i, a in enumerate(evidence.deduped_news()[:4], 1)) or "None"
     extra_context = evidence.to_context_text()
     ctx_block = f"\nCONTEXT:\n{extra_context}\n" if extra_context else ""
 
@@ -114,6 +117,7 @@ QUERY: "{query}"
 COMPANIES TO ANALYZE (all {len(display_names)}, not just one or two): {entity_list}
 MARKET NEWS: {nws}
 RELATED EVENTS: {evs}
+{premise_note(evidence)}
 
 INSTRUCTIONS:
 - This is a MULTI-ENTITY comparison ({len(display_names)} companies), not a two-way one. Provide a parallel
@@ -128,6 +132,7 @@ Return ONLY this JSON (no fences, no extra keys):
 {{
 {investment_group}
 {decision_group}
+{CLAIM_SOURCES_GROUP}
 {EVIDENCE_GROUP}
   "companies": [
 {companies_rows}
@@ -378,8 +383,8 @@ def build_prompt(query: str, evidence, intent_data: dict, entities: dict) -> str
     b_label = entity_label(target, target_is_commodity, target_is_sector)
 
     # Phase 5E.5: deduped views — see specialists/company.py's comment.
-    evs = "\n".join(f"- {e['title']}" for e in evidence.deduped_events()[:4]) or "None"
-    nws = "\n".join(f"- {a['headline']}" for a in evidence.deduped_news()[:4]) or "None"
+    evs = "\n".join(f"- [E{i}] {e['title']}" for i, e in enumerate(evidence.deduped_events()[:4], 1)) or "None"
+    nws = "\n".join(f"- [N{i}] {a['headline']}" for i, a in enumerate(evidence.deduped_news()[:4], 1)) or "None"
     extra_context = evidence.to_context_text()
     ctx_block = f"\nCONTEXT:\n{extra_context}\n" if extra_context else ""
 
@@ -407,6 +412,7 @@ ENTITY B (target/second): {b_label}
 HORIZON: {horizon} | RISK TOLERANCE: {risk}
 MARKET NEWS: {nws}
 RELATED EVENTS: {evs}
+{premise_note(evidence)}
 
 INSTRUCTIONS:
 - Fill every string field with real, specific analysis about {holding} and {target}. Name real numbers (valuation multiples, growth rates, margins) wherever you have a basis to estimate them.
@@ -422,6 +428,7 @@ JSON to fill and return:
 {{
 {investment_group}
 {decision_group}
+{CLAIM_SOURCES_GROUP}
   "evidence": {{
     "what_happened": "", "why_it_happened": "", "immediate_impact": "", "medium_term": "", "long_term": "",
     "what_priced_in": "1-2 sentences: how much of this trade-off is already reflected in current prices for {holding} and {target}?",

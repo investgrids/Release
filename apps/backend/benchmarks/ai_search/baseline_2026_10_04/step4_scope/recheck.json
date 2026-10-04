@@ -1,0 +1,4683 @@
+[
+  {
+    "id": "CR1",
+    "plan_kind": "company",
+    "premise": {
+      "required": false,
+      "terms": [],
+      "supported": null,
+      "supporting": []
+    },
+    "irrelevance": {
+      "irrelevant_items": [],
+      "relevant_total": 4,
+      "status": "PASS"
+    },
+    "evidence_total": 4,
+    "snapshot": {
+      "plan_kind": "company",
+      "filter_report": {
+        "plan": "company",
+        "events": {
+          "kept": 0,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 0,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 0
+        },
+        "news": {
+          "kept": 0,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 0,
+          "dropped_undated": 0,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 0
+        },
+        "announcements": {
+          "kept": 4,
+          "dropped_stale": 0
+        },
+        "policies": {
+          "kept": 0,
+          "dropped_irrelevant": 0
+        },
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        }
+      },
+      "events": [],
+      "news": [],
+      "announcements": [
+        {
+          "id": "ann_nse-832c55abf1",
+          "title": "Kotak Mahindra Bank Limited has informed the Exchange about General Updates.",
+          "category": null,
+          "date": "2026-08-24T00:00:00"
+        },
+        {
+          "id": "ann_nse-2b07ee166a",
+          "title": "Kotak Mahindra Bank Limited has informed the Exchange about General Updates",
+          "category": null,
+          "date": "2026-08-18T00:00:00"
+        },
+        {
+          "id": "ann_7b7d794b751e10aa_nse",
+          "title": "Investor Presentation",
+          "category": "Kotak Mahindra Bank Limited has informed the Exchange about Investor Presentation",
+          "date": "2026-08-17T06:27:05"
+        },
+        {
+          "id": "ann_nse-1f4227024a",
+          "title": "Kotak Mahindra Bank Limited has informed the Exchange about Investor Presentation",
+          "category": null,
+          "date": "2026-08-17T00:00:00"
+        }
+      ],
+      "policies": [],
+      "valuation": {},
+      "vix": 14.45,
+      "sector_rows": [],
+      "macro_indices": [],
+      "context_lines": [
+        "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?",
+        "Company context for KOTAKBANK (real, from Intelligence Graph): The Nifty 50 and Bank Nifty are slightly down, with the market trading in a tight range as investors await the RBI’s upcoming repo rate decision. The lack of sectoral movement suggests a cautious stance amid concerns ove · Mood: Cautious Bull",
+        "DEVELOPMENT MEMORY (real, from Market Ripple's Intelligence Brain)\n\nDevelopment: Kotak Mahindra Bank Limited has informed the Exchange about General Updates.\nReconciliation: no_signal (confidence: 28%)"
+      ],
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      },
+      "index": [
+        {
+          "id": "A1",
+          "kind": "announcement",
+          "title": "Kotak Mahindra Bank Limited has informed the Exchange about General Updates.",
+          "date": "2026-08-24T00:00:00",
+          "source": "NSE",
+          "companies": [
+            "KOTAKBANK"
+          ],
+          "ref": "announcement:ann_nse-832c55abf1"
+        },
+        {
+          "id": "A2",
+          "kind": "announcement",
+          "title": "Investor Presentation",
+          "date": "2026-08-17T06:27:05",
+          "source": "NSE",
+          "companies": [
+            "KOTAKBANK"
+          ],
+          "ref": "announcement:ann_7b7d794b751e10aa_nse"
+        },
+        {
+          "id": "A3",
+          "kind": "announcement",
+          "title": "Kotak Mahindra Bank Limited has informed the Exchange about Investor Presentation",
+          "date": "2026-08-17T00:00:00",
+          "source": "NSE",
+          "companies": [
+            "KOTAKBANK"
+          ],
+          "ref": "announcement:ann_nse-1f4227024a"
+        },
+        {
+          "id": "C1",
+          "kind": "context",
+          "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:1"
+        },
+        {
+          "id": "C2",
+          "kind": "context",
+          "title": "Company context for KOTAKBANK (real, from Intelligence Graph): The Nifty 50 and Bank Nifty are slightly down, with the market trading in a tight range as invest",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:2"
+        },
+        {
+          "id": "C3",
+          "kind": "context",
+          "title": "DEVELOPMENT MEMORY (real, from Market Ripple's Intelligence Brain)\n\nDevelopment: Kotak Mahindra Bank Limited has informed the Exchange about General Updates.\nRe",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:3"
+        }
+      ],
+      "historical": []
+    }
+  },
+  {
+    "id": "CR2",
+    "plan_kind": "company",
+    "premise": {
+      "required": false,
+      "terms": [],
+      "supported": null,
+      "supporting": []
+    },
+    "irrelevance": {
+      "irrelevant_items": [],
+      "relevant_total": 0,
+      "status": "PASS"
+    },
+    "evidence_total": 0,
+    "snapshot": {
+      "plan_kind": "company",
+      "filter_report": {
+        "plan": "company",
+        "events": {
+          "kept": 0,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 0,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 0
+        },
+        "news": {
+          "kept": 0,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 0,
+          "dropped_undated": 0,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 0
+        },
+        "announcements": {
+          "kept": 0,
+          "dropped_stale": 0
+        },
+        "policies": {
+          "kept": 0,
+          "dropped_irrelevant": 0
+        },
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        }
+      },
+      "events": [],
+      "news": [],
+      "announcements": [],
+      "policies": [],
+      "valuation": {},
+      "vix": 14.45,
+      "sector_rows": [],
+      "macro_indices": [],
+      "context_lines": [
+        "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?",
+        "Company context for 3MINDIA (real, from Intelligence Graph): The Nifty 50 and Bank Nifty are slightly down, with the market trading in a tight range as investors await the RBI’s upcoming repo rate decision. The lack of sectoral movement suggests a cautious stance amid concerns ove · Mood: Cautious Bull"
+      ],
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      },
+      "index": [
+        {
+          "id": "C1",
+          "kind": "context",
+          "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:1"
+        },
+        {
+          "id": "C2",
+          "kind": "context",
+          "title": "Company context for 3MINDIA (real, from Intelligence Graph): The Nifty 50 and Bank Nifty are slightly down, with the market trading in a tight range as investor",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:2"
+        }
+      ],
+      "historical": []
+    }
+  },
+  {
+    "id": "CR3",
+    "plan_kind": "company",
+    "premise": {
+      "required": false,
+      "terms": [],
+      "supported": null,
+      "supporting": []
+    },
+    "irrelevance": {
+      "irrelevant_items": [],
+      "relevant_total": 4,
+      "status": "PASS"
+    },
+    "evidence_total": 4,
+    "snapshot": {
+      "plan_kind": "company",
+      "filter_report": {
+        "plan": "company",
+        "events": {
+          "kept": 1,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 0,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 0
+        },
+        "news": {
+          "kept": 1,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 0,
+          "dropped_undated": 0,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 0
+        },
+        "announcements": {
+          "kept": 2,
+          "dropped_stale": 0
+        },
+        "policies": {
+          "kept": 0,
+          "dropped_irrelevant": 0
+        },
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        }
+      },
+      "events": [
+        {
+          "id": "evt-it-deal-slowdown-2026",
+          "title": "US enterprise IT spending contracts for second consecutive quarter",
+          "summary": "CIO surveys and enterprise software vendors report discretionary IT budget freezes. Indian IT majors with high US revenue exposure face near-term demand headwinds, though management guidance remains cautious.",
+          "date": "2026-07-10T09:30:00",
+          "source": "",
+          "companies": [
+            "TCS",
+            "INFY",
+            "WIPRO"
+          ]
+        }
+      ],
+      "news": [
+        {
+          "id": "live-0159572fe8cc",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+          "date": "18m ago",
+          "source": "Business Standard"
+        }
+      ],
+      "announcements": [
+        {
+          "id": "ann_nse-3e08b3c13a",
+          "title": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+          "category": null,
+          "date": "2026-10-01T00:00:00"
+        },
+        {
+          "id": "ann_nse-d5bed2f533",
+          "title": "Tata Consultancy Services Limited has informed the Exchange regarding a press release dated October 01, 2026, titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+          "category": null,
+          "date": "2026-10-01T00:00:00"
+        }
+      ],
+      "policies": [],
+      "valuation": {},
+      "vix": 14.45,
+      "sector_rows": [],
+      "macro_indices": [],
+      "context_lines": [
+        "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?",
+        "Company context for TCS (real, from Intelligence Graph): The Nifty 50 and Bank Nifty are slightly down, with the market trading in a tight range as investors await the RBI’s upcoming repo rate decision. The lack of sectoral movement suggests a cautious stance amid concerns ove · Mood: Cautious Bull",
+        "DEVELOPMENT MEMORY (real, from Market Ripple's Intelligence Brain)\n\nDevelopment: Tata Consultancy Services Limited has informed the Exchange regarding a press release dated October 01, 2026, titled \"Best Buy s Global Capability Cen\nReconciliation: no_signal (confidence: 32%)"
+      ],
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      },
+      "index": [
+        {
+          "id": "E1",
+          "kind": "event",
+          "title": "US enterprise IT spending contracts for second consecutive quarter",
+          "summary": "CIO surveys and enterprise software vendors report discretionary IT budget freezes. Indian IT majors with high US revenue exposure face near-term demand headwinds, though management guidance remains c",
+          "date": "2026-07-10T09:30:00",
+          "source": "",
+          "companies": [
+            "TCS",
+            "INFY",
+            "WIPRO"
+          ],
+          "ref": "event:evt-it-deal-slowdown-2026"
+        },
+        {
+          "id": "N1",
+          "kind": "news",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+          "date": "18m ago",
+          "source": "Business Standard",
+          "companies": [],
+          "ref": "news:live-0159572fe8cc"
+        },
+        {
+          "id": "A1",
+          "kind": "announcement",
+          "title": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+          "date": "2026-10-01T00:00:00",
+          "source": "NSE",
+          "companies": [
+            "TCS"
+          ],
+          "ref": "announcement:ann_nse-3e08b3c13a"
+        },
+        {
+          "id": "A2",
+          "kind": "announcement",
+          "title": "Tata Consultancy Services Limited has informed the Exchange regarding a press release dated October 01, 2026, titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+          "date": "2026-10-01T00:00:00",
+          "source": "NSE",
+          "companies": [
+            "TCS"
+          ],
+          "ref": "announcement:ann_nse-d5bed2f533"
+        },
+        {
+          "id": "C1",
+          "kind": "context",
+          "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:1"
+        },
+        {
+          "id": "C2",
+          "kind": "context",
+          "title": "Company context for TCS (real, from Intelligence Graph): The Nifty 50 and Bank Nifty are slightly down, with the market trading in a tight range as investors aw",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:2"
+        },
+        {
+          "id": "C3",
+          "kind": "context",
+          "title": "DEVELOPMENT MEMORY (real, from Market Ripple's Intelligence Brain)\n\nDevelopment: Tata Consultancy Services Limited has informed the Exchange regarding a press r",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:3"
+        }
+      ],
+      "historical": []
+    }
+  },
+  {
+    "id": "EI1",
+    "plan_kind": "company",
+    "premise": {
+      "required": true,
+      "terms": [
+        "order"
+      ],
+      "supported": false,
+      "supporting": []
+    },
+    "irrelevance": {
+      "irrelevant_items": [],
+      "relevant_total": 0,
+      "status": "PASS"
+    },
+    "evidence_total": 0,
+    "snapshot": {
+      "plan_kind": "company",
+      "filter_report": {
+        "plan": "company",
+        "events": {
+          "kept": 0,
+          "dropped_stale": 1,
+          "dropped_irrelevant": 0,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 0
+        },
+        "news": {
+          "kept": 0,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 0,
+          "dropped_undated": 0,
+          "dropped_tips": 1,
+          "dropped_single_company_filing": 0
+        },
+        "announcements": {
+          "kept": 0,
+          "dropped_stale": 2
+        },
+        "policies": {
+          "kept": 0,
+          "dropped_irrelevant": 0
+        },
+        "premise": {
+          "required": true,
+          "terms": [
+            "order"
+          ],
+          "supported": false,
+          "supporting": []
+        }
+      },
+      "events": [],
+      "news": [],
+      "announcements": [],
+      "policies": [],
+      "valuation": {},
+      "vix": 14.45,
+      "sector_rows": [],
+      "macro_indices": [],
+      "context_lines": [
+        "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?"
+      ],
+      "premise": {
+        "required": true,
+        "terms": [
+          "order"
+        ],
+        "supported": false,
+        "supporting": []
+      },
+      "index": [
+        {
+          "id": "C1",
+          "kind": "context",
+          "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:1"
+        }
+      ],
+      "historical": []
+    }
+  },
+  {
+    "id": "EI2",
+    "plan_kind": "company",
+    "premise": {
+      "required": true,
+      "terms": [
+        "research center"
+      ],
+      "supported": false,
+      "supporting": []
+    },
+    "irrelevance": {
+      "irrelevant_items": [],
+      "relevant_total": 3,
+      "status": "PASS"
+    },
+    "evidence_total": 3,
+    "snapshot": {
+      "plan_kind": "company",
+      "filter_report": {
+        "plan": "company",
+        "events": {
+          "kept": 0,
+          "dropped_stale": 1,
+          "dropped_irrelevant": 0,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 0
+        },
+        "news": {
+          "kept": 1,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 0,
+          "dropped_undated": 0,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 0
+        },
+        "announcements": {
+          "kept": 2,
+          "dropped_stale": 0
+        },
+        "policies": {
+          "kept": 0,
+          "dropped_irrelevant": 0
+        },
+        "premise": {
+          "required": true,
+          "terms": [
+            "research center"
+          ],
+          "supported": false,
+          "supporting": []
+        }
+      },
+      "events": [],
+      "news": [
+        {
+          "id": "live-0159572fe8cc",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+          "date": "18m ago",
+          "source": "Business Standard"
+        }
+      ],
+      "announcements": [
+        {
+          "id": "ann_nse-3e08b3c13a",
+          "title": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+          "category": null,
+          "date": "2026-10-01T00:00:00"
+        },
+        {
+          "id": "ann_nse-d5bed2f533",
+          "title": "Tata Consultancy Services Limited has informed the Exchange regarding a press release dated October 01, 2026, titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+          "category": null,
+          "date": "2026-10-01T00:00:00"
+        }
+      ],
+      "policies": [],
+      "valuation": {},
+      "vix": 14.45,
+      "sector_rows": [],
+      "macro_indices": [],
+      "context_lines": [
+        "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?"
+      ],
+      "premise": {
+        "required": true,
+        "terms": [
+          "research center"
+        ],
+        "supported": false,
+        "supporting": []
+      },
+      "index": [
+        {
+          "id": "N1",
+          "kind": "news",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+          "date": "18m ago",
+          "source": "Business Standard",
+          "companies": [],
+          "ref": "news:live-0159572fe8cc"
+        },
+        {
+          "id": "A1",
+          "kind": "announcement",
+          "title": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+          "date": "2026-10-01T00:00:00",
+          "source": "NSE",
+          "companies": [
+            "TCS"
+          ],
+          "ref": "announcement:ann_nse-3e08b3c13a"
+        },
+        {
+          "id": "A2",
+          "kind": "announcement",
+          "title": "Tata Consultancy Services Limited has informed the Exchange regarding a press release dated October 01, 2026, titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+          "date": "2026-10-01T00:00:00",
+          "source": "NSE",
+          "companies": [
+            "TCS"
+          ],
+          "ref": "announcement:ann_nse-d5bed2f533"
+        },
+        {
+          "id": "C1",
+          "kind": "context",
+          "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:1"
+        }
+      ],
+      "historical": []
+    }
+  },
+  {
+    "id": "EI3",
+    "plan_kind": "topic",
+    "premise": {
+      "required": false,
+      "terms": [],
+      "supported": null,
+      "supporting": []
+    },
+    "irrelevance": {
+      "irrelevant_items": [],
+      "relevant_total": 19,
+      "status": "PASS"
+    },
+    "evidence_total": 19,
+    "snapshot": {
+      "plan_kind": "topic",
+      "filter_report": {
+        "plan": "topic",
+        "events": {
+          "kept": 8,
+          "dropped_stale": 5,
+          "dropped_irrelevant": 3,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 14
+        },
+        "news": {
+          "kept": 11,
+          "dropped_stale": 8,
+          "dropped_irrelevant": 0,
+          "dropped_undated": 0,
+          "dropped_tips": 1,
+          "dropped_single_company_filing": 0
+        },
+        "announcements": {
+          "kept": 0,
+          "dropped_stale": 0
+        },
+        "policies": {
+          "kept": 0,
+          "dropped_irrelevant": 0
+        },
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        }
+      },
+      "events": [
+        {
+          "id": "rss-22bbfbb737a0",
+          "title": "RBI Remains Cautious On Crypto, Backs Underlying Technology: Governor Sanjay Malhotra",
+          "summary": "RBI Governor Sanjay Malhotra stated India promotes blockchain and tokenisation technology but remains cautious on cryptocurrencies due to concerns over monetary sovereignty and policy.",
+          "date": "2026-10-03T10:25:15.466208",
+          "source": "NDTV Profit",
+          "companies": []
+        },
+        {
+          "id": "rss-d59fc9906a97",
+          "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+          "summary": "The Securities and Exchange Board of India (Sebi) has introduced a mandatory Credit Risk-o-Meter for debt securities, aiming to enhance investor awareness regarding credit risk. This user-friendly tool features a standardized, colour-coded scale, similar to those used in mutual funds. Issuers and on",
+          "date": "2026-08-14T05:40:27.378039",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "rss-ad00a27f34b9",
+          "title": "RBI to close FCNR(B) swaps a month earlier due to gush",
+          "summary": "The Reserve Bank of India has moved the FCNR(B) deposit deadline to August 31 in response to better-than-expected foreign currency inflows. This adjustment follows a positive uptake of the swap facility linked to these deposits, with inflows surpassing previous totals. Meanwhile, the swap schemes fo",
+          "date": "2026-08-15T04:20:19.977742",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "nse-3fe23e9e4b",
+          "title": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+          "summary": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+          "date": "2026-08-12T16:33:33.702605",
+          "source": "NSE",
+          "companies": []
+        },
+        {
+          "id": "rss-452ba91505d8",
+          "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+          "summary": "The Indian rupee remained stable on Thursday, closing near its previous level.  Dollar sales by the Reserve Bank of India kept the local unit within a tight range.  Demand from maturing forwards and debt outflows added pressure to the currency.  Traders observed a narrow trading band, anticipating f",
+          "date": "2026-08-14T02:00:43.280534",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "rss-4b6b8365cd2b",
+          "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+          "summary": "The Indian rupee faced a challenging week, depreciating against the dollar amidst mounting tensions from the Middle East conflict. Despite this, central bank interventions and steady dollar sales by state banks helped mitigate more significant losses. With India relying on imports for about ninety p",
+          "date": "2026-08-14T10:55:41.495253",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "rss-b36bc6485df8",
+          "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+          "summary": "The Indian rupee finished the day marginally higher, propelled by ongoing tensions in the Middle East. Continuous interventions from the central bank have provided support against the U.S. dollar. Traders remain watchful as critical inflation data from India and the U.S. approaches. Throughout Augus",
+          "date": "2026-08-12T16:05:37.135262",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "nse-e73653ad09",
+          "title": "Pursuant to the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015 and the Code of Fair Disclosure and Conduct and in terms of Regulation 8 of the SEBI (Prohibition of Insider Trading) Regulations, 2015, the Bank would like to place the attached information on record pertaining to its performance in the quarter ended September 30, 2026.",
+          "summary": "Pursuant to the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015 and the Code of Fair Disclosure and Conduct and in terms of Regulation 8 of the SEBI (Prohibition of Insider Trading) Regulations, 2015, the Bank would like to place the attached information on record pertaining",
+          "date": "2026-10-03T14:10:23.818974",
+          "source": "NSE",
+          "companies": []
+        }
+      ],
+      "news": [
+        {
+          "id": "live-ca4909c01c19",
+          "title": "Yes Bank Q2 Business Update: Deposits And Loans Grow Nearly 24% With Slight Decline In CASA Ratio",
+          "summary": "Yes Bank's stock has declined nearly 4% year-to-date and 4.6% in the last 12 months. On Friday, the shares settled 0.95% lower at Rs 20.75% apiece on the NSE, compared to a 0.88% decline in the Nifty ",
+          "date": "15m ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "id": "live-e69f271d4bac",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week - Business Standard",
+          "summary": "RBI MPC policy, oil prices, bond yields may drive market this week&nbsp;&nbsp;Business Standard",
+          "date": "18m ago",
+          "source": "Google News"
+        },
+        {
+          "id": "live-0159572fe8cc",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+          "date": "18m ago",
+          "source": "Business Standard"
+        },
+        {
+          "id": "live-ce2d5ac10431",
+          "title": "RBI Repo Rate May Climb To 6% In FY27 As G-Sec Yields Face Upward Pressure: Report",
+          "summary": "The Union Bank expects a 25 basis point rate increase in October, followed by one or two additional hikes during the rest of FY27. The repo rate could consequently reach 5.75-6 percent accompanied by ",
+          "date": "2h ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "id": "live-33f22fb1f972",
+          "title": "Rate cut cycle near turning point. What lies ahead for Indian bonds?",
+          "summary": "The RBI is expected to signal monetary tightening at its October policy meeting as stronger economic growth, rising oil prices and elevated US Treasury yields fuel inflation concerns. Higher domestic ",
+          "date": "2h ago",
+          "source": "Economic Times"
+        },
+        {
+          "id": "live-f80336401a44",
+          "title": "RBI's dollar inflow measures buy time, but external risks remain",
+          "summary": "The Reserve Bank of India's recent measures to boost dollar inflows are a temporary fix, economists warn. While these steps aim to stabilize the rupee now, the country must strengthen its balance of p",
+          "date": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "id": "live-5ed5dc17ff75",
+          "title": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch - Business Today",
+          "summary": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch&nbsp;&nbsp;Business Today",
+          "date": "11m ago",
+          "source": "Google News"
+        },
+        {
+          "id": "live-90be64e87840",
+          "title": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses - BusinessLine",
+          "summary": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses&nbsp;&nbsp;BusinessLine",
+          "date": "46m ago",
+          "source": "Google News"
+        },
+        {
+          "id": "live-394f4e9b3a99",
+          "title": "Zerodha now wants to enter investment banking space, seeks Sebi nod",
+          "summary": "Zerodha has applied to SEBI for a Category I merchant banking licence, signalling its entry into investment banking. The move aligns with India’s strong IPO pipeline and expanding capital markets acti",
+          "date": "12m ago",
+          "source": "Economic Times"
+        },
+        {
+          "id": "live-184d15fcaee2",
+          "title": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active - Moneycontrol.com",
+          "summary": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active&nbsp;&nbsp;Moneycontrol.com",
+          "date": "7m ago",
+          "source": "Google News"
+        },
+        {
+          "id": "live-d0694696ceeb",
+          "title": "Kotak Mahindra Bank, HDFC Bank, DCX Systems, among buzzing stocks as SENSEX falls over 350 pts, NIFTY below 24,000 - Upstox",
+          "summary": "Kotak Mahindra Bank, HDFC Bank, DCX Systems, among buzzing stocks as SENSEX falls over 350 pts, NIFTY below 24,000&nbsp;&nbsp;Upstox",
+          "date": "1h ago",
+          "source": "Google News"
+        }
+      ],
+      "announcements": [],
+      "policies": [],
+      "valuation": {},
+      "vix": 14.45,
+      "sector_rows": [
+        {
+          "id": "it",
+          "name": "IT",
+          "value": "+1.7%",
+          "positive": true
+        },
+        {
+          "id": "banking",
+          "name": "Banking",
+          "value": "-0.4%",
+          "positive": false
+        },
+        {
+          "id": "pharma",
+          "name": "Pharma",
+          "value": "-0.1%",
+          "positive": false
+        },
+        {
+          "id": "auto",
+          "name": "Auto",
+          "value": "-3.2%",
+          "positive": false
+        },
+        {
+          "id": "energy",
+          "name": "Energy",
+          "value": "-0.9%",
+          "positive": false
+        },
+        {
+          "id": "fmcg",
+          "name": "FMCG",
+          "value": "-1.6%",
+          "positive": false
+        },
+        {
+          "id": "infra",
+          "name": "Infra",
+          "value": "-0.9%",
+          "positive": false
+        },
+        {
+          "id": "metal",
+          "name": "Metal",
+          "value": "-2.2%",
+          "positive": false
+        },
+        {
+          "id": "realty",
+          "name": "Realty",
+          "value": "-0.6%",
+          "positive": false
+        },
+        {
+          "id": "psu-bank",
+          "name": "PSU Bank",
+          "value": "-0.7%",
+          "positive": false
+        },
+        {
+          "id": "private-bank",
+          "name": "Private Bank",
+          "value": "+1.3%",
+          "positive": true
+        }
+      ],
+      "macro_indices": [],
+      "context_lines": [
+        "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?",
+        "Sector performance (real, live 1-day change): Private Bank +1.3%; PSU Bank -0.7%; Banking -0.4%"
+      ],
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      },
+      "index": [
+        {
+          "id": "E1",
+          "kind": "event",
+          "title": "RBI Remains Cautious On Crypto, Backs Underlying Technology: Governor Sanjay Malhotra",
+          "summary": "RBI Governor Sanjay Malhotra stated India promotes blockchain and tokenisation technology but remains cautious on cryptocurrencies due to concerns over monetary sovereignty and policy.",
+          "date": "2026-10-03T10:25:15.466208",
+          "source": "NDTV Profit",
+          "companies": [],
+          "ref": "event:rss-22bbfbb737a0"
+        },
+        {
+          "id": "E2",
+          "kind": "event",
+          "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+          "summary": "The Securities and Exchange Board of India (Sebi) has introduced a mandatory Credit Risk-o-Meter for debt securities, aiming to enhance investor awareness regarding credit risk. This user-friendly too",
+          "date": "2026-08-14T05:40:27.378039",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-d59fc9906a97"
+        },
+        {
+          "id": "E3",
+          "kind": "event",
+          "title": "RBI to close FCNR(B) swaps a month earlier due to gush",
+          "summary": "The Reserve Bank of India has moved the FCNR(B) deposit deadline to August 31 in response to better-than-expected foreign currency inflows. This adjustment follows a positive uptake of the swap facili",
+          "date": "2026-08-15T04:20:19.977742",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-ad00a27f34b9"
+        },
+        {
+          "id": "E4",
+          "kind": "event",
+          "title": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+          "summary": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+          "date": "2026-08-12T16:33:33.702605",
+          "source": "NSE",
+          "companies": [],
+          "ref": "event:nse-3fe23e9e4b"
+        },
+        {
+          "id": "E5",
+          "kind": "event",
+          "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+          "summary": "The Indian rupee remained stable on Thursday, closing near its previous level.  Dollar sales by the Reserve Bank of India kept the local unit within a tight range.  Demand from maturing forwards and d",
+          "date": "2026-08-14T02:00:43.280534",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-452ba91505d8"
+        },
+        {
+          "id": "E6",
+          "kind": "event",
+          "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+          "summary": "The Indian rupee faced a challenging week, depreciating against the dollar amidst mounting tensions from the Middle East conflict. Despite this, central bank interventions and steady dollar sales by s",
+          "date": "2026-08-14T10:55:41.495253",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-4b6b8365cd2b"
+        },
+        {
+          "id": "E7",
+          "kind": "event",
+          "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+          "summary": "The Indian rupee finished the day marginally higher, propelled by ongoing tensions in the Middle East. Continuous interventions from the central bank have provided support against the U.S. dollar. Tra",
+          "date": "2026-08-12T16:05:37.135262",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-b36bc6485df8"
+        },
+        {
+          "id": "E8",
+          "kind": "event",
+          "title": "Pursuant to the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015 and the Code of Fair Disclosure and Conduct and in terms of Regulation 8 of the SEBI (Prohibition of Insider Trading) Regulations, 2015, the Bank would like to place the attached information on record pertaining to its performance in the quarter ended September 30, 2026.",
+          "summary": "Pursuant to the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015 and the Code of Fair Disclosure and Conduct and in terms of Regulation 8 of the SEBI (Prohibition of Insider Tr",
+          "date": "2026-10-03T14:10:23.818974",
+          "source": "NSE",
+          "companies": [],
+          "ref": "event:nse-e73653ad09"
+        },
+        {
+          "id": "N1",
+          "kind": "news",
+          "title": "Yes Bank Q2 Business Update: Deposits And Loans Grow Nearly 24% With Slight Decline In CASA Ratio",
+          "summary": "Yes Bank's stock has declined nearly 4% year-to-date and 4.6% in the last 12 months. On Friday, the shares settled 0.95% lower at Rs 20.75% apiece on the NSE, compared to a 0.88% decline in the Nifty ",
+          "date": "15m ago",
+          "source": "NDTV Profit",
+          "companies": [],
+          "ref": "news:live-ca4909c01c19"
+        },
+        {
+          "id": "N2",
+          "kind": "news",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week - Business Standard",
+          "summary": "RBI MPC policy, oil prices, bond yields may drive market this week&nbsp;&nbsp;Business Standard",
+          "date": "18m ago",
+          "source": "Google News",
+          "companies": [],
+          "ref": "news:live-e69f271d4bac"
+        },
+        {
+          "id": "N3",
+          "kind": "news",
+          "title": "RBI Repo Rate May Climb To 6% In FY27 As G-Sec Yields Face Upward Pressure: Report",
+          "summary": "The Union Bank expects a 25 basis point rate increase in October, followed by one or two additional hikes during the rest of FY27. The repo rate could consequently reach 5.75-6 percent accompanied by ",
+          "date": "2h ago",
+          "source": "NDTV Profit",
+          "companies": [],
+          "ref": "news:live-ce2d5ac10431"
+        },
+        {
+          "id": "N4",
+          "kind": "news",
+          "title": "Rate cut cycle near turning point. What lies ahead for Indian bonds?",
+          "summary": "The RBI is expected to signal monetary tightening at its October policy meeting as stronger economic growth, rising oil prices and elevated US Treasury yields fuel inflation concerns. Higher domestic ",
+          "date": "2h ago",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "news:live-33f22fb1f972"
+        },
+        {
+          "id": "N5",
+          "kind": "news",
+          "title": "RBI's dollar inflow measures buy time, but external risks remain",
+          "summary": "The Reserve Bank of India's recent measures to boost dollar inflows are a temporary fix, economists warn. While these steps aim to stabilize the rupee now, the country must strengthen its balance of p",
+          "date": "1h ago",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "news:live-f80336401a44"
+        },
+        {
+          "id": "N6",
+          "kind": "news",
+          "title": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch - Business Today",
+          "summary": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch&nbsp;&nbsp;Business Today",
+          "date": "11m ago",
+          "source": "Google News",
+          "companies": [],
+          "ref": "news:live-5ed5dc17ff75"
+        },
+        {
+          "id": "N7",
+          "kind": "news",
+          "title": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses - BusinessLine",
+          "summary": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses&nbsp;&nbsp;BusinessLine",
+          "date": "46m ago",
+          "source": "Google News",
+          "companies": [],
+          "ref": "news:live-90be64e87840"
+        },
+        {
+          "id": "N8",
+          "kind": "news",
+          "title": "Zerodha now wants to enter investment banking space, seeks Sebi nod",
+          "summary": "Zerodha has applied to SEBI for a Category I merchant banking licence, signalling its entry into investment banking. The move aligns with India’s strong IPO pipeline and expanding capital markets acti",
+          "date": "12m ago",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "news:live-394f4e9b3a99"
+        },
+        {
+          "id": "N9",
+          "kind": "news",
+          "title": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active - Moneycontrol.com",
+          "summary": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active&nbsp;&nbsp;Moneycontrol.com",
+          "date": "7m ago",
+          "source": "Google News",
+          "companies": [],
+          "ref": "news:live-184d15fcaee2"
+        },
+        {
+          "id": "N10",
+          "kind": "news",
+          "title": "Kotak Mahindra Bank, HDFC Bank, DCX Systems, among buzzing stocks as SENSEX falls over 350 pts, NIFTY below 24,000 - Upstox",
+          "summary": "Kotak Mahindra Bank, HDFC Bank, DCX Systems, among buzzing stocks as SENSEX falls over 350 pts, NIFTY below 24,000&nbsp;&nbsp;Upstox",
+          "date": "1h ago",
+          "source": "Google News",
+          "companies": [],
+          "ref": "news:live-d0694696ceeb"
+        },
+        {
+          "id": "C1",
+          "kind": "context",
+          "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:1"
+        },
+        {
+          "id": "C2",
+          "kind": "context",
+          "title": "Sector performance (real, live 1-day change): Private Bank +1.3%; PSU Bank -0.7%; Banking -0.4%",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:2"
+        }
+      ],
+      "historical": []
+    }
+  },
+  {
+    "id": "SR1",
+    "plan_kind": "topic",
+    "premise": {
+      "required": false,
+      "terms": [],
+      "supported": null,
+      "supporting": []
+    },
+    "irrelevance": {
+      "irrelevant_items": [],
+      "relevant_total": 19,
+      "status": "PASS"
+    },
+    "evidence_total": 19,
+    "snapshot": {
+      "plan_kind": "topic",
+      "filter_report": {
+        "plan": "topic",
+        "events": {
+          "kept": 8,
+          "dropped_stale": 5,
+          "dropped_irrelevant": 3,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 14
+        },
+        "news": {
+          "kept": 11,
+          "dropped_stale": 8,
+          "dropped_irrelevant": 0,
+          "dropped_undated": 0,
+          "dropped_tips": 1,
+          "dropped_single_company_filing": 0
+        },
+        "announcements": {
+          "kept": 0,
+          "dropped_stale": 0
+        },
+        "policies": {
+          "kept": 0,
+          "dropped_irrelevant": 0
+        },
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        }
+      },
+      "events": [
+        {
+          "id": "rss-22bbfbb737a0",
+          "title": "RBI Remains Cautious On Crypto, Backs Underlying Technology: Governor Sanjay Malhotra",
+          "summary": "RBI Governor Sanjay Malhotra stated India promotes blockchain and tokenisation technology but remains cautious on cryptocurrencies due to concerns over monetary sovereignty and policy.",
+          "date": "2026-10-03T10:25:15.466208",
+          "source": "NDTV Profit",
+          "companies": []
+        },
+        {
+          "id": "rss-d59fc9906a97",
+          "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+          "summary": "The Securities and Exchange Board of India (Sebi) has introduced a mandatory Credit Risk-o-Meter for debt securities, aiming to enhance investor awareness regarding credit risk. This user-friendly tool features a standardized, colour-coded scale, similar to those used in mutual funds. Issuers and on",
+          "date": "2026-08-14T05:40:27.378039",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "rss-ad00a27f34b9",
+          "title": "RBI to close FCNR(B) swaps a month earlier due to gush",
+          "summary": "The Reserve Bank of India has moved the FCNR(B) deposit deadline to August 31 in response to better-than-expected foreign currency inflows. This adjustment follows a positive uptake of the swap facility linked to these deposits, with inflows surpassing previous totals. Meanwhile, the swap schemes fo",
+          "date": "2026-08-15T04:20:19.977742",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "nse-3fe23e9e4b",
+          "title": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+          "summary": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+          "date": "2026-08-12T16:33:33.702605",
+          "source": "NSE",
+          "companies": []
+        },
+        {
+          "id": "rss-452ba91505d8",
+          "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+          "summary": "The Indian rupee remained stable on Thursday, closing near its previous level.  Dollar sales by the Reserve Bank of India kept the local unit within a tight range.  Demand from maturing forwards and debt outflows added pressure to the currency.  Traders observed a narrow trading band, anticipating f",
+          "date": "2026-08-14T02:00:43.280534",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "rss-4b6b8365cd2b",
+          "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+          "summary": "The Indian rupee faced a challenging week, depreciating against the dollar amidst mounting tensions from the Middle East conflict. Despite this, central bank interventions and steady dollar sales by state banks helped mitigate more significant losses. With India relying on imports for about ninety p",
+          "date": "2026-08-14T10:55:41.495253",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "rss-b36bc6485df8",
+          "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+          "summary": "The Indian rupee finished the day marginally higher, propelled by ongoing tensions in the Middle East. Continuous interventions from the central bank have provided support against the U.S. dollar. Traders remain watchful as critical inflation data from India and the U.S. approaches. Throughout Augus",
+          "date": "2026-08-12T16:05:37.135262",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "nse-e73653ad09",
+          "title": "Pursuant to the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015 and the Code of Fair Disclosure and Conduct and in terms of Regulation 8 of the SEBI (Prohibition of Insider Trading) Regulations, 2015, the Bank would like to place the attached information on record pertaining to its performance in the quarter ended September 30, 2026.",
+          "summary": "Pursuant to the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015 and the Code of Fair Disclosure and Conduct and in terms of Regulation 8 of the SEBI (Prohibition of Insider Trading) Regulations, 2015, the Bank would like to place the attached information on record pertaining",
+          "date": "2026-10-03T14:10:23.818974",
+          "source": "NSE",
+          "companies": []
+        }
+      ],
+      "news": [
+        {
+          "id": "live-ca4909c01c19",
+          "title": "Yes Bank Q2 Business Update: Deposits And Loans Grow Nearly 24% With Slight Decline In CASA Ratio",
+          "summary": "Yes Bank's stock has declined nearly 4% year-to-date and 4.6% in the last 12 months. On Friday, the shares settled 0.95% lower at Rs 20.75% apiece on the NSE, compared to a 0.88% decline in the Nifty ",
+          "date": "15m ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "id": "live-e69f271d4bac",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week - Business Standard",
+          "summary": "RBI MPC policy, oil prices, bond yields may drive market this week&nbsp;&nbsp;Business Standard",
+          "date": "18m ago",
+          "source": "Google News"
+        },
+        {
+          "id": "live-0159572fe8cc",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+          "date": "18m ago",
+          "source": "Business Standard"
+        },
+        {
+          "id": "live-ce2d5ac10431",
+          "title": "RBI Repo Rate May Climb To 6% In FY27 As G-Sec Yields Face Upward Pressure: Report",
+          "summary": "The Union Bank expects a 25 basis point rate increase in October, followed by one or two additional hikes during the rest of FY27. The repo rate could consequently reach 5.75-6 percent accompanied by ",
+          "date": "2h ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "id": "live-33f22fb1f972",
+          "title": "Rate cut cycle near turning point. What lies ahead for Indian bonds?",
+          "summary": "The RBI is expected to signal monetary tightening at its October policy meeting as stronger economic growth, rising oil prices and elevated US Treasury yields fuel inflation concerns. Higher domestic ",
+          "date": "2h ago",
+          "source": "Economic Times"
+        },
+        {
+          "id": "live-f80336401a44",
+          "title": "RBI's dollar inflow measures buy time, but external risks remain",
+          "summary": "The Reserve Bank of India's recent measures to boost dollar inflows are a temporary fix, economists warn. While these steps aim to stabilize the rupee now, the country must strengthen its balance of p",
+          "date": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "id": "live-5ed5dc17ff75",
+          "title": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch - Business Today",
+          "summary": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch&nbsp;&nbsp;Business Today",
+          "date": "11m ago",
+          "source": "Google News"
+        },
+        {
+          "id": "live-90be64e87840",
+          "title": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses - BusinessLine",
+          "summary": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses&nbsp;&nbsp;BusinessLine",
+          "date": "46m ago",
+          "source": "Google News"
+        },
+        {
+          "id": "live-394f4e9b3a99",
+          "title": "Zerodha now wants to enter investment banking space, seeks Sebi nod",
+          "summary": "Zerodha has applied to SEBI for a Category I merchant banking licence, signalling its entry into investment banking. The move aligns with India’s strong IPO pipeline and expanding capital markets acti",
+          "date": "12m ago",
+          "source": "Economic Times"
+        },
+        {
+          "id": "live-184d15fcaee2",
+          "title": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active - Moneycontrol.com",
+          "summary": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active&nbsp;&nbsp;Moneycontrol.com",
+          "date": "7m ago",
+          "source": "Google News"
+        },
+        {
+          "id": "live-d0694696ceeb",
+          "title": "Kotak Mahindra Bank, HDFC Bank, DCX Systems, among buzzing stocks as SENSEX falls over 350 pts, NIFTY below 24,000 - Upstox",
+          "summary": "Kotak Mahindra Bank, HDFC Bank, DCX Systems, among buzzing stocks as SENSEX falls over 350 pts, NIFTY below 24,000&nbsp;&nbsp;Upstox",
+          "date": "1h ago",
+          "source": "Google News"
+        }
+      ],
+      "announcements": [],
+      "policies": [],
+      "valuation": {},
+      "vix": 14.45,
+      "sector_rows": [
+        {
+          "id": "it",
+          "name": "IT",
+          "value": "+1.7%",
+          "positive": true
+        },
+        {
+          "id": "banking",
+          "name": "Banking",
+          "value": "-0.4%",
+          "positive": false
+        },
+        {
+          "id": "pharma",
+          "name": "Pharma",
+          "value": "-0.1%",
+          "positive": false
+        },
+        {
+          "id": "auto",
+          "name": "Auto",
+          "value": "-3.2%",
+          "positive": false
+        },
+        {
+          "id": "energy",
+          "name": "Energy",
+          "value": "-0.9%",
+          "positive": false
+        },
+        {
+          "id": "fmcg",
+          "name": "FMCG",
+          "value": "-1.6%",
+          "positive": false
+        },
+        {
+          "id": "infra",
+          "name": "Infra",
+          "value": "-0.9%",
+          "positive": false
+        },
+        {
+          "id": "metal",
+          "name": "Metal",
+          "value": "-2.2%",
+          "positive": false
+        },
+        {
+          "id": "realty",
+          "name": "Realty",
+          "value": "-0.6%",
+          "positive": false
+        },
+        {
+          "id": "psu-bank",
+          "name": "PSU Bank",
+          "value": "-0.7%",
+          "positive": false
+        },
+        {
+          "id": "private-bank",
+          "name": "Private Bank",
+          "value": "+1.3%",
+          "positive": true
+        }
+      ],
+      "macro_indices": [],
+      "context_lines": [
+        "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?",
+        "Sector performance (real, live 1-day change): Private Bank +1.3%; PSU Bank -0.7%; Banking -0.4%"
+      ],
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      },
+      "index": [
+        {
+          "id": "E1",
+          "kind": "event",
+          "title": "RBI Remains Cautious On Crypto, Backs Underlying Technology: Governor Sanjay Malhotra",
+          "summary": "RBI Governor Sanjay Malhotra stated India promotes blockchain and tokenisation technology but remains cautious on cryptocurrencies due to concerns over monetary sovereignty and policy.",
+          "date": "2026-10-03T10:25:15.466208",
+          "source": "NDTV Profit",
+          "companies": [],
+          "ref": "event:rss-22bbfbb737a0"
+        },
+        {
+          "id": "E2",
+          "kind": "event",
+          "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+          "summary": "The Securities and Exchange Board of India (Sebi) has introduced a mandatory Credit Risk-o-Meter for debt securities, aiming to enhance investor awareness regarding credit risk. This user-friendly too",
+          "date": "2026-08-14T05:40:27.378039",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-d59fc9906a97"
+        },
+        {
+          "id": "E3",
+          "kind": "event",
+          "title": "RBI to close FCNR(B) swaps a month earlier due to gush",
+          "summary": "The Reserve Bank of India has moved the FCNR(B) deposit deadline to August 31 in response to better-than-expected foreign currency inflows. This adjustment follows a positive uptake of the swap facili",
+          "date": "2026-08-15T04:20:19.977742",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-ad00a27f34b9"
+        },
+        {
+          "id": "E4",
+          "kind": "event",
+          "title": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+          "summary": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+          "date": "2026-08-12T16:33:33.702605",
+          "source": "NSE",
+          "companies": [],
+          "ref": "event:nse-3fe23e9e4b"
+        },
+        {
+          "id": "E5",
+          "kind": "event",
+          "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+          "summary": "The Indian rupee remained stable on Thursday, closing near its previous level.  Dollar sales by the Reserve Bank of India kept the local unit within a tight range.  Demand from maturing forwards and d",
+          "date": "2026-08-14T02:00:43.280534",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-452ba91505d8"
+        },
+        {
+          "id": "E6",
+          "kind": "event",
+          "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+          "summary": "The Indian rupee faced a challenging week, depreciating against the dollar amidst mounting tensions from the Middle East conflict. Despite this, central bank interventions and steady dollar sales by s",
+          "date": "2026-08-14T10:55:41.495253",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-4b6b8365cd2b"
+        },
+        {
+          "id": "E7",
+          "kind": "event",
+          "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+          "summary": "The Indian rupee finished the day marginally higher, propelled by ongoing tensions in the Middle East. Continuous interventions from the central bank have provided support against the U.S. dollar. Tra",
+          "date": "2026-08-12T16:05:37.135262",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-b36bc6485df8"
+        },
+        {
+          "id": "E8",
+          "kind": "event",
+          "title": "Pursuant to the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015 and the Code of Fair Disclosure and Conduct and in terms of Regulation 8 of the SEBI (Prohibition of Insider Trading) Regulations, 2015, the Bank would like to place the attached information on record pertaining to its performance in the quarter ended September 30, 2026.",
+          "summary": "Pursuant to the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015 and the Code of Fair Disclosure and Conduct and in terms of Regulation 8 of the SEBI (Prohibition of Insider Tr",
+          "date": "2026-10-03T14:10:23.818974",
+          "source": "NSE",
+          "companies": [],
+          "ref": "event:nse-e73653ad09"
+        },
+        {
+          "id": "N1",
+          "kind": "news",
+          "title": "Yes Bank Q2 Business Update: Deposits And Loans Grow Nearly 24% With Slight Decline In CASA Ratio",
+          "summary": "Yes Bank's stock has declined nearly 4% year-to-date and 4.6% in the last 12 months. On Friday, the shares settled 0.95% lower at Rs 20.75% apiece on the NSE, compared to a 0.88% decline in the Nifty ",
+          "date": "15m ago",
+          "source": "NDTV Profit",
+          "companies": [],
+          "ref": "news:live-ca4909c01c19"
+        },
+        {
+          "id": "N2",
+          "kind": "news",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week - Business Standard",
+          "summary": "RBI MPC policy, oil prices, bond yields may drive market this week&nbsp;&nbsp;Business Standard",
+          "date": "18m ago",
+          "source": "Google News",
+          "companies": [],
+          "ref": "news:live-e69f271d4bac"
+        },
+        {
+          "id": "N3",
+          "kind": "news",
+          "title": "RBI Repo Rate May Climb To 6% In FY27 As G-Sec Yields Face Upward Pressure: Report",
+          "summary": "The Union Bank expects a 25 basis point rate increase in October, followed by one or two additional hikes during the rest of FY27. The repo rate could consequently reach 5.75-6 percent accompanied by ",
+          "date": "2h ago",
+          "source": "NDTV Profit",
+          "companies": [],
+          "ref": "news:live-ce2d5ac10431"
+        },
+        {
+          "id": "N4",
+          "kind": "news",
+          "title": "Rate cut cycle near turning point. What lies ahead for Indian bonds?",
+          "summary": "The RBI is expected to signal monetary tightening at its October policy meeting as stronger economic growth, rising oil prices and elevated US Treasury yields fuel inflation concerns. Higher domestic ",
+          "date": "2h ago",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "news:live-33f22fb1f972"
+        },
+        {
+          "id": "N5",
+          "kind": "news",
+          "title": "RBI's dollar inflow measures buy time, but external risks remain",
+          "summary": "The Reserve Bank of India's recent measures to boost dollar inflows are a temporary fix, economists warn. While these steps aim to stabilize the rupee now, the country must strengthen its balance of p",
+          "date": "1h ago",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "news:live-f80336401a44"
+        },
+        {
+          "id": "N6",
+          "kind": "news",
+          "title": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch - Business Today",
+          "summary": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch&nbsp;&nbsp;Business Today",
+          "date": "11m ago",
+          "source": "Google News",
+          "companies": [],
+          "ref": "news:live-5ed5dc17ff75"
+        },
+        {
+          "id": "N7",
+          "kind": "news",
+          "title": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses - BusinessLine",
+          "summary": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses&nbsp;&nbsp;BusinessLine",
+          "date": "46m ago",
+          "source": "Google News",
+          "companies": [],
+          "ref": "news:live-90be64e87840"
+        },
+        {
+          "id": "N8",
+          "kind": "news",
+          "title": "Zerodha now wants to enter investment banking space, seeks Sebi nod",
+          "summary": "Zerodha has applied to SEBI for a Category I merchant banking licence, signalling its entry into investment banking. The move aligns with India’s strong IPO pipeline and expanding capital markets acti",
+          "date": "12m ago",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "news:live-394f4e9b3a99"
+        },
+        {
+          "id": "N9",
+          "kind": "news",
+          "title": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active - Moneycontrol.com",
+          "summary": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active&nbsp;&nbsp;Moneycontrol.com",
+          "date": "7m ago",
+          "source": "Google News",
+          "companies": [],
+          "ref": "news:live-184d15fcaee2"
+        },
+        {
+          "id": "N10",
+          "kind": "news",
+          "title": "Kotak Mahindra Bank, HDFC Bank, DCX Systems, among buzzing stocks as SENSEX falls over 350 pts, NIFTY below 24,000 - Upstox",
+          "summary": "Kotak Mahindra Bank, HDFC Bank, DCX Systems, among buzzing stocks as SENSEX falls over 350 pts, NIFTY below 24,000&nbsp;&nbsp;Upstox",
+          "date": "1h ago",
+          "source": "Google News",
+          "companies": [],
+          "ref": "news:live-d0694696ceeb"
+        },
+        {
+          "id": "C1",
+          "kind": "context",
+          "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:1"
+        },
+        {
+          "id": "C2",
+          "kind": "context",
+          "title": "Sector performance (real, live 1-day change): Private Bank +1.3%; PSU Bank -0.7%; Banking -0.4%",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:2"
+        }
+      ],
+      "historical": []
+    }
+  },
+  {
+    "id": "SR2",
+    "plan_kind": "topic",
+    "premise": {
+      "required": false,
+      "terms": [],
+      "supported": null,
+      "supporting": []
+    },
+    "irrelevance": {
+      "irrelevant_items": [],
+      "relevant_total": 11,
+      "status": "PASS"
+    },
+    "evidence_total": 11,
+    "snapshot": {
+      "plan_kind": "topic",
+      "filter_report": {
+        "plan": "topic",
+        "events": {
+          "kept": 8,
+          "dropped_stale": 1,
+          "dropped_irrelevant": 0,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 21
+        },
+        "news": {
+          "kept": 3,
+          "dropped_stale": 15,
+          "dropped_irrelevant": 1,
+          "dropped_undated": 0,
+          "dropped_tips": 1,
+          "dropped_single_company_filing": 0
+        },
+        "announcements": {
+          "kept": 0,
+          "dropped_stale": 0
+        },
+        "policies": {
+          "kept": 0,
+          "dropped_irrelevant": 0
+        },
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        }
+      },
+      "events": [
+        {
+          "id": "rss-a8c58e2416c6",
+          "title": "TCS, Infosys, Wipro shares ahead of Q2 results: Explained | What Accenture's strong earnings mean for Indian IT stocks",
+          "summary": "Accenture's fourth-quarter results reflect a rising trend in AI adoption, marking a shift from pilot projects to larger implementations, positively impacting Indian IT stocks. Despite the optimism, concerns about pricing pressure and sluggish discretionary spending suggest a cautious outlook.",
+          "date": "2026-10-03T11:55:14.621954",
+          "source": "Livemint",
+          "companies": []
+        },
+        {
+          "id": "rss-1079b327d09c",
+          "title": "IT Q2 Results Dates: When TCS, Infosys, Wipro, HCLTech, Tech Mahindra Will Report FY27 Earnings",
+          "summary": "India's Q2 FY27 IT earnings season begins Oct. 8 with TCS, followed by HCLTech, Wipro, Infosys and other major technology companies. Investors will track revenue growth, deal wins, margins, AI demand and dividends as India's top IT firms report September-quarter earnings.",
+          "date": "2026-10-03T06:19:05.781349",
+          "source": "NDTV Profit",
+          "companies": []
+        },
+        {
+          "id": "rss-d719afdc49b7",
+          "title": "Accenture Shares Jump Record 22% On Earnings Boost; Infosys, Wipro ADRs Spike Up To 10%",
+          "summary": "Accenture shares surge a record 22% after earnings, lifting Indian IT names Infosys and Wipro, whose US-listed shares also rally.",
+          "date": "2026-10-01T14:18:26.778652",
+          "source": "NDTV Profit",
+          "companies": []
+        },
+        {
+          "id": "rss-dff9fe778b4b",
+          "title": "Infosys, Wipro ADRs jump up to 10% after Accenture Q4 results beat Wall Street estimates",
+          "summary": "Accenture's strong fiscal fourth-quarter performance boosted Infosys and Wipro ADRs significantly as they rebounded from losses. Infosys ADRs rose 8% and Wipro ADRs jumped 10%, suggesting improved market sentiment ahead of the upcoming earnings season.",
+          "date": "2026-10-01T13:03:26.920623",
+          "source": "Livemint",
+          "companies": []
+        },
+        {
+          "id": "rss-2eb04109e831",
+          "title": "Infosys, Wipro ADRs Spike Over 8% Pre-Market As Solid Accenture Earnings Boosts IT Outlook",
+          "summary": "Infosys, Wipro ADRs rose over 8% before the opening bell on Thursday, October 1.",
+          "date": "2026-10-01T12:48:28.954799",
+          "source": "NDTV Profit",
+          "companies": []
+        },
+        {
+          "id": "rss-19fb07b037d7",
+          "title": "Nifty IT crashes 11% in September: TCS, Infosys, Wipro among top losers — Can Q2 earnings spark a rebound?",
+          "summary": "The IT sector has been hit hard in September, with the Nifty IT index down 11%. High interest rates, global growth fears, and generative AI pressures have impacted technology spending. Investors are looking to upcoming Q2 earnings for insights into demand and AI-led transformations.",
+          "date": "2026-10-01T12:33:25.959941",
+          "source": "Livemint",
+          "companies": []
+        },
+        {
+          "id": "rss-d9a35126553d",
+          "title": "Infosys, Wipro ADRs soar up to 8% as strong Accenture earnings forecast lifts mood",
+          "summary": "Infosys and Wipro ADRs rallied in US premarket trading after Accenture forecast stronger-than-expected annual revenue growth. Its upbeat outlook eased concerns over global technology spending, while steady consulting, managed-services and AI demand improved sentiment toward Indian IT exporters.",
+          "date": "2026-10-01T12:03:29.351497",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "rss-27e54ddf0419",
+          "title": "Nifty IT jumps 2%; Mphasis, Coforge, Infosys, TCS among top gainers - Reason behind the rally, Q2 results expectations",
+          "summary": "Despite a shaky market, the Nifty IT index rose over 2% intraday on October 1st, buoyed by a weaker rupee and positive forecasts from major financial firms, with Mphasis, Coforge, and Infosys leading the charge.",
+          "date": "2026-10-01T11:02:03.219213",
+          "source": "Livemint",
+          "companies": []
+        }
+      ],
+      "news": [
+        {
+          "id": "live-0159572fe8cc",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+          "date": "18m ago",
+          "source": "Business Standard"
+        },
+        {
+          "id": "live-a77e3b821d72",
+          "title": "IT Q2 preview: Muted growth, steady margins likely; deal conversion, AI deflation in focus",
+          "summary": "India's leading IT firms are projected to exhibit modest revenue growth and stable margins for the second quarter. Analysts anticipate that discretionary spending will remain constrained due to geopol",
+          "date": "31m ago",
+          "source": "Economic Times"
+        },
+        {
+          "id": "live-606a1783175c",
+          "title": "Weekly Market Wrap: NIFTY50, SENSEX end lower as metal, IT indices fall 4%; Infosys leads losses - Upstox",
+          "summary": "Weekly Market Wrap: NIFTY50, SENSEX end lower as metal, IT indices fall 4%; Infosys leads losses&nbsp;&nbsp;Upstox",
+          "date": "1d ago",
+          "source": "Google News"
+        }
+      ],
+      "announcements": [],
+      "policies": [],
+      "valuation": {},
+      "vix": 14.45,
+      "sector_rows": [
+        {
+          "id": "it",
+          "name": "IT",
+          "value": "+1.7%",
+          "positive": true
+        },
+        {
+          "id": "banking",
+          "name": "Banking",
+          "value": "-0.4%",
+          "positive": false
+        },
+        {
+          "id": "pharma",
+          "name": "Pharma",
+          "value": "-0.1%",
+          "positive": false
+        },
+        {
+          "id": "auto",
+          "name": "Auto",
+          "value": "-3.2%",
+          "positive": false
+        },
+        {
+          "id": "energy",
+          "name": "Energy",
+          "value": "-0.9%",
+          "positive": false
+        },
+        {
+          "id": "fmcg",
+          "name": "FMCG",
+          "value": "-1.6%",
+          "positive": false
+        },
+        {
+          "id": "infra",
+          "name": "Infra",
+          "value": "-0.9%",
+          "positive": false
+        },
+        {
+          "id": "metal",
+          "name": "Metal",
+          "value": "-2.2%",
+          "positive": false
+        },
+        {
+          "id": "realty",
+          "name": "Realty",
+          "value": "-0.6%",
+          "positive": false
+        },
+        {
+          "id": "psu-bank",
+          "name": "PSU Bank",
+          "value": "-0.7%",
+          "positive": false
+        },
+        {
+          "id": "private-bank",
+          "name": "Private Bank",
+          "value": "+1.3%",
+          "positive": true
+        }
+      ],
+      "macro_indices": [],
+      "context_lines": [
+        "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?",
+        "Sector performance (real, live 1-day change): Auto -3.2%; Metal -2.2%; IT +1.7%; FMCG -1.6%; Private Bank +1.3%"
+      ],
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      },
+      "index": [
+        {
+          "id": "E1",
+          "kind": "event",
+          "title": "TCS, Infosys, Wipro shares ahead of Q2 results: Explained | What Accenture's strong earnings mean for Indian IT stocks",
+          "summary": "Accenture's fourth-quarter results reflect a rising trend in AI adoption, marking a shift from pilot projects to larger implementations, positively impacting Indian IT stocks. Despite the optimism, co",
+          "date": "2026-10-03T11:55:14.621954",
+          "source": "Livemint",
+          "companies": [],
+          "ref": "event:rss-a8c58e2416c6"
+        },
+        {
+          "id": "E2",
+          "kind": "event",
+          "title": "IT Q2 Results Dates: When TCS, Infosys, Wipro, HCLTech, Tech Mahindra Will Report FY27 Earnings",
+          "summary": "India's Q2 FY27 IT earnings season begins Oct. 8 with TCS, followed by HCLTech, Wipro, Infosys and other major technology companies. Investors will track revenue growth, deal wins, margins, AI demand ",
+          "date": "2026-10-03T06:19:05.781349",
+          "source": "NDTV Profit",
+          "companies": [],
+          "ref": "event:rss-1079b327d09c"
+        },
+        {
+          "id": "E3",
+          "kind": "event",
+          "title": "Accenture Shares Jump Record 22% On Earnings Boost; Infosys, Wipro ADRs Spike Up To 10%",
+          "summary": "Accenture shares surge a record 22% after earnings, lifting Indian IT names Infosys and Wipro, whose US-listed shares also rally.",
+          "date": "2026-10-01T14:18:26.778652",
+          "source": "NDTV Profit",
+          "companies": [],
+          "ref": "event:rss-d719afdc49b7"
+        },
+        {
+          "id": "E4",
+          "kind": "event",
+          "title": "Infosys, Wipro ADRs jump up to 10% after Accenture Q4 results beat Wall Street estimates",
+          "summary": "Accenture's strong fiscal fourth-quarter performance boosted Infosys and Wipro ADRs significantly as they rebounded from losses. Infosys ADRs rose 8% and Wipro ADRs jumped 10%, suggesting improved mar",
+          "date": "2026-10-01T13:03:26.920623",
+          "source": "Livemint",
+          "companies": [],
+          "ref": "event:rss-dff9fe778b4b"
+        },
+        {
+          "id": "E5",
+          "kind": "event",
+          "title": "Infosys, Wipro ADRs Spike Over 8% Pre-Market As Solid Accenture Earnings Boosts IT Outlook",
+          "summary": "Infosys, Wipro ADRs rose over 8% before the opening bell on Thursday, October 1.",
+          "date": "2026-10-01T12:48:28.954799",
+          "source": "NDTV Profit",
+          "companies": [],
+          "ref": "event:rss-2eb04109e831"
+        },
+        {
+          "id": "E6",
+          "kind": "event",
+          "title": "Nifty IT crashes 11% in September: TCS, Infosys, Wipro among top losers — Can Q2 earnings spark a rebound?",
+          "summary": "The IT sector has been hit hard in September, with the Nifty IT index down 11%. High interest rates, global growth fears, and generative AI pressures have impacted technology spending. Investors are l",
+          "date": "2026-10-01T12:33:25.959941",
+          "source": "Livemint",
+          "companies": [],
+          "ref": "event:rss-19fb07b037d7"
+        },
+        {
+          "id": "E7",
+          "kind": "event",
+          "title": "Infosys, Wipro ADRs soar up to 8% as strong Accenture earnings forecast lifts mood",
+          "summary": "Infosys and Wipro ADRs rallied in US premarket trading after Accenture forecast stronger-than-expected annual revenue growth. Its upbeat outlook eased concerns over global technology spending, while s",
+          "date": "2026-10-01T12:03:29.351497",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-d9a35126553d"
+        },
+        {
+          "id": "E8",
+          "kind": "event",
+          "title": "Nifty IT jumps 2%; Mphasis, Coforge, Infosys, TCS among top gainers - Reason behind the rally, Q2 results expectations",
+          "summary": "Despite a shaky market, the Nifty IT index rose over 2% intraday on October 1st, buoyed by a weaker rupee and positive forecasts from major financial firms, with Mphasis, Coforge, and Infosys leading ",
+          "date": "2026-10-01T11:02:03.219213",
+          "source": "Livemint",
+          "companies": [],
+          "ref": "event:rss-27e54ddf0419"
+        },
+        {
+          "id": "N1",
+          "kind": "news",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+          "date": "18m ago",
+          "source": "Business Standard",
+          "companies": [],
+          "ref": "news:live-0159572fe8cc"
+        },
+        {
+          "id": "N2",
+          "kind": "news",
+          "title": "IT Q2 preview: Muted growth, steady margins likely; deal conversion, AI deflation in focus",
+          "summary": "India's leading IT firms are projected to exhibit modest revenue growth and stable margins for the second quarter. Analysts anticipate that discretionary spending will remain constrained due to geopol",
+          "date": "31m ago",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "news:live-a77e3b821d72"
+        },
+        {
+          "id": "N3",
+          "kind": "news",
+          "title": "Weekly Market Wrap: NIFTY50, SENSEX end lower as metal, IT indices fall 4%; Infosys leads losses - Upstox",
+          "summary": "Weekly Market Wrap: NIFTY50, SENSEX end lower as metal, IT indices fall 4%; Infosys leads losses&nbsp;&nbsp;Upstox",
+          "date": "1d ago",
+          "source": "Google News",
+          "companies": [],
+          "ref": "news:live-606a1783175c"
+        },
+        {
+          "id": "C1",
+          "kind": "context",
+          "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:1"
+        },
+        {
+          "id": "C2",
+          "kind": "context",
+          "title": "Sector performance (real, live 1-day change): Auto -3.2%; Metal -2.2%; IT +1.7%; FMCG -1.6%; Private Bank +1.3%",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:2"
+        }
+      ],
+      "historical": []
+    }
+  },
+  {
+    "id": "SR3",
+    "plan_kind": "topic",
+    "premise": {
+      "required": false,
+      "terms": [],
+      "supported": null,
+      "supporting": []
+    },
+    "irrelevance": {
+      "irrelevant_items": [],
+      "relevant_total": 0,
+      "status": "PASS"
+    },
+    "evidence_total": 0,
+    "snapshot": {
+      "plan_kind": "topic",
+      "filter_report": {
+        "plan": "topic",
+        "events": {
+          "kept": 0,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 25,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 5
+        },
+        "news": {
+          "kept": 0,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 18,
+          "dropped_undated": 0,
+          "dropped_tips": 2,
+          "dropped_single_company_filing": 0
+        },
+        "announcements": {
+          "kept": 0,
+          "dropped_stale": 0
+        },
+        "policies": {
+          "kept": 0,
+          "dropped_irrelevant": 0
+        },
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        }
+      },
+      "events": [],
+      "news": [],
+      "announcements": [],
+      "policies": [],
+      "valuation": {},
+      "vix": 14.45,
+      "sector_rows": [
+        {
+          "id": "it",
+          "name": "IT",
+          "value": "+1.7%",
+          "positive": true
+        },
+        {
+          "id": "banking",
+          "name": "Banking",
+          "value": "-0.4%",
+          "positive": false
+        },
+        {
+          "id": "pharma",
+          "name": "Pharma",
+          "value": "-0.1%",
+          "positive": false
+        },
+        {
+          "id": "auto",
+          "name": "Auto",
+          "value": "-3.2%",
+          "positive": false
+        },
+        {
+          "id": "energy",
+          "name": "Energy",
+          "value": "-0.9%",
+          "positive": false
+        },
+        {
+          "id": "fmcg",
+          "name": "FMCG",
+          "value": "-1.6%",
+          "positive": false
+        },
+        {
+          "id": "infra",
+          "name": "Infra",
+          "value": "-0.9%",
+          "positive": false
+        },
+        {
+          "id": "metal",
+          "name": "Metal",
+          "value": "-2.2%",
+          "positive": false
+        },
+        {
+          "id": "realty",
+          "name": "Realty",
+          "value": "-0.6%",
+          "positive": false
+        },
+        {
+          "id": "psu-bank",
+          "name": "PSU Bank",
+          "value": "-0.7%",
+          "positive": false
+        },
+        {
+          "id": "private-bank",
+          "name": "Private Bank",
+          "value": "+1.3%",
+          "positive": true
+        }
+      ],
+      "macro_indices": [],
+      "context_lines": [
+        "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?",
+        "Sector performance (real, live 1-day change): Auto -3.2%; Metal -2.2%; IT +1.7%; FMCG -1.6%; Private Bank +1.3%"
+      ],
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      },
+      "index": [
+        {
+          "id": "C1",
+          "kind": "context",
+          "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:1"
+        },
+        {
+          "id": "C2",
+          "kind": "context",
+          "title": "Sector performance (real, live 1-day change): Auto -3.2%; Metal -2.2%; IT +1.7%; FMCG -1.6%; Private Bank +1.3%",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:2"
+        }
+      ],
+      "historical": []
+    }
+  },
+  {
+    "id": "MP1",
+    "plan_kind": "topic",
+    "premise": {
+      "required": false,
+      "terms": [],
+      "supported": null,
+      "supporting": []
+    },
+    "irrelevance": {
+      "irrelevant_items": [],
+      "relevant_total": 20,
+      "status": "PASS"
+    },
+    "evidence_total": 20,
+    "snapshot": {
+      "plan_kind": "topic",
+      "filter_report": {
+        "plan": "topic",
+        "events": {
+          "kept": 8,
+          "dropped_stale": 4,
+          "dropped_irrelevant": 12,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 6
+        },
+        "news": {
+          "kept": 12,
+          "dropped_stale": 7,
+          "dropped_irrelevant": 0,
+          "dropped_undated": 0,
+          "dropped_tips": 1,
+          "dropped_single_company_filing": 0
+        },
+        "announcements": {
+          "kept": 0,
+          "dropped_stale": 0
+        },
+        "policies": {
+          "kept": 0,
+          "dropped_irrelevant": 1
+        },
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        }
+      },
+      "events": [
+        {
+          "id": "rss-22bbfbb737a0",
+          "title": "RBI Remains Cautious On Crypto, Backs Underlying Technology: Governor Sanjay Malhotra",
+          "summary": "RBI Governor Sanjay Malhotra stated India promotes blockchain and tokenisation technology but remains cautious on cryptocurrencies due to concerns over monetary sovereignty and policy.",
+          "date": "2026-10-03T10:25:15.466208",
+          "source": "NDTV Profit",
+          "companies": []
+        },
+        {
+          "id": "rss-d59fc9906a97",
+          "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+          "summary": "The Securities and Exchange Board of India (Sebi) has introduced a mandatory Credit Risk-o-Meter for debt securities, aiming to enhance investor awareness regarding credit risk. This user-friendly tool features a standardized, colour-coded scale, similar to those used in mutual funds. Issuers and on",
+          "date": "2026-08-14T05:40:27.378039",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "rss-ad00a27f34b9",
+          "title": "RBI to close FCNR(B) swaps a month earlier due to gush",
+          "summary": "The Reserve Bank of India has moved the FCNR(B) deposit deadline to August 31 in response to better-than-expected foreign currency inflows. This adjustment follows a positive uptake of the swap facility linked to these deposits, with inflows surpassing previous totals. Meanwhile, the swap schemes fo",
+          "date": "2026-08-15T04:20:19.977742",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "nse-3fe23e9e4b",
+          "title": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+          "summary": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+          "date": "2026-08-12T16:33:33.702605",
+          "source": "NSE",
+          "companies": []
+        },
+        {
+          "id": "rss-452ba91505d8",
+          "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+          "summary": "The Indian rupee remained stable on Thursday, closing near its previous level.  Dollar sales by the Reserve Bank of India kept the local unit within a tight range.  Demand from maturing forwards and debt outflows added pressure to the currency.  Traders observed a narrow trading band, anticipating f",
+          "date": "2026-08-14T02:00:43.280534",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "rss-4b6b8365cd2b",
+          "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+          "summary": "The Indian rupee faced a challenging week, depreciating against the dollar amidst mounting tensions from the Middle East conflict. Despite this, central bank interventions and steady dollar sales by state banks helped mitigate more significant losses. With India relying on imports for about ninety p",
+          "date": "2026-08-14T10:55:41.495253",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "fed-e2ad8ddab005",
+          "title": "Federal Reserve announces the leadership and objectives of its task forces to advance the conduct of monetary policy",
+          "summary": "Federal Reserve announces the leadership and objectives of its task forces to advance the conduct of monetary policy",
+          "date": "2026-08-13T15:10:11.440849",
+          "source": "Fed",
+          "companies": []
+        },
+        {
+          "id": "rss-b36bc6485df8",
+          "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+          "summary": "The Indian rupee finished the day marginally higher, propelled by ongoing tensions in the Middle East. Continuous interventions from the central bank have provided support against the U.S. dollar. Traders remain watchful as critical inflation data from India and the U.S. approaches. Throughout Augus",
+          "date": "2026-08-12T16:05:37.135262",
+          "source": "Economic Times",
+          "companies": []
+        }
+      ],
+      "news": [
+        {
+          "id": "live-ca4909c01c19",
+          "title": "Yes Bank Q2 Business Update: Deposits And Loans Grow Nearly 24% With Slight Decline In CASA Ratio",
+          "summary": "Yes Bank's stock has declined nearly 4% year-to-date and 4.6% in the last 12 months. On Friday, the shares settled 0.95% lower at Rs 20.75% apiece on the NSE, compared to a 0.88% decline in the Nifty ",
+          "date": "15m ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "id": "live-e69f271d4bac",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week - Business Standard",
+          "summary": "RBI MPC policy, oil prices, bond yields may drive market this week&nbsp;&nbsp;Business Standard",
+          "date": "18m ago",
+          "source": "Google News"
+        },
+        {
+          "id": "live-0159572fe8cc",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+          "date": "18m ago",
+          "source": "Business Standard"
+        },
+        {
+          "id": "live-ce2d5ac10431",
+          "title": "RBI Repo Rate May Climb To 6% In FY27 As G-Sec Yields Face Upward Pressure: Report",
+          "summary": "The Union Bank expects a 25 basis point rate increase in October, followed by one or two additional hikes during the rest of FY27. The repo rate could consequently reach 5.75-6 percent accompanied by ",
+          "date": "2h ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "id": "live-33f22fb1f972",
+          "title": "Rate cut cycle near turning point. What lies ahead for Indian bonds?",
+          "summary": "The RBI is expected to signal monetary tightening at its October policy meeting as stronger economic growth, rising oil prices and elevated US Treasury yields fuel inflation concerns. Higher domestic ",
+          "date": "2h ago",
+          "source": "Economic Times"
+        },
+        {
+          "id": "live-f80336401a44",
+          "title": "RBI's dollar inflow measures buy time, but external risks remain",
+          "summary": "The Reserve Bank of India's recent measures to boost dollar inflows are a temporary fix, economists warn. While these steps aim to stabilize the rupee now, the country must strengthen its balance of p",
+          "date": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "id": "live-5ed5dc17ff75",
+          "title": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch - Business Today",
+          "summary": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch&nbsp;&nbsp;Business Today",
+          "date": "11m ago",
+          "source": "Google News"
+        },
+        {
+          "id": "live-fd6450820f8a",
+          "title": "US Stock Market: Wall Street eyes jobs data as rate hike bets and tech volatility intensify",
+          "summary": "Indian investors are keenly watching US jobs data this week for economic health and interest rate cues. Tech stocks, especially chipmakers, are under scrutiny amid valuation concerns.  Strong hiring c",
+          "date": "21m ago",
+          "source": "Economic Times"
+        },
+        {
+          "id": "live-90be64e87840",
+          "title": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses - BusinessLine",
+          "summary": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses&nbsp;&nbsp;BusinessLine",
+          "date": "46m ago",
+          "source": "Google News"
+        },
+        {
+          "id": "live-394f4e9b3a99",
+          "title": "Zerodha now wants to enter investment banking space, seeks Sebi nod",
+          "summary": "Zerodha has applied to SEBI for a Category I merchant banking licence, signalling its entry into investment banking. The move aligns with India’s strong IPO pipeline and expanding capital markets acti",
+          "date": "12m ago",
+          "source": "Economic Times"
+        },
+        {
+          "id": "live-184d15fcaee2",
+          "title": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active - Moneycontrol.com",
+          "summary": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active&nbsp;&nbsp;Moneycontrol.com",
+          "date": "7m ago",
+          "source": "Google News"
+        },
+        {
+          "id": "live-d0694696ceeb",
+          "title": "Kotak Mahindra Bank, HDFC Bank, DCX Systems, among buzzing stocks as SENSEX falls over 350 pts, NIFTY below 24,000 - Upstox",
+          "summary": "Kotak Mahindra Bank, HDFC Bank, DCX Systems, among buzzing stocks as SENSEX falls over 350 pts, NIFTY below 24,000&nbsp;&nbsp;Upstox",
+          "date": "1h ago",
+          "source": "Google News"
+        }
+      ],
+      "announcements": [],
+      "policies": [],
+      "valuation": {},
+      "vix": 14.45,
+      "sector_rows": [],
+      "macro_indices": [
+        {
+          "name": "NIFTY 50",
+          "ticker": "^NSEI",
+          "value": "22,421.95",
+          "change": "-198.50 (-0.88%)",
+          "pct": -0.88,
+          "positive": false,
+          "high": "22,534.06",
+          "low": "22,309.84",
+          "chart": [
+            {
+              "label": "2026-09-28",
+              "value": 22780.25
+            },
+            {
+              "label": "2026-09-29",
+              "value": 22716.2
+            },
+            {
+              "label": "2026-09-30",
+              "value": 22620.45
+            },
+            {
+              "label": "2026-10-01",
+              "value": 22421.95
+            }
+          ]
+        },
+        {
+          "name": "SENSEX",
+          "ticker": "^BSESN",
+          "value": "71,909.70",
+          "change": "-570.59 (-0.79%)",
+          "pct": -0.79,
+          "positive": false,
+          "high": "72,269.25",
+          "low": "71,550.15",
+          "chart": [
+            {
+              "label": "2026-09-28",
+              "value": 72771.72
+            },
+            {
+              "label": "2026-09-29",
+              "value": 72529.07
+            },
+            {
+              "label": "2026-09-30",
+              "value": 72480.29
+            },
+            {
+              "label": "2026-10-01",
+              "value": 71909.7
+            }
+          ]
+        },
+        {
+          "name": "BANK NIFTY",
+          "ticker": "^NSEBANK",
+          "value": "54,450.75",
+          "change": "-182.30 (-0.33%)",
+          "pct": -0.33,
+          "positive": false,
+          "high": "54,723.00",
+          "low": "54,178.50",
+          "chart": [
+            {
+              "label": "2026-09-28",
+              "value": 54471.65
+            },
+            {
+              "label": "2026-09-29",
+              "value": 54259.95
+            },
+            {
+              "label": "2026-09-30",
+              "value": 54633.05
+            },
+            {
+              "label": "2026-10-01",
+              "value": 54450.75
+            }
+          ]
+        },
+        {
+          "name": "INDIA VIX",
+          "ticker": "^INDIAVIX",
+          "value": "14.46",
+          "change": "+0.99 (+7.37%)",
+          "pct": 7.37,
+          "positive": true,
+          "high": "14.53",
+          "low": "14.38",
+          "chart": [
+            {
+              "label": "2026-09-28",
+              "value": 13.64
+            },
+            {
+              "label": "2026-09-29",
+              "value": 13.41
+            },
+            {
+              "label": "2026-09-30",
+              "value": 13.49
+            },
+            {
+              "label": "2026-10-01",
+              "value": 14.46
+            }
+          ]
+        }
+      ],
+      "context_lines": [
+        "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?",
+        "HISTORICAL MARKET EVIDENCE (verified, not hallucinated):\n[1] RBI Surprise Rate Cut 25bps — Between Meetings (Jan 15, 2015) — Similarity: 34% | Market: +2.5% Nifty in 1 week\n    Winners: LICHSGFIN (+9.0%), HDFCBANK (+6.0%), MARUTI (+5.0%) | Losers: —\n    Lesson: Between-meeting surprise rate cuts are powerfully bullish — markets price in a full cut cycle. Housing Finance and Auto show strongest 1-month outperformance. Banking stocks typically rally 3-5% on su\n[2] RBI Emergency Rate Cut 75bps — COVID Stimulus (Mar 27, 2020) — Similarity: 33% | Market: +8.0% Nifty in 1 week\n    Winners: LICHSGFIN (+12.0%), HDFCBANK (+8.0%), BAJFINANCE (+9.0%) | Losers: CHOLAFIN (-5.0%)\n    Lesson: Emergency rate cuts create sharp 1-day relief rallies in banking and housing. The initial recovery is real but may be followed by further weakness if the underlying crisis continues. Rate-sensitive se\n[3] RBI Surprise Rate Hike 40bps — Inflation Fight Begins (May 04, 2022) — Similarity: 33% | Market: -3.5% Nifty in 1 week\n    Winners: HDFC (+2.0%), HDFCBANK (+1.5%) | Losers: LICHSGFIN (-10.0%), DLF (-8.0%), MARUTI (-6.0%)\n    Lesson: Surprise rate hikes cause 2-3% Nifty decline on the day. Rate hike cycles trigger 6-9 month underperformance in Housing Finance, Real Estate, and Auto. Banking sector initially falls but recovers as N\n[4] RBI Pauses Rate Hike Cycle — Peak Rate Signalled (Apr 06, 2023) — Similarity: 33% | Market: +2.0% Nifty in 1 week\n    Winners: LICHSGFIN (+8.0%), DLF (+7.0%), MARUTI (+5.0%) | Losers: —\n    Lesson: A rate pause after a hike cycle has historically been bullish for Housing Finance, Real Estate, and Auto — these sectors have outperformed 3-6 months after the pause. Banking also benefits from NIM st\n[5] RBI Begins Rate Cut Cycle — 135bps Cuts in 2019 (Feb 07, 2019) — Similarity: 33% | Market: +2.0% Nifty in 1 week\n    Winners: LICHSGFIN (+8.0%), BAJFINANCE (+6.0%) | Losers: —\n    Lesson: The beginning of rate cut cycles has consistently been bullish for Housing Finance, Auto, and NBFCs — these sectors have tended to outperform by 10-15% over the next 6 months starting from the first c",
+        "Macro indices (real, live): NIFTY 50 22,421.95 (-198.50 (-0.88%)); SENSEX 71,909.70 (-570.59 (-0.79%)); BANK NIFTY 54,450.75 (-182.30 (-0.33%)); INDIA VIX 14.46 (+0.99 (+7.37%))"
+      ],
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      },
+      "index": [
+        {
+          "id": "E1",
+          "kind": "event",
+          "title": "RBI Remains Cautious On Crypto, Backs Underlying Technology: Governor Sanjay Malhotra",
+          "summary": "RBI Governor Sanjay Malhotra stated India promotes blockchain and tokenisation technology but remains cautious on cryptocurrencies due to concerns over monetary sovereignty and policy.",
+          "date": "2026-10-03T10:25:15.466208",
+          "source": "NDTV Profit",
+          "companies": [],
+          "ref": "event:rss-22bbfbb737a0"
+        },
+        {
+          "id": "E2",
+          "kind": "event",
+          "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+          "summary": "The Securities and Exchange Board of India (Sebi) has introduced a mandatory Credit Risk-o-Meter for debt securities, aiming to enhance investor awareness regarding credit risk. This user-friendly too",
+          "date": "2026-08-14T05:40:27.378039",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-d59fc9906a97"
+        },
+        {
+          "id": "E3",
+          "kind": "event",
+          "title": "RBI to close FCNR(B) swaps a month earlier due to gush",
+          "summary": "The Reserve Bank of India has moved the FCNR(B) deposit deadline to August 31 in response to better-than-expected foreign currency inflows. This adjustment follows a positive uptake of the swap facili",
+          "date": "2026-08-15T04:20:19.977742",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-ad00a27f34b9"
+        },
+        {
+          "id": "E4",
+          "kind": "event",
+          "title": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+          "summary": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+          "date": "2026-08-12T16:33:33.702605",
+          "source": "NSE",
+          "companies": [],
+          "ref": "event:nse-3fe23e9e4b"
+        },
+        {
+          "id": "E5",
+          "kind": "event",
+          "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+          "summary": "The Indian rupee remained stable on Thursday, closing near its previous level.  Dollar sales by the Reserve Bank of India kept the local unit within a tight range.  Demand from maturing forwards and d",
+          "date": "2026-08-14T02:00:43.280534",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-452ba91505d8"
+        },
+        {
+          "id": "E6",
+          "kind": "event",
+          "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+          "summary": "The Indian rupee faced a challenging week, depreciating against the dollar amidst mounting tensions from the Middle East conflict. Despite this, central bank interventions and steady dollar sales by s",
+          "date": "2026-08-14T10:55:41.495253",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-4b6b8365cd2b"
+        },
+        {
+          "id": "E7",
+          "kind": "event",
+          "title": "Federal Reserve announces the leadership and objectives of its task forces to advance the conduct of monetary policy",
+          "summary": "Federal Reserve announces the leadership and objectives of its task forces to advance the conduct of monetary policy",
+          "date": "2026-08-13T15:10:11.440849",
+          "source": "Fed",
+          "companies": [],
+          "ref": "event:fed-e2ad8ddab005"
+        },
+        {
+          "id": "E8",
+          "kind": "event",
+          "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+          "summary": "The Indian rupee finished the day marginally higher, propelled by ongoing tensions in the Middle East. Continuous interventions from the central bank have provided support against the U.S. dollar. Tra",
+          "date": "2026-08-12T16:05:37.135262",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-b36bc6485df8"
+        },
+        {
+          "id": "N1",
+          "kind": "news",
+          "title": "Yes Bank Q2 Business Update: Deposits And Loans Grow Nearly 24% With Slight Decline In CASA Ratio",
+          "summary": "Yes Bank's stock has declined nearly 4% year-to-date and 4.6% in the last 12 months. On Friday, the shares settled 0.95% lower at Rs 20.75% apiece on the NSE, compared to a 0.88% decline in the Nifty ",
+          "date": "15m ago",
+          "source": "NDTV Profit",
+          "companies": [],
+          "ref": "news:live-ca4909c01c19"
+        },
+        {
+          "id": "N2",
+          "kind": "news",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week - Business Standard",
+          "summary": "RBI MPC policy, oil prices, bond yields may drive market this week&nbsp;&nbsp;Business Standard",
+          "date": "18m ago",
+          "source": "Google News",
+          "companies": [],
+          "ref": "news:live-e69f271d4bac"
+        },
+        {
+          "id": "N3",
+          "kind": "news",
+          "title": "RBI Repo Rate May Climb To 6% In FY27 As G-Sec Yields Face Upward Pressure: Report",
+          "summary": "The Union Bank expects a 25 basis point rate increase in October, followed by one or two additional hikes during the rest of FY27. The repo rate could consequently reach 5.75-6 percent accompanied by ",
+          "date": "2h ago",
+          "source": "NDTV Profit",
+          "companies": [],
+          "ref": "news:live-ce2d5ac10431"
+        },
+        {
+          "id": "N4",
+          "kind": "news",
+          "title": "Rate cut cycle near turning point. What lies ahead for Indian bonds?",
+          "summary": "The RBI is expected to signal monetary tightening at its October policy meeting as stronger economic growth, rising oil prices and elevated US Treasury yields fuel inflation concerns. Higher domestic ",
+          "date": "2h ago",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "news:live-33f22fb1f972"
+        },
+        {
+          "id": "N5",
+          "kind": "news",
+          "title": "RBI's dollar inflow measures buy time, but external risks remain",
+          "summary": "The Reserve Bank of India's recent measures to boost dollar inflows are a temporary fix, economists warn. While these steps aim to stabilize the rupee now, the country must strengthen its balance of p",
+          "date": "1h ago",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "news:live-f80336401a44"
+        },
+        {
+          "id": "N6",
+          "kind": "news",
+          "title": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch - Business Today",
+          "summary": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch&nbsp;&nbsp;Business Today",
+          "date": "11m ago",
+          "source": "Google News",
+          "companies": [],
+          "ref": "news:live-5ed5dc17ff75"
+        },
+        {
+          "id": "N7",
+          "kind": "news",
+          "title": "US Stock Market: Wall Street eyes jobs data as rate hike bets and tech volatility intensify",
+          "summary": "Indian investors are keenly watching US jobs data this week for economic health and interest rate cues. Tech stocks, especially chipmakers, are under scrutiny amid valuation concerns.  Strong hiring c",
+          "date": "21m ago",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "news:live-fd6450820f8a"
+        },
+        {
+          "id": "N8",
+          "kind": "news",
+          "title": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses - BusinessLine",
+          "summary": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses&nbsp;&nbsp;BusinessLine",
+          "date": "46m ago",
+          "source": "Google News",
+          "companies": [],
+          "ref": "news:live-90be64e87840"
+        },
+        {
+          "id": "N9",
+          "kind": "news",
+          "title": "Zerodha now wants to enter investment banking space, seeks Sebi nod",
+          "summary": "Zerodha has applied to SEBI for a Category I merchant banking licence, signalling its entry into investment banking. The move aligns with India’s strong IPO pipeline and expanding capital markets acti",
+          "date": "12m ago",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "news:live-394f4e9b3a99"
+        },
+        {
+          "id": "N10",
+          "kind": "news",
+          "title": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active - Moneycontrol.com",
+          "summary": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active&nbsp;&nbsp;Moneycontrol.com",
+          "date": "7m ago",
+          "source": "Google News",
+          "companies": [],
+          "ref": "news:live-184d15fcaee2"
+        },
+        {
+          "id": "N11",
+          "kind": "news",
+          "title": "Kotak Mahindra Bank, HDFC Bank, DCX Systems, among buzzing stocks as SENSEX falls over 350 pts, NIFTY below 24,000 - Upstox",
+          "summary": "Kotak Mahindra Bank, HDFC Bank, DCX Systems, among buzzing stocks as SENSEX falls over 350 pts, NIFTY below 24,000&nbsp;&nbsp;Upstox",
+          "date": "1h ago",
+          "source": "Google News",
+          "companies": [],
+          "ref": "news:live-d0694696ceeb"
+        },
+        {
+          "id": "C1",
+          "kind": "context",
+          "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:1"
+        },
+        {
+          "id": "C2",
+          "kind": "context",
+          "title": "HISTORICAL MARKET EVIDENCE (verified, not hallucinated):\n[1] RBI Surprise Rate Cut 25bps — Between Meetings (Jan 15, 2015) — Similarity: 34% | Market: +2.5% Nif",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:2"
+        },
+        {
+          "id": "C3",
+          "kind": "context",
+          "title": "Macro indices (real, live): NIFTY 50 22,421.95 (-198.50 (-0.88%)); SENSEX 71,909.70 (-570.59 (-0.79%)); BANK NIFTY 54,450.75 (-182.30 (-0.33%)); INDIA VIX 14.46",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:3"
+        }
+      ],
+      "historical": [
+        {
+          "title": null,
+          "similarity": 33.6
+        },
+        {
+          "title": null,
+          "similarity": 33.1
+        },
+        {
+          "title": null,
+          "similarity": 33.1
+        },
+        {
+          "title": null,
+          "similarity": 33.1
+        },
+        {
+          "title": null,
+          "similarity": 33.1
+        }
+      ]
+    }
+  },
+  {
+    "id": "MP2",
+    "plan_kind": "topic",
+    "premise": {
+      "required": false,
+      "terms": [],
+      "supported": null,
+      "supporting": []
+    },
+    "irrelevance": {
+      "irrelevant_items": [],
+      "relevant_total": 16,
+      "status": "PASS"
+    },
+    "evidence_total": 16,
+    "snapshot": {
+      "plan_kind": "topic",
+      "filter_report": {
+        "plan": "topic",
+        "events": {
+          "kept": 12,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 7,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 1
+        },
+        "news": {
+          "kept": 6,
+          "dropped_stale": 7,
+          "dropped_irrelevant": 6,
+          "dropped_undated": 0,
+          "dropped_tips": 1,
+          "dropped_single_company_filing": 0
+        },
+        "announcements": {
+          "kept": 0,
+          "dropped_stale": 0
+        },
+        "policies": {
+          "kept": 0,
+          "dropped_irrelevant": 0
+        },
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        }
+      },
+      "events": [
+        {
+          "id": "rss-808adcadef7d",
+          "title": "Week Ahead On D-Street: US Fed Minutes, FPI Inflows, Crude Oil Prices, US-Iran Conflict To Drive Sensex, Nifty",
+          "summary": "Week Ahead: The last leg of April-June quarter results declared the previous week will drive stock-specific action, while the US Federal Reserve policy minutes and macroeconomic data will be analysed for sector-specific trade movement.",
+          "date": "2026-08-16T10:53:27.936254",
+          "source": "NDTV Profit",
+          "companies": []
+        },
+        {
+          "id": "rss-dd129a320c3b",
+          "title": "Week Ahead On D-Street: US Fed Minutes, Crude Oil Prices, US-Iran Conflict To Drive Sensex, Nifty",
+          "summary": "Week Ahead: The last leg of April-June quarter results declared the previous week will drive stock-specific action, while the US Federal Reserve policy minutes and macroeconomic data will be analysed for sector-specific trade movement.",
+          "date": "2026-08-16T08:38:26.095016",
+          "source": "NDTV Profit",
+          "companies": []
+        },
+        {
+          "id": "rss-5407061a7e1b",
+          "title": "Pulse of the Street: Eight-week slide puts RBI, earnings in focus",
+          "summary": "Selling by foreign portfolio investors and elevated yields outweigh relief from softer crude prices. The coming RBI policy review and earnings season will test how much bad news equities have priced in.",
+          "date": "2026-10-01T14:33:25.399234",
+          "source": "Livemint",
+          "companies": []
+        },
+        {
+          "id": "rss-280cc79efa88",
+          "title": "Gold price extends gains despite US Fed rate hike: Should investors chase the rally? Key outlook explained",
+          "summary": "Gold prices rose for the third consecutive day as declining crude oil prices and a drop in global bond yields bolstered sentiment. MCX gold hit  ₹1,54,600 per 10 grams, marking a three-day gain of  ₹3,791, as analysts urge caution amidst volatile market conditions.",
+          "date": "2026-09-18T13:37:37.721287",
+          "source": "Livemint",
+          "companies": []
+        },
+        {
+          "id": "rss-7b3a9d5d1862",
+          "title": "RBI Rate Hike Bets Rise After US Fed Move: Why October Policy Is Now A Close Call",
+          "summary": "For India, the transmission is already visible. The rupee is hovering around the 96-per-dollar mark, US 10-year Treasury yields have crossed 5%, and Brent crude remains above $100 a barrel.",
+          "date": "2026-09-18T13:37:18.447417",
+          "source": "NDTV Profit",
+          "companies": []
+        },
+        {
+          "id": "rss-96a210862a2d",
+          "title": "How will Nifty, Sensex behave on Monday? US Fed rate hike bets, among 4 factors to drive D-Street action",
+          "summary": "Indian equities may remain volatile as rising crude prices, elevated global bond yields and renewed US rate-hike bets weigh on sentiment. However, strong FPI inflows, resilient GDP growth, better-than-expected earnings and rupee stability offer some support.",
+          "date": "2026-09-06T15:10:02.028058",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "rss-4e51fb44c877",
+          "title": "Oil Price Today (September 2): Crude oil nears $97 as war tensions escalate. Will it hit $100 again?",
+          "summary": "The United States said it carried out a series of airstrikes against targets in Iran overnight, drawing a response from Tehran in what was described as the most serious escalation in the conflict between the two countries in weeks.",
+          "date": "2026-09-02T02:52:44.749056",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "rss-029dee275cc5",
+          "title": "RBI intervention, dollar flows push Indian rupee to two-month peak",
+          "summary": "The Indian rupee surged to a two-month peak against the U.S. dollar, buoyed by decisive central bank interventions and dollars flowing in from foreign banks. Positive domestic growth indicators bolstered confidence in the rupee. However, rising global bond yields and increased crude oil prices acted",
+          "date": "2026-09-01T11:12:08.340971",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "rss-88fe872f037b",
+          "title": "Rain Industries share price: Petrochemical stock jumps 4% amid soaring crude oil prices on US-Iran war",
+          "summary": "Rain Industries share price rose over 4% on 24 August, driven by rising crude oil prices amid US-Iran tensions. Q2CY26 revenue reached  ₹5,167 crore, exceeding forecasts, with significant growth in Carbon and Advanced Materials segments, while Cement performance lagged behind.",
+          "date": "2026-08-24T07:37:12.612432",
+          "source": "Livemint",
+          "companies": []
+        },
+        {
+          "id": "rss-e098ed26af72",
+          "title": "Nvidia Earnings, Jackson Hole, US Oil Inventories, India's PPI — The Week Ahead",
+          "summary": "Apart from scheduled events, investors will monitor foreign institutional investor (FII) flows, movements in the US Dollar Index and Treasury yields, crude oil prices and global equity markets.",
+          "date": "2026-08-23T03:24:51.548785",
+          "source": "NDTV Profit",
+          "companies": []
+        }
+      ],
+      "news": [
+        {
+          "id": "live-0159572fe8cc",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+          "date": "18m ago",
+          "source": "Business Standard"
+        },
+        {
+          "id": "live-47089cfc1545",
+          "title": "FPIs Offload Over Rs 35,000 Crore Worth Indian Equities In Sept: Five Key Factors Behind Selloff",
+          "summary": "\"FPIs turned heavy sellers in September. The positive FPI flows in July and August on expectations of decline in crude prices turned out to be a temporary phenomenon,\" stated V K Vijayakumar, Chief In",
+          "date": "1h ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "id": "live-6d8e44291ca9",
+          "title": "Foreign investors are short on Indian markets as global risks weigh",
+          "summary": "Analysts say low FII long-short readings often trigger short-covering, but a sustained rally looks unlikely amid crude, bond-yield and geopolitical pressures",
+          "date": "1h ago",
+          "source": "Business Standard"
+        },
+        {
+          "id": "live-2cc9922819f5",
+          "title": "What will bring foreign investors back to Indian stock market? 5 things that should go right",
+          "summary": "FPIs sold more than Rs 25,000 crore of Indian equities in September as surging US bond yields, elevated crude prices and a weaker rupee reduced India’s appeal. Cooling yields and oil, currency stabili",
+          "date": "2h ago",
+          "source": "Economic Times"
+        },
+        {
+          "id": "live-858a77b3b3b0",
+          "title": "Nifty and Sensex post weekly gains as crude oil prices decline - Telangana Today",
+          "summary": "Nifty and Sensex post weekly gains as crude oil prices decline&nbsp;&nbsp;Telangana Today",
+          "date": "1d ago",
+          "source": "Google News"
+        },
+        {
+          "id": "live-c5c15f324a1a",
+          "title": "Sensex, Nifty open flat as crude stays low, FII mood improves - India Today",
+          "summary": "Sensex, Nifty open flat as crude stays low, FII mood improves&nbsp;&nbsp;India Today",
+          "date": "26m ago",
+          "source": "Google News"
+        }
+      ],
+      "announcements": [],
+      "policies": [],
+      "valuation": {},
+      "vix": 14.45,
+      "sector_rows": [],
+      "macro_indices": [
+        {
+          "name": "NIFTY 50",
+          "ticker": "^NSEI",
+          "value": "22,421.95",
+          "change": "-198.50 (-0.88%)",
+          "pct": -0.88,
+          "positive": false,
+          "high": "22,534.06",
+          "low": "22,309.84",
+          "chart": [
+            {
+              "label": "2026-09-28",
+              "value": 22780.25
+            },
+            {
+              "label": "2026-09-29",
+              "value": 22716.2
+            },
+            {
+              "label": "2026-09-30",
+              "value": 22620.45
+            },
+            {
+              "label": "2026-10-01",
+              "value": 22421.95
+            }
+          ]
+        },
+        {
+          "name": "SENSEX",
+          "ticker": "^BSESN",
+          "value": "71,909.70",
+          "change": "-570.59 (-0.79%)",
+          "pct": -0.79,
+          "positive": false,
+          "high": "72,269.25",
+          "low": "71,550.15",
+          "chart": [
+            {
+              "label": "2026-09-28",
+              "value": 72771.72
+            },
+            {
+              "label": "2026-09-29",
+              "value": 72529.07
+            },
+            {
+              "label": "2026-09-30",
+              "value": 72480.29
+            },
+            {
+              "label": "2026-10-01",
+              "value": 71909.7
+            }
+          ]
+        },
+        {
+          "name": "BANK NIFTY",
+          "ticker": "^NSEBANK",
+          "value": "54,450.75",
+          "change": "-182.30 (-0.33%)",
+          "pct": -0.33,
+          "positive": false,
+          "high": "54,723.00",
+          "low": "54,178.50",
+          "chart": [
+            {
+              "label": "2026-09-28",
+              "value": 54471.65
+            },
+            {
+              "label": "2026-09-29",
+              "value": 54259.95
+            },
+            {
+              "label": "2026-09-30",
+              "value": 54633.05
+            },
+            {
+              "label": "2026-10-01",
+              "value": 54450.75
+            }
+          ]
+        },
+        {
+          "name": "INDIA VIX",
+          "ticker": "^INDIAVIX",
+          "value": "14.46",
+          "change": "+0.99 (+7.37%)",
+          "pct": 7.37,
+          "positive": true,
+          "high": "14.53",
+          "low": "14.38",
+          "chart": [
+            {
+              "label": "2026-09-28",
+              "value": 13.64
+            },
+            {
+              "label": "2026-09-29",
+              "value": 13.41
+            },
+            {
+              "label": "2026-09-30",
+              "value": 13.49
+            },
+            {
+              "label": "2026-10-01",
+              "value": 14.46
+            }
+          ]
+        }
+      ],
+      "context_lines": [
+        "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?",
+        "HISTORICAL MARKET EVIDENCE (verified, not hallucinated):\n[1] WTI Crude Goes Negative — Unprecedented Oil Price Collapse (Apr 20, 2020) — Similarity: 30% | Market: +3.5% Nifty in 1 week\n    Winners: ASIANPAINT (+12.0%), MRF (+8.0%), INDIGO (+10.0%) | Losers: ONGC (-15.0%), OILINDIA (-12.0%)\n    Lesson: Crude oil crashes benefit India as a net importer — Nifty typically gains 3-5% in 1 month. Biggest winners: Paints, Tyres, Aviation, Chemicals. Biggest losers: ONGC, Oil India, Cairn. Fertilizer compa",
+        "Macro indices (real, live): NIFTY 50 22,421.95 (-198.50 (-0.88%)); SENSEX 71,909.70 (-570.59 (-0.79%)); BANK NIFTY 54,450.75 (-182.30 (-0.33%)); INDIA VIX 14.46 (+0.99 (+7.37%))"
+      ],
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      },
+      "index": [
+        {
+          "id": "E1",
+          "kind": "event",
+          "title": "Week Ahead On D-Street: US Fed Minutes, FPI Inflows, Crude Oil Prices, US-Iran Conflict To Drive Sensex, Nifty",
+          "summary": "Week Ahead: The last leg of April-June quarter results declared the previous week will drive stock-specific action, while the US Federal Reserve policy minutes and macroeconomic data will be analysed ",
+          "date": "2026-08-16T10:53:27.936254",
+          "source": "NDTV Profit",
+          "companies": [],
+          "ref": "event:rss-808adcadef7d"
+        },
+        {
+          "id": "E2",
+          "kind": "event",
+          "title": "Pulse of the Street: Eight-week slide puts RBI, earnings in focus",
+          "summary": "Selling by foreign portfolio investors and elevated yields outweigh relief from softer crude prices. The coming RBI policy review and earnings season will test how much bad news equities have priced i",
+          "date": "2026-10-01T14:33:25.399234",
+          "source": "Livemint",
+          "companies": [],
+          "ref": "event:rss-5407061a7e1b"
+        },
+        {
+          "id": "E3",
+          "kind": "event",
+          "title": "Gold price extends gains despite US Fed rate hike: Should investors chase the rally? Key outlook explained",
+          "summary": "Gold prices rose for the third consecutive day as declining crude oil prices and a drop in global bond yields bolstered sentiment. MCX gold hit  ₹1,54,600 per 10 grams, marking a three-day gain of  ₹3",
+          "date": "2026-09-18T13:37:37.721287",
+          "source": "Livemint",
+          "companies": [],
+          "ref": "event:rss-280cc79efa88"
+        },
+        {
+          "id": "E4",
+          "kind": "event",
+          "title": "RBI Rate Hike Bets Rise After US Fed Move: Why October Policy Is Now A Close Call",
+          "summary": "For India, the transmission is already visible. The rupee is hovering around the 96-per-dollar mark, US 10-year Treasury yields have crossed 5%, and Brent crude remains above $100 a barrel.",
+          "date": "2026-09-18T13:37:18.447417",
+          "source": "NDTV Profit",
+          "companies": [],
+          "ref": "event:rss-7b3a9d5d1862"
+        },
+        {
+          "id": "E5",
+          "kind": "event",
+          "title": "How will Nifty, Sensex behave on Monday? US Fed rate hike bets, among 4 factors to drive D-Street action",
+          "summary": "Indian equities may remain volatile as rising crude prices, elevated global bond yields and renewed US rate-hike bets weigh on sentiment. However, strong FPI inflows, resilient GDP growth, better-than",
+          "date": "2026-09-06T15:10:02.028058",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-96a210862a2d"
+        },
+        {
+          "id": "E6",
+          "kind": "event",
+          "title": "Oil Price Today (September 2): Crude oil nears $97 as war tensions escalate. Will it hit $100 again?",
+          "summary": "The United States said it carried out a series of airstrikes against targets in Iran overnight, drawing a response from Tehran in what was described as the most serious escalation in the conflict betw",
+          "date": "2026-09-02T02:52:44.749056",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-4e51fb44c877"
+        },
+        {
+          "id": "E7",
+          "kind": "event",
+          "title": "RBI intervention, dollar flows push Indian rupee to two-month peak",
+          "summary": "The Indian rupee surged to a two-month peak against the U.S. dollar, buoyed by decisive central bank interventions and dollars flowing in from foreign banks. Positive domestic growth indicators bolste",
+          "date": "2026-09-01T11:12:08.340971",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-029dee275cc5"
+        },
+        {
+          "id": "E8",
+          "kind": "event",
+          "title": "Rain Industries share price: Petrochemical stock jumps 4% amid soaring crude oil prices on US-Iran war",
+          "summary": "Rain Industries share price rose over 4% on 24 August, driven by rising crude oil prices amid US-Iran tensions. Q2CY26 revenue reached  ₹5,167 crore, exceeding forecasts, with significant growth in Ca",
+          "date": "2026-08-24T07:37:12.612432",
+          "source": "Livemint",
+          "companies": [],
+          "ref": "event:rss-88fe872f037b"
+        },
+        {
+          "id": "E9",
+          "kind": "event",
+          "title": "Nvidia Earnings, Jackson Hole, US Oil Inventories, India's PPI — The Week Ahead",
+          "summary": "Apart from scheduled events, investors will monitor foreign institutional investor (FII) flows, movements in the US Dollar Index and Treasury yields, crude oil prices and global equity markets.",
+          "date": "2026-08-23T03:24:51.548785",
+          "source": "NDTV Profit",
+          "companies": [],
+          "ref": "event:rss-e098ed26af72"
+        },
+        {
+          "id": "N1",
+          "kind": "news",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+          "date": "18m ago",
+          "source": "Business Standard",
+          "companies": [],
+          "ref": "news:live-0159572fe8cc"
+        },
+        {
+          "id": "N2",
+          "kind": "news",
+          "title": "FPIs Offload Over Rs 35,000 Crore Worth Indian Equities In Sept: Five Key Factors Behind Selloff",
+          "summary": "\"FPIs turned heavy sellers in September. The positive FPI flows in July and August on expectations of decline in crude prices turned out to be a temporary phenomenon,\" stated V K Vijayakumar, Chief In",
+          "date": "1h ago",
+          "source": "NDTV Profit",
+          "companies": [],
+          "ref": "news:live-47089cfc1545"
+        },
+        {
+          "id": "N3",
+          "kind": "news",
+          "title": "Foreign investors are short on Indian markets as global risks weigh",
+          "summary": "Analysts say low FII long-short readings often trigger short-covering, but a sustained rally looks unlikely amid crude, bond-yield and geopolitical pressures",
+          "date": "1h ago",
+          "source": "Business Standard",
+          "companies": [],
+          "ref": "news:live-6d8e44291ca9"
+        },
+        {
+          "id": "N4",
+          "kind": "news",
+          "title": "What will bring foreign investors back to Indian stock market? 5 things that should go right",
+          "summary": "FPIs sold more than Rs 25,000 crore of Indian equities in September as surging US bond yields, elevated crude prices and a weaker rupee reduced India’s appeal. Cooling yields and oil, currency stabili",
+          "date": "2h ago",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "news:live-2cc9922819f5"
+        },
+        {
+          "id": "N5",
+          "kind": "news",
+          "title": "Nifty and Sensex post weekly gains as crude oil prices decline - Telangana Today",
+          "summary": "Nifty and Sensex post weekly gains as crude oil prices decline&nbsp;&nbsp;Telangana Today",
+          "date": "1d ago",
+          "source": "Google News",
+          "companies": [],
+          "ref": "news:live-858a77b3b3b0"
+        },
+        {
+          "id": "N6",
+          "kind": "news",
+          "title": "Sensex, Nifty open flat as crude stays low, FII mood improves - India Today",
+          "summary": "Sensex, Nifty open flat as crude stays low, FII mood improves&nbsp;&nbsp;India Today",
+          "date": "26m ago",
+          "source": "Google News",
+          "companies": [],
+          "ref": "news:live-c5c15f324a1a"
+        },
+        {
+          "id": "C1",
+          "kind": "context",
+          "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:1"
+        },
+        {
+          "id": "C2",
+          "kind": "context",
+          "title": "HISTORICAL MARKET EVIDENCE (verified, not hallucinated):\n[1] WTI Crude Goes Negative — Unprecedented Oil Price Collapse (Apr 20, 2020) — Similarity: 30% | Marke",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:2"
+        },
+        {
+          "id": "C3",
+          "kind": "context",
+          "title": "Macro indices (real, live): NIFTY 50 22,421.95 (-198.50 (-0.88%)); SENSEX 71,909.70 (-570.59 (-0.79%)); BANK NIFTY 54,450.75 (-182.30 (-0.33%)); INDIA VIX 14.46",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:3"
+        }
+      ],
+      "historical": [
+        {
+          "title": null,
+          "similarity": 30.0
+        }
+      ]
+    }
+  },
+  {
+    "id": "MP3",
+    "plan_kind": "topic",
+    "premise": {
+      "required": false,
+      "terms": [],
+      "supported": null,
+      "supporting": []
+    },
+    "irrelevance": {
+      "irrelevant_items": [],
+      "relevant_total": 16,
+      "status": "PASS"
+    },
+    "evidence_total": 16,
+    "snapshot": {
+      "plan_kind": "topic",
+      "filter_report": {
+        "plan": "topic",
+        "events": {
+          "kept": 15,
+          "dropped_stale": 1,
+          "dropped_irrelevant": 1,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 13
+        },
+        "news": {
+          "kept": 6,
+          "dropped_stale": 11,
+          "dropped_irrelevant": 2,
+          "dropped_undated": 0,
+          "dropped_tips": 1,
+          "dropped_single_company_filing": 0
+        },
+        "announcements": {
+          "kept": 0,
+          "dropped_stale": 0
+        },
+        "policies": {
+          "kept": 0,
+          "dropped_irrelevant": 0
+        },
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        }
+      },
+      "events": [
+        {
+          "id": "rss-452ba91505d8",
+          "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+          "summary": "The Indian rupee remained stable on Thursday, closing near its previous level.  Dollar sales by the Reserve Bank of India kept the local unit within a tight range.  Demand from maturing forwards and debt outflows added pressure to the currency.  Traders observed a narrow trading band, anticipating f",
+          "date": "2026-08-14T02:00:43.280534",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "rss-4b6b8365cd2b",
+          "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+          "summary": "The Indian rupee faced a challenging week, depreciating against the dollar amidst mounting tensions from the Middle East conflict. Despite this, central bank interventions and steady dollar sales by state banks helped mitigate more significant losses. With India relying on imports for about ninety p",
+          "date": "2026-08-14T10:55:41.495253",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "rss-b36bc6485df8",
+          "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+          "summary": "The Indian rupee finished the day marginally higher, propelled by ongoing tensions in the Middle East. Continuous interventions from the central bank have provided support against the U.S. dollar. Traders remain watchful as critical inflation data from India and the U.S. approaches. Throughout Augus",
+          "date": "2026-08-12T16:05:37.135262",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "rss-a8c58e2416c6",
+          "title": "TCS, Infosys, Wipro shares ahead of Q2 results: Explained | What Accenture's strong earnings mean for Indian IT stocks",
+          "summary": "Accenture's fourth-quarter results reflect a rising trend in AI adoption, marking a shift from pilot projects to larger implementations, positively impacting Indian IT stocks. Despite the optimism, concerns about pricing pressure and sluggish discretionary spending suggest a cautious outlook.",
+          "date": "2026-10-03T11:55:14.621954",
+          "source": "Livemint",
+          "companies": []
+        },
+        {
+          "id": "rss-1079b327d09c",
+          "title": "IT Q2 Results Dates: When TCS, Infosys, Wipro, HCLTech, Tech Mahindra Will Report FY27 Earnings",
+          "summary": "India's Q2 FY27 IT earnings season begins Oct. 8 with TCS, followed by HCLTech, Wipro, Infosys and other major technology companies. Investors will track revenue growth, deal wins, margins, AI demand and dividends as India's top IT firms report September-quarter earnings.",
+          "date": "2026-10-03T06:19:05.781349",
+          "source": "NDTV Profit",
+          "companies": []
+        },
+        {
+          "id": "rss-f4d292c515dd",
+          "title": "India's forex reserves fall $18.3 bn as RBI steps in to defend rupee",
+          "summary": "India’s foreign exchange reserves fell $18.34 billion to $747.56 billion in the week ended September 25, marking the third consecutive weekly decline. The reserves have dropped $38.15 billion in three weeks from their record high of $785.71 billion on September 4.",
+          "date": "2026-10-03T06:19:03.209375",
+          "source": "Economic Times",
+          "companies": []
+        },
+        {
+          "id": "rss-d719afdc49b7",
+          "title": "Accenture Shares Jump Record 22% On Earnings Boost; Infosys, Wipro ADRs Spike Up To 10%",
+          "summary": "Accenture shares surge a record 22% after earnings, lifting Indian IT names Infosys and Wipro, whose US-listed shares also rally.",
+          "date": "2026-10-01T14:18:26.778652",
+          "source": "NDTV Profit",
+          "companies": []
+        },
+        {
+          "id": "rss-dff9fe778b4b",
+          "title": "Infosys, Wipro ADRs jump up to 10% after Accenture Q4 results beat Wall Street estimates",
+          "summary": "Accenture's strong fiscal fourth-quarter performance boosted Infosys and Wipro ADRs significantly as they rebounded from losses. Infosys ADRs rose 8% and Wipro ADRs jumped 10%, suggesting improved market sentiment ahead of the upcoming earnings season.",
+          "date": "2026-10-01T13:03:26.920623",
+          "source": "Livemint",
+          "companies": []
+        },
+        {
+          "id": "rss-2eb04109e831",
+          "title": "Infosys, Wipro ADRs Spike Over 8% Pre-Market As Solid Accenture Earnings Boosts IT Outlook",
+          "summary": "Infosys, Wipro ADRs rose over 8% before the opening bell on Thursday, October 1.",
+          "date": "2026-10-01T12:48:28.954799",
+          "source": "NDTV Profit",
+          "companies": []
+        },
+        {
+          "id": "rss-19fb07b037d7",
+          "title": "Nifty IT crashes 11% in September: TCS, Infosys, Wipro among top losers — Can Q2 earnings spark a rebound?",
+          "summary": "The IT sector has been hit hard in September, with the Nifty IT index down 11%. High interest rates, global growth fears, and generative AI pressures have impacted technology spending. Investors are looking to upcoming Q2 earnings for insights into demand and AI-led transformations.",
+          "date": "2026-10-01T12:33:25.959941",
+          "source": "Livemint",
+          "companies": []
+        }
+      ],
+      "news": [
+        {
+          "id": "live-0159572fe8cc",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+          "date": "18m ago",
+          "source": "Business Standard"
+        },
+        {
+          "id": "live-a77e3b821d72",
+          "title": "IT Q2 preview: Muted growth, steady margins likely; deal conversion, AI deflation in focus",
+          "summary": "India's leading IT firms are projected to exhibit modest revenue growth and stable margins for the second quarter. Analysts anticipate that discretionary spending will remain constrained due to geopol",
+          "date": "31m ago",
+          "source": "Economic Times"
+        },
+        {
+          "id": "live-2cc9922819f5",
+          "title": "What will bring foreign investors back to Indian stock market? 5 things that should go right",
+          "summary": "FPIs sold more than Rs 25,000 crore of Indian equities in September as surging US bond yields, elevated crude prices and a weaker rupee reduced India’s appeal. Cooling yields and oil, currency stabili",
+          "date": "2h ago",
+          "source": "Economic Times"
+        },
+        {
+          "id": "live-f80336401a44",
+          "title": "RBI's dollar inflow measures buy time, but external risks remain",
+          "summary": "The Reserve Bank of India's recent measures to boost dollar inflows are a temporary fix, economists warn. While these steps aim to stabilize the rupee now, the country must strengthen its balance of p",
+          "date": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "id": "live-606a1783175c",
+          "title": "Weekly Market Wrap: NIFTY50, SENSEX end lower as metal, IT indices fall 4%; Infosys leads losses - Upstox",
+          "summary": "Weekly Market Wrap: NIFTY50, SENSEX end lower as metal, IT indices fall 4%; Infosys leads losses&nbsp;&nbsp;Upstox",
+          "date": "1d ago",
+          "source": "Google News"
+        },
+        {
+          "id": "live-f316715fec51",
+          "title": "Rupee treads water, traders await range break to gauge directional trend",
+          "summary": "The Indian rupee held steady as tensions between Iran and the US eased, with traders anticipating a clearer market direction. Currently trading around 94.3675 against the dollar, the rupee has found s",
+          "date": "31m ago",
+          "source": "Economic Times"
+        }
+      ],
+      "announcements": [],
+      "policies": [],
+      "valuation": {},
+      "vix": 14.45,
+      "sector_rows": [],
+      "macro_indices": [
+        {
+          "name": "NIFTY 50",
+          "ticker": "^NSEI",
+          "value": "22,421.95",
+          "change": "-198.50 (-0.88%)",
+          "pct": -0.88,
+          "positive": false,
+          "high": "22,534.06",
+          "low": "22,309.84",
+          "chart": [
+            {
+              "label": "2026-09-28",
+              "value": 22780.25
+            },
+            {
+              "label": "2026-09-29",
+              "value": 22716.2
+            },
+            {
+              "label": "2026-09-30",
+              "value": 22620.45
+            },
+            {
+              "label": "2026-10-01",
+              "value": 22421.95
+            }
+          ]
+        },
+        {
+          "name": "SENSEX",
+          "ticker": "^BSESN",
+          "value": "71,909.70",
+          "change": "-570.59 (-0.79%)",
+          "pct": -0.79,
+          "positive": false,
+          "high": "72,269.25",
+          "low": "71,550.15",
+          "chart": [
+            {
+              "label": "2026-09-28",
+              "value": 72771.72
+            },
+            {
+              "label": "2026-09-29",
+              "value": 72529.07
+            },
+            {
+              "label": "2026-09-30",
+              "value": 72480.29
+            },
+            {
+              "label": "2026-10-01",
+              "value": 71909.7
+            }
+          ]
+        },
+        {
+          "name": "BANK NIFTY",
+          "ticker": "^NSEBANK",
+          "value": "54,450.75",
+          "change": "-182.30 (-0.33%)",
+          "pct": -0.33,
+          "positive": false,
+          "high": "54,723.00",
+          "low": "54,178.50",
+          "chart": [
+            {
+              "label": "2026-09-28",
+              "value": 54471.65
+            },
+            {
+              "label": "2026-09-29",
+              "value": 54259.95
+            },
+            {
+              "label": "2026-09-30",
+              "value": 54633.05
+            },
+            {
+              "label": "2026-10-01",
+              "value": 54450.75
+            }
+          ]
+        },
+        {
+          "name": "INDIA VIX",
+          "ticker": "^INDIAVIX",
+          "value": "14.46",
+          "change": "+0.99 (+7.37%)",
+          "pct": 7.37,
+          "positive": true,
+          "high": "14.53",
+          "low": "14.38",
+          "chart": [
+            {
+              "label": "2026-09-28",
+              "value": 13.64
+            },
+            {
+              "label": "2026-09-29",
+              "value": 13.41
+            },
+            {
+              "label": "2026-09-30",
+              "value": 13.49
+            },
+            {
+              "label": "2026-10-01",
+              "value": 14.46
+            }
+          ]
+        }
+      ],
+      "context_lines": [
+        "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?",
+        "Macro indices (real, live): NIFTY 50 22,421.95 (-198.50 (-0.88%)); SENSEX 71,909.70 (-570.59 (-0.79%)); BANK NIFTY 54,450.75 (-182.30 (-0.33%)); INDIA VIX 14.46 (+0.99 (+7.37%))"
+      ],
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      },
+      "index": [
+        {
+          "id": "E1",
+          "kind": "event",
+          "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+          "summary": "The Indian rupee remained stable on Thursday, closing near its previous level.  Dollar sales by the Reserve Bank of India kept the local unit within a tight range.  Demand from maturing forwards and d",
+          "date": "2026-08-14T02:00:43.280534",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-452ba91505d8"
+        },
+        {
+          "id": "E2",
+          "kind": "event",
+          "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+          "summary": "The Indian rupee faced a challenging week, depreciating against the dollar amidst mounting tensions from the Middle East conflict. Despite this, central bank interventions and steady dollar sales by s",
+          "date": "2026-08-14T10:55:41.495253",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-4b6b8365cd2b"
+        },
+        {
+          "id": "E3",
+          "kind": "event",
+          "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+          "summary": "The Indian rupee finished the day marginally higher, propelled by ongoing tensions in the Middle East. Continuous interventions from the central bank have provided support against the U.S. dollar. Tra",
+          "date": "2026-08-12T16:05:37.135262",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-b36bc6485df8"
+        },
+        {
+          "id": "E4",
+          "kind": "event",
+          "title": "TCS, Infosys, Wipro shares ahead of Q2 results: Explained | What Accenture's strong earnings mean for Indian IT stocks",
+          "summary": "Accenture's fourth-quarter results reflect a rising trend in AI adoption, marking a shift from pilot projects to larger implementations, positively impacting Indian IT stocks. Despite the optimism, co",
+          "date": "2026-10-03T11:55:14.621954",
+          "source": "Livemint",
+          "companies": [],
+          "ref": "event:rss-a8c58e2416c6"
+        },
+        {
+          "id": "E5",
+          "kind": "event",
+          "title": "IT Q2 Results Dates: When TCS, Infosys, Wipro, HCLTech, Tech Mahindra Will Report FY27 Earnings",
+          "summary": "India's Q2 FY27 IT earnings season begins Oct. 8 with TCS, followed by HCLTech, Wipro, Infosys and other major technology companies. Investors will track revenue growth, deal wins, margins, AI demand ",
+          "date": "2026-10-03T06:19:05.781349",
+          "source": "NDTV Profit",
+          "companies": [],
+          "ref": "event:rss-1079b327d09c"
+        },
+        {
+          "id": "E6",
+          "kind": "event",
+          "title": "India's forex reserves fall $18.3 bn as RBI steps in to defend rupee",
+          "summary": "India’s foreign exchange reserves fell $18.34 billion to $747.56 billion in the week ended September 25, marking the third consecutive weekly decline. The reserves have dropped $38.15 billion in three",
+          "date": "2026-10-03T06:19:03.209375",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "event:rss-f4d292c515dd"
+        },
+        {
+          "id": "E7",
+          "kind": "event",
+          "title": "Accenture Shares Jump Record 22% On Earnings Boost; Infosys, Wipro ADRs Spike Up To 10%",
+          "summary": "Accenture shares surge a record 22% after earnings, lifting Indian IT names Infosys and Wipro, whose US-listed shares also rally.",
+          "date": "2026-10-01T14:18:26.778652",
+          "source": "NDTV Profit",
+          "companies": [],
+          "ref": "event:rss-d719afdc49b7"
+        },
+        {
+          "id": "E8",
+          "kind": "event",
+          "title": "Infosys, Wipro ADRs jump up to 10% after Accenture Q4 results beat Wall Street estimates",
+          "summary": "Accenture's strong fiscal fourth-quarter performance boosted Infosys and Wipro ADRs significantly as they rebounded from losses. Infosys ADRs rose 8% and Wipro ADRs jumped 10%, suggesting improved mar",
+          "date": "2026-10-01T13:03:26.920623",
+          "source": "Livemint",
+          "companies": [],
+          "ref": "event:rss-dff9fe778b4b"
+        },
+        {
+          "id": "E9",
+          "kind": "event",
+          "title": "Infosys, Wipro ADRs Spike Over 8% Pre-Market As Solid Accenture Earnings Boosts IT Outlook",
+          "summary": "Infosys, Wipro ADRs rose over 8% before the opening bell on Thursday, October 1.",
+          "date": "2026-10-01T12:48:28.954799",
+          "source": "NDTV Profit",
+          "companies": [],
+          "ref": "event:rss-2eb04109e831"
+        },
+        {
+          "id": "E10",
+          "kind": "event",
+          "title": "Nifty IT crashes 11% in September: TCS, Infosys, Wipro among top losers — Can Q2 earnings spark a rebound?",
+          "summary": "The IT sector has been hit hard in September, with the Nifty IT index down 11%. High interest rates, global growth fears, and generative AI pressures have impacted technology spending. Investors are l",
+          "date": "2026-10-01T12:33:25.959941",
+          "source": "Livemint",
+          "companies": [],
+          "ref": "event:rss-19fb07b037d7"
+        },
+        {
+          "id": "N1",
+          "kind": "news",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+          "date": "18m ago",
+          "source": "Business Standard",
+          "companies": [],
+          "ref": "news:live-0159572fe8cc"
+        },
+        {
+          "id": "N2",
+          "kind": "news",
+          "title": "IT Q2 preview: Muted growth, steady margins likely; deal conversion, AI deflation in focus",
+          "summary": "India's leading IT firms are projected to exhibit modest revenue growth and stable margins for the second quarter. Analysts anticipate that discretionary spending will remain constrained due to geopol",
+          "date": "31m ago",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "news:live-a77e3b821d72"
+        },
+        {
+          "id": "N3",
+          "kind": "news",
+          "title": "What will bring foreign investors back to Indian stock market? 5 things that should go right",
+          "summary": "FPIs sold more than Rs 25,000 crore of Indian equities in September as surging US bond yields, elevated crude prices and a weaker rupee reduced India’s appeal. Cooling yields and oil, currency stabili",
+          "date": "2h ago",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "news:live-2cc9922819f5"
+        },
+        {
+          "id": "N4",
+          "kind": "news",
+          "title": "RBI's dollar inflow measures buy time, but external risks remain",
+          "summary": "The Reserve Bank of India's recent measures to boost dollar inflows are a temporary fix, economists warn. While these steps aim to stabilize the rupee now, the country must strengthen its balance of p",
+          "date": "1h ago",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "news:live-f80336401a44"
+        },
+        {
+          "id": "N5",
+          "kind": "news",
+          "title": "Weekly Market Wrap: NIFTY50, SENSEX end lower as metal, IT indices fall 4%; Infosys leads losses - Upstox",
+          "summary": "Weekly Market Wrap: NIFTY50, SENSEX end lower as metal, IT indices fall 4%; Infosys leads losses&nbsp;&nbsp;Upstox",
+          "date": "1d ago",
+          "source": "Google News",
+          "companies": [],
+          "ref": "news:live-606a1783175c"
+        },
+        {
+          "id": "N6",
+          "kind": "news",
+          "title": "Rupee treads water, traders await range break to gauge directional trend",
+          "summary": "The Indian rupee held steady as tensions between Iran and the US eased, with traders anticipating a clearer market direction. Currently trading around 94.3675 against the dollar, the rupee has found s",
+          "date": "31m ago",
+          "source": "Economic Times",
+          "companies": [],
+          "ref": "news:live-f316715fec51"
+        },
+        {
+          "id": "C1",
+          "kind": "context",
+          "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:1"
+        },
+        {
+          "id": "C2",
+          "kind": "context",
+          "title": "Macro indices (real, live): NIFTY 50 22,421.95 (-198.50 (-0.88%)); SENSEX 71,909.70 (-570.59 (-0.79%)); BANK NIFTY 54,450.75 (-182.30 (-0.33%)); INDIA VIX 14.46",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:2"
+        }
+      ],
+      "historical": []
+    }
+  },
+  {
+    "id": "CC1",
+    "plan_kind": "comparison",
+    "premise": {
+      "required": false,
+      "terms": [],
+      "supported": null,
+      "supporting": []
+    },
+    "irrelevance": {
+      "irrelevant_items": [],
+      "relevant_total": 8,
+      "status": "PASS"
+    },
+    "evidence_total": 8,
+    "snapshot": {
+      "plan_kind": "comparison",
+      "filter_report": {
+        "plan": "comparison",
+        "events": {
+          "kept": 1,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 0,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 0
+        },
+        "news": {
+          "kept": 1,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 0,
+          "dropped_undated": 0,
+          "dropped_tips": 1,
+          "dropped_single_company_filing": 0
+        },
+        "announcements": {
+          "kept": 6,
+          "dropped_stale": 0
+        },
+        "policies": {
+          "kept": 0,
+          "dropped_irrelevant": 0
+        },
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        }
+      },
+      "events": [
+        {
+          "id": "evt-it-deal-slowdown-2026",
+          "title": "US enterprise IT spending contracts for second consecutive quarter",
+          "summary": "CIO surveys and enterprise software vendors report discretionary IT budget freezes. Indian IT majors with high US revenue exposure face near-term demand headwinds, though management guidance remains cautious.",
+          "date": "2026-07-10T09:30:00",
+          "source": "",
+          "companies": [
+            "TCS",
+            "INFY",
+            "WIPRO"
+          ]
+        }
+      ],
+      "news": [
+        {
+          "id": "live-0159572fe8cc",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+          "date": "18m ago",
+          "source": "Business Standard"
+        }
+      ],
+      "announcements": [
+        {
+          "id": "ann_nse-3e08b3c13a",
+          "title": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+          "category": null,
+          "date": "2026-10-01T00:00:00"
+        },
+        {
+          "id": "ann_nse-d5bed2f533",
+          "title": "Tata Consultancy Services Limited has informed the Exchange regarding a press release dated October 01, 2026, titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+          "category": null,
+          "date": "2026-10-01T00:00:00"
+        },
+        {
+          "id": "ann_nse-ffc7721042",
+          "title": "Infosys Limited has informed the Exchange regarding 'Infosys and Columbia University Launch Strategic Collaboration Across Deep Research to Drive Innovation and Unlock Business Value'.",
+          "category": null,
+          "date": "2026-10-01T00:00:00"
+        },
+        {
+          "id": "ann_nse-ca93723168",
+          "title": "Infosys Limited has informed the Exchange regarding 'Investor Conference'.",
+          "category": null,
+          "date": "2026-09-01T00:00:00"
+        },
+        {
+          "id": "ann_nse-600f534235",
+          "title": "Infosys Limited has informed the Exchange regarding Allotment of 175865  Shares.",
+          "category": null,
+          "date": "2026-08-24T00:00:00"
+        },
+        {
+          "id": "ann_nse-6ca57a1d3e",
+          "title": "Infosys Limited has informed the Exchange about change in Management",
+          "category": null,
+          "date": "2026-08-24T00:00:00"
+        }
+      ],
+      "policies": [],
+      "valuation": {
+        "TCS": {
+          "pe": 15.1,
+          "pb": 6.85,
+          "52w_high": 3350.0,
+          "52w_low": 1976.8
+        },
+        "INFY": {
+          "pe": 13.3,
+          "pb": 4.54,
+          "52w_high": 1728.0,
+          "52w_low": 980.4
+        }
+      },
+      "vix": 14.45,
+      "sector_rows": [],
+      "macro_indices": [],
+      "context_lines": [
+        "TCS: P/E 15.1, P/B 6.85, 52W 1976.8-3350.0",
+        "INFY: P/E 13.3, P/B 4.54, 52W 980.4-1728.0",
+        "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?"
+      ],
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      },
+      "index": [
+        {
+          "id": "E1",
+          "kind": "event",
+          "title": "US enterprise IT spending contracts for second consecutive quarter",
+          "summary": "CIO surveys and enterprise software vendors report discretionary IT budget freezes. Indian IT majors with high US revenue exposure face near-term demand headwinds, though management guidance remains c",
+          "date": "2026-07-10T09:30:00",
+          "source": "",
+          "companies": [
+            "TCS",
+            "INFY",
+            "WIPRO"
+          ],
+          "ref": "event:evt-it-deal-slowdown-2026"
+        },
+        {
+          "id": "N1",
+          "kind": "news",
+          "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+          "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+          "date": "18m ago",
+          "source": "Business Standard",
+          "companies": [],
+          "ref": "news:live-0159572fe8cc"
+        },
+        {
+          "id": "A1",
+          "kind": "announcement",
+          "title": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+          "date": "2026-10-01T00:00:00",
+          "source": "NSE",
+          "companies": [
+            "TCS"
+          ],
+          "ref": "announcement:ann_nse-3e08b3c13a"
+        },
+        {
+          "id": "A2",
+          "kind": "announcement",
+          "title": "Tata Consultancy Services Limited has informed the Exchange regarding a press release dated October 01, 2026, titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+          "date": "2026-10-01T00:00:00",
+          "source": "NSE",
+          "companies": [
+            "TCS"
+          ],
+          "ref": "announcement:ann_nse-d5bed2f533"
+        },
+        {
+          "id": "A3",
+          "kind": "announcement",
+          "title": "Infosys Limited has informed the Exchange regarding 'Infosys and Columbia University Launch Strategic Collaboration Across Deep Research to Drive Innovation and Unlock Business Value'.",
+          "date": "2026-10-01T00:00:00",
+          "source": "NSE",
+          "companies": [
+            "INFY"
+          ],
+          "ref": "announcement:ann_nse-ffc7721042"
+        },
+        {
+          "id": "A4",
+          "kind": "announcement",
+          "title": "Infosys Limited has informed the Exchange regarding 'Investor Conference'.",
+          "date": "2026-09-01T00:00:00",
+          "source": "NSE",
+          "companies": [
+            "INFY"
+          ],
+          "ref": "announcement:ann_nse-ca93723168"
+        },
+        {
+          "id": "A5",
+          "kind": "announcement",
+          "title": "Infosys Limited has informed the Exchange regarding Allotment of 175865  Shares.",
+          "date": "2026-08-24T00:00:00",
+          "source": "NSE",
+          "companies": [
+            "INFY"
+          ],
+          "ref": "announcement:ann_nse-600f534235"
+        },
+        {
+          "id": "A6",
+          "kind": "announcement",
+          "title": "Infosys Limited has informed the Exchange about change in Management",
+          "date": "2026-08-24T00:00:00",
+          "source": "NSE",
+          "companies": [
+            "INFY"
+          ],
+          "ref": "announcement:ann_nse-6ca57a1d3e"
+        },
+        {
+          "id": "C1",
+          "kind": "context",
+          "title": "TCS: P/E 15.1, P/B 6.85, 52W 1976.8-3350.0",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:1"
+        },
+        {
+          "id": "C2",
+          "kind": "context",
+          "title": "INFY: P/E 13.3, P/B 4.54, 52W 980.4-1728.0",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:2"
+        },
+        {
+          "id": "C3",
+          "kind": "context",
+          "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:3"
+        }
+      ],
+      "historical": []
+    }
+  },
+  {
+    "id": "CC2",
+    "plan_kind": "comparison",
+    "premise": {
+      "required": false,
+      "terms": [],
+      "supported": null,
+      "supporting": []
+    },
+    "irrelevance": {
+      "irrelevant_items": [],
+      "relevant_total": 6,
+      "status": "PASS"
+    },
+    "evidence_total": 6,
+    "snapshot": {
+      "plan_kind": "comparison",
+      "filter_report": {
+        "plan": "comparison",
+        "events": {
+          "kept": 0,
+          "dropped_stale": 1,
+          "dropped_irrelevant": 0,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 0
+        },
+        "news": {
+          "kept": 0,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 0,
+          "dropped_undated": 0,
+          "dropped_tips": 1,
+          "dropped_single_company_filing": 0
+        },
+        "announcements": {
+          "kept": 6,
+          "dropped_stale": 0
+        },
+        "policies": {
+          "kept": 0,
+          "dropped_irrelevant": 0
+        },
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        }
+      },
+      "events": [],
+      "news": [],
+      "announcements": [
+        {
+          "id": "ann_nse-9674e3f312",
+          "title": "HDFC Bank Limited has informed the Exchange about General Updates",
+          "category": null,
+          "date": "2026-08-24T00:00:00"
+        },
+        {
+          "id": "ann_nse-9ba2ba3c6a",
+          "title": "ICICI Bank Limited has informed the Exchange about Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015",
+          "category": null,
+          "date": "2026-09-02T00:00:00"
+        },
+        {
+          "id": "ann_nse-b7c242fc6b",
+          "title": "ICICI Bank Limited has informed the Exchange regarding Allotment of 598493  Shares.",
+          "category": null,
+          "date": "2026-09-01T00:00:00"
+        },
+        {
+          "id": "ann_nse-7ed4e285eb",
+          "title": "ICICI Bank Limited has informed the Exchange about Credit Rating",
+          "category": null,
+          "date": "2026-09-01T00:00:00"
+        },
+        {
+          "id": "ann_nse-5e56c449ab",
+          "title": "ICICI Bank Limited has informed the Exchange about disclosure under Regulation 30 read with para A of Schedule III and Regulation 46(2) of the Securities and Exchange Board of…",
+          "category": null,
+          "date": "2026-08-24T00:00:00"
+        },
+        {
+          "id": "ann_nse-593e19f0d8",
+          "title": "ICICI Bank Limited has informed the Exchange regarding Allotment of 181843 Equity Shares under ICICI Bank Employees Stock Option Scheme-2000 on August 24, 2026.",
+          "category": null,
+          "date": "2026-08-24T00:00:00"
+        }
+      ],
+      "policies": [],
+      "valuation": {
+        "HDFCBANK": {
+          "pe": 15.8,
+          "pb": 1.83,
+          "52w_high": 1020.5,
+          "52w_low": 681.9
+        },
+        "ICICIBANK": {
+          "pe": 16.9,
+          "pb": 2.47,
+          "52w_high": 1480.0,
+          "52w_low": 1187.6
+        }
+      },
+      "vix": 14.45,
+      "sector_rows": [],
+      "macro_indices": [],
+      "context_lines": [
+        "HDFCBANK: P/E 15.8, P/B 1.83, 52W 681.9-1020.5",
+        "ICICIBANK: P/E 16.9, P/B 2.47, 52W 1187.6-1480.0",
+        "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?"
+      ],
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      },
+      "index": [
+        {
+          "id": "A1",
+          "kind": "announcement",
+          "title": "HDFC Bank Limited has informed the Exchange about General Updates",
+          "date": "2026-08-24T00:00:00",
+          "source": "NSE",
+          "companies": [
+            "HDFCBANK"
+          ],
+          "ref": "announcement:ann_nse-9674e3f312"
+        },
+        {
+          "id": "A2",
+          "kind": "announcement",
+          "title": "ICICI Bank Limited has informed the Exchange about Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015",
+          "date": "2026-09-02T00:00:00",
+          "source": "NSE",
+          "companies": [
+            "ICICIBANK"
+          ],
+          "ref": "announcement:ann_nse-9ba2ba3c6a"
+        },
+        {
+          "id": "A3",
+          "kind": "announcement",
+          "title": "ICICI Bank Limited has informed the Exchange regarding Allotment of 598493  Shares.",
+          "date": "2026-09-01T00:00:00",
+          "source": "NSE",
+          "companies": [
+            "ICICIBANK"
+          ],
+          "ref": "announcement:ann_nse-b7c242fc6b"
+        },
+        {
+          "id": "A4",
+          "kind": "announcement",
+          "title": "ICICI Bank Limited has informed the Exchange about Credit Rating",
+          "date": "2026-09-01T00:00:00",
+          "source": "NSE",
+          "companies": [
+            "ICICIBANK"
+          ],
+          "ref": "announcement:ann_nse-7ed4e285eb"
+        },
+        {
+          "id": "A5",
+          "kind": "announcement",
+          "title": "ICICI Bank Limited has informed the Exchange about disclosure under Regulation 30 read with para A of Schedule III and Regulation 46(2) of the Securities and Exchange Board of…",
+          "date": "2026-08-24T00:00:00",
+          "source": "NSE",
+          "companies": [
+            "ICICIBANK"
+          ],
+          "ref": "announcement:ann_nse-5e56c449ab"
+        },
+        {
+          "id": "A6",
+          "kind": "announcement",
+          "title": "ICICI Bank Limited has informed the Exchange regarding Allotment of 181843 Equity Shares under ICICI Bank Employees Stock Option Scheme-2000 on August 24, 2026.",
+          "date": "2026-08-24T00:00:00",
+          "source": "NSE",
+          "companies": [
+            "ICICIBANK"
+          ],
+          "ref": "announcement:ann_nse-593e19f0d8"
+        },
+        {
+          "id": "C1",
+          "kind": "context",
+          "title": "HDFCBANK: P/E 15.8, P/B 1.83, 52W 681.9-1020.5",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:1"
+        },
+        {
+          "id": "C2",
+          "kind": "context",
+          "title": "ICICIBANK: P/E 16.9, P/B 2.47, 52W 1187.6-1480.0",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:2"
+        },
+        {
+          "id": "C3",
+          "kind": "context",
+          "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:3"
+        }
+      ],
+      "historical": []
+    }
+  },
+  {
+    "id": "CC3",
+    "plan_kind": "comparison",
+    "premise": {
+      "required": false,
+      "terms": [],
+      "supported": null,
+      "supporting": []
+    },
+    "irrelevance": {
+      "irrelevant_items": [],
+      "relevant_total": 3,
+      "status": "PASS"
+    },
+    "evidence_total": 3,
+    "snapshot": {
+      "plan_kind": "comparison",
+      "filter_report": {
+        "plan": "comparison",
+        "events": {
+          "kept": 1,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 0,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 0
+        },
+        "news": {
+          "kept": 0,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 0,
+          "dropped_undated": 0,
+          "dropped_tips": 1,
+          "dropped_single_company_filing": 0
+        },
+        "announcements": {
+          "kept": 2,
+          "dropped_stale": 0
+        },
+        "policies": {
+          "kept": 0,
+          "dropped_irrelevant": 0
+        },
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        }
+      },
+      "events": [
+        {
+          "id": "evt-defence-budget-2026",
+          "title": "Defence capital expenditure raised by Rs. 45,000 Cr in revised estimates",
+          "summary": "The revised budget allocation boosts indigenous defence procurement, benefiting domestic manufacturers under the Make-in-India initiative. Order books at BEL, HAL and Bharat Forge are expected to expand significantly.",
+          "date": "2026-07-08T09:30:00",
+          "source": "",
+          "companies": [
+            "BEL",
+            "HAL",
+            "BHARATFORG"
+          ]
+        }
+      ],
+      "news": [],
+      "announcements": [
+        {
+          "id": "ann_nse-5853fee15a",
+          "title": "Newspaper Publication   Addendum to the Notice of the 72nd Annual General Meeting (AGM) of the Company scheduled to be held on 28 August 2026.",
+          "category": null,
+          "date": "2026-08-19T00:00:00"
+        },
+        {
+          "id": "ann_nse-4aa82edf47",
+          "title": "Addendum to the Notice of the 72nd Annual General Meeting of the Company scheduled to be held on 28 August 2026.",
+          "category": null,
+          "date": "2026-08-18T00:00:00"
+        }
+      ],
+      "policies": [],
+      "valuation": {
+        "HAL": {
+          "pe": 33.0,
+          "pb": 7.5,
+          "52w_high": 5149.9,
+          "52w_low": 3479.1
+        },
+        "BEL": {
+          "pe": 45.7,
+          "pb": 11.67,
+          "52w_high": 473.4,
+          "52w_low": 378.6
+        }
+      },
+      "vix": 14.45,
+      "sector_rows": [],
+      "macro_indices": [],
+      "context_lines": [
+        "HAL: P/E 33.0, P/B 7.5, 52W 3479.1-5149.9",
+        "BEL: P/E 45.7, P/B 11.67, 52W 378.6-473.4",
+        "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?"
+      ],
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      },
+      "index": [
+        {
+          "id": "E1",
+          "kind": "event",
+          "title": "Defence capital expenditure raised by Rs. 45,000 Cr in revised estimates",
+          "summary": "The revised budget allocation boosts indigenous defence procurement, benefiting domestic manufacturers under the Make-in-India initiative. Order books at BEL, HAL and Bharat Forge are expected to expa",
+          "date": "2026-07-08T09:30:00",
+          "source": "",
+          "companies": [
+            "BEL",
+            "HAL",
+            "BHARATFORG"
+          ],
+          "ref": "event:evt-defence-budget-2026"
+        },
+        {
+          "id": "A1",
+          "kind": "announcement",
+          "title": "Addendum to the Notice of the 72nd Annual General Meeting of the Company scheduled to be held on 28 August 2026.",
+          "date": "2026-08-18T00:00:00",
+          "source": "NSE",
+          "companies": [
+            "BEL"
+          ],
+          "ref": "announcement:ann_nse-4aa82edf47"
+        },
+        {
+          "id": "C1",
+          "kind": "context",
+          "title": "HAL: P/E 33.0, P/B 7.5, 52W 3479.1-5149.9",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:1"
+        },
+        {
+          "id": "C2",
+          "kind": "context",
+          "title": "BEL: P/E 45.7, P/B 11.67, 52W 378.6-473.4",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:2"
+        },
+        {
+          "id": "C3",
+          "kind": "context",
+          "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:3"
+        }
+      ],
+      "historical": []
+    }
+  },
+  {
+    "id": "GE1",
+    "plan_kind": "explanation",
+    "premise": {
+      "required": false,
+      "terms": [],
+      "supported": null,
+      "supporting": []
+    },
+    "irrelevance": {
+      "irrelevant_items": [],
+      "relevant_total": 0,
+      "status": "PASS"
+    },
+    "evidence_total": 0,
+    "snapshot": {
+      "plan_kind": "explanation",
+      "filter_report": {
+        "plan": "explanation",
+        "events": {
+          "kept": 0,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 0,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 0
+        },
+        "news": {
+          "kept": 0,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 0,
+          "dropped_undated": 0,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 0
+        },
+        "announcements": {
+          "kept": 0,
+          "dropped_stale": 0
+        },
+        "policies": {
+          "kept": 0,
+          "dropped_irrelevant": 0
+        },
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        }
+      },
+      "events": [],
+      "news": [],
+      "announcements": [],
+      "policies": [],
+      "valuation": {},
+      "vix": 14.45,
+      "sector_rows": [],
+      "macro_indices": [],
+      "context_lines": [
+        "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?"
+      ],
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      },
+      "index": [
+        {
+          "id": "C1",
+          "kind": "context",
+          "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:1"
+        }
+      ],
+      "historical": []
+    }
+  },
+  {
+    "id": "GE2",
+    "plan_kind": "explanation",
+    "premise": {
+      "required": false,
+      "terms": [],
+      "supported": null,
+      "supporting": []
+    },
+    "irrelevance": {
+      "irrelevant_items": [],
+      "relevant_total": 0,
+      "status": "PASS"
+    },
+    "evidence_total": 0,
+    "snapshot": {
+      "plan_kind": "explanation",
+      "filter_report": {
+        "plan": "explanation",
+        "events": {
+          "kept": 0,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 0,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 0
+        },
+        "news": {
+          "kept": 0,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 0,
+          "dropped_undated": 0,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 0
+        },
+        "announcements": {
+          "kept": 0,
+          "dropped_stale": 0
+        },
+        "policies": {
+          "kept": 0,
+          "dropped_irrelevant": 0
+        },
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        }
+      },
+      "events": [],
+      "news": [],
+      "announcements": [],
+      "policies": [],
+      "valuation": {},
+      "vix": 14.45,
+      "sector_rows": [],
+      "macro_indices": [
+        {
+          "name": "NIFTY 50",
+          "ticker": "^NSEI",
+          "value": "22,421.95",
+          "change": "-198.50 (-0.88%)",
+          "pct": -0.88,
+          "positive": false,
+          "high": "22,534.06",
+          "low": "22,309.84",
+          "chart": [
+            {
+              "label": "2026-09-28",
+              "value": 22780.25
+            },
+            {
+              "label": "2026-09-29",
+              "value": 22716.2
+            },
+            {
+              "label": "2026-09-30",
+              "value": 22620.45
+            },
+            {
+              "label": "2026-10-01",
+              "value": 22421.95
+            }
+          ]
+        },
+        {
+          "name": "SENSEX",
+          "ticker": "^BSESN",
+          "value": "71,909.70",
+          "change": "-570.59 (-0.79%)",
+          "pct": -0.79,
+          "positive": false,
+          "high": "72,269.25",
+          "low": "71,550.15",
+          "chart": [
+            {
+              "label": "2026-09-28",
+              "value": 72771.72
+            },
+            {
+              "label": "2026-09-29",
+              "value": 72529.07
+            },
+            {
+              "label": "2026-09-30",
+              "value": 72480.29
+            },
+            {
+              "label": "2026-10-01",
+              "value": 71909.7
+            }
+          ]
+        },
+        {
+          "name": "BANK NIFTY",
+          "ticker": "^NSEBANK",
+          "value": "54,450.75",
+          "change": "-182.30 (-0.33%)",
+          "pct": -0.33,
+          "positive": false,
+          "high": "54,723.00",
+          "low": "54,178.50",
+          "chart": [
+            {
+              "label": "2026-09-28",
+              "value": 54471.65
+            },
+            {
+              "label": "2026-09-29",
+              "value": 54259.95
+            },
+            {
+              "label": "2026-09-30",
+              "value": 54633.05
+            },
+            {
+              "label": "2026-10-01",
+              "value": 54450.75
+            }
+          ]
+        },
+        {
+          "name": "INDIA VIX",
+          "ticker": "^INDIAVIX",
+          "value": "14.46",
+          "change": "+0.99 (+7.37%)",
+          "pct": 7.37,
+          "positive": true,
+          "high": "14.53",
+          "low": "14.38",
+          "chart": [
+            {
+              "label": "2026-09-28",
+              "value": 13.64
+            },
+            {
+              "label": "2026-09-29",
+              "value": 13.41
+            },
+            {
+              "label": "2026-09-30",
+              "value": 13.49
+            },
+            {
+              "label": "2026-10-01",
+              "value": 14.46
+            }
+          ]
+        }
+      ],
+      "context_lines": [
+        "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?",
+        "Macro indices (real, live): NIFTY 50 22,421.95 (-198.50 (-0.88%)); SENSEX 71,909.70 (-570.59 (-0.79%)); BANK NIFTY 54,450.75 (-182.30 (-0.33%)); INDIA VIX 14.46 (+0.99 (+7.37%))"
+      ],
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      },
+      "index": [
+        {
+          "id": "C1",
+          "kind": "context",
+          "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:1"
+        },
+        {
+          "id": "C2",
+          "kind": "context",
+          "title": "Macro indices (real, live): NIFTY 50 22,421.95 (-198.50 (-0.88%)); SENSEX 71,909.70 (-570.59 (-0.79%)); BANK NIFTY 54,450.75 (-182.30 (-0.33%)); INDIA VIX 14.46",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:2"
+        }
+      ],
+      "historical": []
+    }
+  },
+  {
+    "id": "GE3",
+    "plan_kind": "explanation",
+    "premise": {
+      "required": false,
+      "terms": [],
+      "supported": null,
+      "supporting": []
+    },
+    "irrelevance": {
+      "irrelevant_items": [],
+      "relevant_total": 0,
+      "status": "PASS"
+    },
+    "evidence_total": 0,
+    "snapshot": {
+      "plan_kind": "explanation",
+      "filter_report": {
+        "plan": "explanation",
+        "events": {
+          "kept": 0,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 0,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 0
+        },
+        "news": {
+          "kept": 0,
+          "dropped_stale": 0,
+          "dropped_irrelevant": 0,
+          "dropped_undated": 0,
+          "dropped_tips": 0,
+          "dropped_single_company_filing": 0
+        },
+        "announcements": {
+          "kept": 0,
+          "dropped_stale": 0
+        },
+        "policies": {
+          "kept": 0,
+          "dropped_irrelevant": 0
+        },
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        }
+      },
+      "events": [],
+      "news": [],
+      "announcements": [],
+      "policies": [],
+      "valuation": {},
+      "vix": 14.45,
+      "sector_rows": [],
+      "macro_indices": [],
+      "context_lines": [
+        "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?"
+      ],
+      "premise": {
+        "required": false,
+        "terms": [],
+        "supported": null,
+        "supporting": []
+      },
+      "index": [
+        {
+          "id": "C1",
+          "kind": "context",
+          "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+          "date": null,
+          "source": "MarketRipple data",
+          "companies": [],
+          "ref": "context:1"
+        }
+      ],
+      "historical": []
+    }
+  }
+]

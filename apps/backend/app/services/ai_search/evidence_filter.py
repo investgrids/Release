@@ -21,6 +21,8 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
+from app.services.ai_search import evidence_scope as scope
+
 _EXPLAIN_RE = re.compile(
     r"^\s*(?:what\s+(?:is|are|does|do)|explain|define|how\s+(?:does|do|should\s+i\s+(?:read|use|interpret)|to\s+read)|meaning\s+of|difference\s+between)",
     re.IGNORECASE,
@@ -132,7 +134,8 @@ def mentions(text: str, terms: list[str]) -> bool:
 
 _SECTOR_TERMS = {
     "banking": ["bank", "banks", "banking", "lender", "lenders", "credit", "loan", "loans", "nbfc", "rbi"],
-    "it": ["it services", "software", "infosys", "tcs", "wipro", "hcltech", "tech mahindra", "nasdaq", "it sector", "it stocks"],
+    "it": ["it services", "software", "infosys", "tcs", "wipro", "hcltech", "tech mahindra", "nasdaq", "it sector", "it stocks", "it spending", "it industry", "it firms",
+           "it companies", "it exporters", "it demand", "it majors", "nifty it"],
     "technology": ["technology", "tech", "software", "ai"],
     "defence": ["defence", "defense", "hal", "bel", "missile", "navy", "army"],
     "energy": ["energy", "oil", "gas", "crude", "power", "renewable"],
@@ -219,11 +222,19 @@ def filter_bundle(bundle, plan: RetrievalPlan, query: str, entities: dict, now: 
     terms = topic_search_terms(query, entities)
     report: dict = {"plan": plan.kind, "events": {}, "news": {}, "announcements": {}, "policies": {}}
 
+    from app.api.companies import _NSE_UNIVERSE as UNIVERSE
+
     # events
-    kept, stale, irrelevant = [], 0, 0
+    kept, stale, irrelevant, tips, filings = [], 0, 0, 0, 0
     for e in bundle.events:
         if plan.events == "none":
             irrelevant += 1
+            continue
+        if scope.is_tips_article(e.get("title", ""), e.get("summary", "")):
+            tips += 1                    # a recommendation article is not evidence that anything happened
+            continue
+        if plan.kind in ("topic", "explanation") and not scope.eligible_for_sector(scope.normalize("event", e))[0]:
+            filings += 1                 # a single-company filing cannot support a sector or market question
             continue
         if plan.events == "tagged" and not _tagged_to(e, symbols):
             irrelevant += 1
@@ -236,18 +247,25 @@ def filter_bundle(bundle, plan: RetrievalPlan, query: str, entities: dict, now: 
             stale += 1
             continue
         kept.append(e)
-    report["events"] = {"kept": len(kept), "dropped_stale": stale, "dropped_irrelevant": irrelevant}
+    report["events"] = {"kept": len(kept), "dropped_stale": stale, "dropped_irrelevant": irrelevant, "dropped_tips": tips, "dropped_single_company_filing": filings}
     bundle.events = kept[:10] if plan.kind != "comparison" else kept[:10]
 
     # news
-    kept, stale, irrelevant, undated = [], 0, 0, 0
-    nterms = company_terms(symbols) if plan.news == "entity" else []
+    kept, stale, irrelevant, undated, tips, filings = [], 0, 0, 0, 0, 0
     for n in bundle.news:
         text = f"{n.get('headline', '')} {n.get('summary', '')}"
         if plan.news == "none":
             irrelevant += 1
             continue
-        if plan.news == "entity" and not mentions(text, nterms):
+        if scope.is_tips_article(n.get("headline", ""), n.get("summary", "")):
+            tips += 1
+            continue
+        if plan.news == "words" and not scope.eligible_for_sector(scope.normalize("news", n))[0]:
+            filings += 1
+            continue
+        # company-scoped: the item must use the registered name or symbol; a bare brand alias, or a brand inside another entity's name ("Kotak Institutional
+        # Equities"), is not a fact about the company.
+        if plan.news == "entity" and not any(scope.eligible_for_company(scope.normalize("news", n), s, UNIVERSE)[0] for s in symbols):
             irrelevant += 1
             continue
         if plan.news == "words" and not _relevant_topic_item(text, terms, words):
@@ -261,7 +279,7 @@ def filter_bundle(bundle, plan: RetrievalPlan, query: str, entities: dict, now: 
             stale += 1
             continue
         kept.append(n)
-    report["news"] = {"kept": len(kept), "dropped_stale": stale, "dropped_irrelevant": irrelevant, "dropped_undated": undated}
+    report["news"] = {"kept": len(kept), "dropped_stale": stale, "dropped_irrelevant": irrelevant, "dropped_undated": undated, "dropped_tips": tips, "dropped_single_company_filing": filings}
     bundle.news = kept
 
     # announcements
@@ -285,4 +303,17 @@ def filter_bundle(bundle, plan: RetrievalPlan, query: str, entities: dict, now: 
             irrelevant += 1
     report["policies"] = {"kept": len(kept), "dropped_irrelevant": irrelevant}
     bundle.policies = kept
+
+    # premise: a question phrased as news ("BEL just won a new defence order") asserts an event. It is supported only if eligible evidence about the company mentions that
+    # kind of event. Otherwise the model is told the event could not be verified (see EvidenceBundle.premise_notice).
+    report["premise"] = {"required": False, "terms": [], "supported": None, "supporting": []}
+    if plan.kind in ("company", "comparison"):
+        groups = scope.premise_groups(query)
+        if groups:
+            items = ([scope.normalize("event", e) for e in bundle.events] + [scope.normalize("news", n) for n in bundle.news]
+                     + [scope.normalize("announcement", a) for a in bundle.announcements or []])
+            supporting = [it["title"][:100] for it in items
+                          if any(scope.eligible_for_company(it, s, UNIVERSE)[0] for s in symbols) and scope.supports_premise(it, groups)]
+            report["premise"] = {"required": True, "terms": [g[0] for g in groups], "supported": bool(supporting), "supporting": supporting[:5]}
+    bundle.premise = report["premise"]
     return report

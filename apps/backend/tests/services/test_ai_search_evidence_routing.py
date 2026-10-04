@@ -84,7 +84,7 @@ def test_company_plan_drops_events_not_tagged_to_the_company_and_events_older_th
     b = bundle(events=[event("TCS result", 5, ["TCS"]), event("ICICI filing", 2, ["ICICIBANK"]), event("TCS old deal", 200, ["TCS"])])
     rep = F.filter_bundle(b, F.plan_for("TCS outlook", {}, ent(["TCS"])), "TCS outlook", ent(["TCS"]), NOW)
     assert [e["title"] for e in b.events] == ["TCS result"]
-    assert rep["events"] == {"kept": 1, "dropped_stale": 1, "dropped_irrelevant": 1}
+    assert {k: rep["events"][k] for k in ("kept", "dropped_stale", "dropped_irrelevant")} == {"kept": 1, "dropped_stale": 1, "dropped_irrelevant": 1}
 
 
 def test_company_news_must_name_the_company_and_have_a_readable_recent_date():
