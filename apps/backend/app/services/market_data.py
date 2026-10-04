@@ -465,6 +465,17 @@ def _pct_str_with_fallback(provider_value, statement_percent) -> str:
     return "—"
 
 
+def _dividend_yield_pct(info: dict) -> float | None:
+    """Dividend yield as a PERCENT number. Annual dividend / price when both are real (authoritative); otherwise Yahoo's dividendYield, which is always a
+    percentage (Kotak 0.16 = 0.16%, TCS 3.13 = 3.13%). The old "above 0.25 means percent" guess read Kotak's 0.16 as a fraction and showed 16.0%."""
+    rate = info.get("dividendRate")
+    px = info.get("currentPrice") or info.get("regularMarketPrice")
+    if _is_real_number(rate) and _is_real_number(px) and float(px) > 0 and float(rate) > 0:
+        return float(rate) / float(px) * 100
+    y = info.get("dividendYield")
+    return float(y) if _is_real_number(y) and float(y) > 0 else None
+
+
 def _debt_to_equity_str(yahoo_pct, statement_ratio) -> str:
     """Debt / equity as a multiple ("0.11"), the same unit as the Financials tab. Prefers the statement-derived ratio; Yahoo's debtToEquity is a PERCENTAGE
     (TCS 10.2 means 0.10x), so it is divided by 100 when it is the only source. Never shows the raw percentage under a ratio label."""
@@ -934,7 +945,7 @@ async def get_stock_detail(symbol: str) -> Optional[dict]:
                 "roe":               _pct_str_with_fallback(info.get("returnOnEquity"), statement_ratios.get("roe")),
                 "roa":               _pct_str(info.get("returnOnAssets")),
                 "beta":              _num_str(info.get("beta"), 2),
-                "dividend_yield":    (lambda v: f"{float(v):.2f}%" if v and float(v) > 0.25 else _pct_str(v))(info.get("dividendYield")),
+                "dividend_yield":    (lambda v: f"{v:.2f}%" if v is not None else "—")(_dividend_yield_pct(info)),
                 "dividend_rate":     _num_str(info.get("dividendRate"), 2),
                 "gross_margins":     _pct_str(info.get("grossMargins")),
                 "operating_margins": _pct_str(info.get("operatingMargins")),

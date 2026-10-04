@@ -84,9 +84,9 @@ def dividends_block(series, info: dict, prefix: str | None) -> dict:
     if series is not None and len(series) > 0:
         for idx, amt in list(series.items())[-8:][::-1]:
             hist.append({"date": idx.date().isoformat() if hasattr(idx, "date") else str(idx)[:10], "amount": _money(amt, prefix)})
-    y = _num(info.get("dividendYield"))
-    # Yahoo has returned this both as a fraction (0.0123) and as a percent (1.23): above 0.5 as a fraction would be a 50% yield, so treat it as percent.
-    yld = None if y is None else (f"{y:.2f}%" if y > 0.5 else f"{y * 100:.2f}%")
+    from app.services.market_data import _dividend_yield_pct
+    y = _dividend_yield_pct(info)
+    yld = None if y is None else f"{y:.2f}%"
     return {"yield": yld, "rate": _money(info.get("dividendRate"), prefix), "history": [h for h in hist if h["amount"]]}
 
 

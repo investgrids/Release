@@ -30,7 +30,14 @@ def test_dividends_yield_scale_and_history():
     s = pd.Series([10.0, 27.0], index=pd.to_datetime(["2025-06-01", "2026-06-01"]))
     d = dividends_block(s, {"dividendYield": 1.23, "dividendRate": 27.0}, "₹")
     assert d["yield"] == "1.23%" and d["rate"] == "₹27.00" and d["history"][0] == {"date": "2026-06-01", "amount": "₹27.00"}
-    assert dividends_block(s, {"dividendYield": 0.0123}, "₹")["yield"] == "1.23%"
+    assert dividends_block(s, {"dividendYield": 0.16, "dividendRate": 0.65, "currentPrice": 418.35}, "₹")["yield"] == "0.16%"   # Kotak: percent, not 16%
+
+
+def test_dividend_yield_pct():
+    from app.services.market_data import _dividend_yield_pct
+    assert round(_dividend_yield_pct({"dividendRate": 65.0, "currentPrice": 2075.0}), 2) == 3.13
+    assert _dividend_yield_pct({"dividendYield": 0.16}) == 0.16      # no rate: Yahoo's value is already a percent
+    assert _dividend_yield_pct({"dividendYield": 0}) is None and _dividend_yield_pct({}) is None
 
 
 def test_debt_to_equity_is_shown_as_a_multiple():
