@@ -19,7 +19,7 @@ const LABEL = "text-[12px] text-text-muted shrink-0";
 const VALUE = "text-[13px] font-medium tabular-nums text-right";
 const UP = "text-emerald-600 dark:text-emerald-400";
 const DOWN = "text-rose-600 dark:text-rose-400";
-const GROWTH_LABELS = new Set(["Revenue growth (YoY)", "Earnings growth (YoY)"]);
+const GROWTH_LABELS = new Set(["Revenue growth (latest quarter, YoY)", "Earnings growth (latest quarter, YoY)"]);
 
 const toNum = (v?: string | null): number | null => {
   const n = parseFloat(String(v ?? "").replace(/[^0-9.+\-−]/g, "").replace("−", "-"));

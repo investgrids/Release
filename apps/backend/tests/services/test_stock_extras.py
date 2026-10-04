@@ -7,7 +7,7 @@ from app.services.stock_extras import dividends_block, earnings_block, growth_va
 
 def test_growth_rows_skip_missing_and_format():
     rows = growth_valuation_rows({"revenueGrowth": 0.052, "enterpriseToEbitda": 18.456, "payoutRatio": None, "ebitda": 5e11, "totalDebt": 1e11, "financialCurrency": "INR"})
-    assert rows == [{"label": "Revenue growth (YoY)", "value": "5.2%"}, {"label": "EV / EBITDA", "value": "18.46"}]
+    assert rows == [{"label": "Revenue growth (latest quarter, YoY)", "value": "5.2%"}, {"label": "EV / EBITDA", "value": "18.46"}]
 
 
 def test_earnings_block_next_and_history():

@@ -44,8 +44,8 @@ def growth_valuation_rows(info: dict) -> list[dict]:
     """Label/value rows from Yahoo's info dict; a row is left out when its value is missing."""
     # EBITDA, total cash and total debt are left out on purpose: the Financials tab already shows them from the statements.
     rows = [
-        ("Revenue growth (YoY)", _pct(info.get("revenueGrowth"))),
-        ("Earnings growth (YoY)", _pct(info.get("earningsGrowth"))),
+        ("Revenue growth (latest quarter, YoY)", _pct(info.get("revenueGrowth"))),
+        ("Earnings growth (latest quarter, YoY)", _pct(info.get("earningsGrowth"))),
         ("EV / EBITDA", _ratio(info.get("enterpriseToEbitda"))),
         ("EV / Revenue", _ratio(info.get("enterpriseToRevenue"))),
         ("Price / Sales", _ratio(info.get("priceToSalesTrailing12Months"))),
