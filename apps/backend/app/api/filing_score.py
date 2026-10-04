@@ -30,11 +30,17 @@ def _public_view(snap) -> dict:
     }
 
 
+def public_segments() -> set[str]:
+    return {x.strip().lower() for x in (settings.filing_score_public_segments or "").split(",") if x.strip()}
+
+
 @router.get("/{symbol}")
 async def get_filing_score(symbol: str, db: AsyncSession = Depends(get_db)):
-    if not settings.filing_score_public:
+    segments = public_segments()
+    if not settings.filing_score_public and not segments:
         raise HTTPException(status_code=404, detail="Not found")
     snap = await store.get_active_snapshot(db, METHOD_VERSION, symbol)
-    if snap is None:
+    # Partial release: with filing_score_public off, only rows of the released segments (e.g. banks) are served; every other symbol answers 404 as before.
+    if snap is None or (not settings.filing_score_public and snap.segment.lower() not in segments):
         raise HTTPException(status_code=404, detail="No filing-backed score for this symbol")
     return _public_view(snap)

@@ -88,3 +88,67 @@ async def test_admin_refresh_endpoint_never_activates_and_refuses_a_second_start
     monkeypatch.setattr(runner, "_pid_alive", lambda pid: True)
     again = await admin.filing_score_refresh()
     assert again["started"] is False and "already running" in again["reason"]
+
+
+async def _seed_two_segments(db):
+    run = await store.start_run(db, METHOD_VERSION)
+    await store.write_snapshots(db, run, [
+        {"symbol": "KBANK", "segment": "bank", "state": "scored", "score": 47.7, "rating": "Neutral", "financial_strength": 53.9, "valuation": 12.8, "market_behaviour": 77.6, "coverage_pct": 80.0, "metrics_used": 5},
+        {"symbol": "INDCO", "segment": "industrial", "state": "scored", "score": 61.2, "rating": "Positive"},
+    ])
+    await store.complete_run(db, run, {"scored": 2})
+    await store.activate_run(db, run.id)
+    await db.commit()
+
+
+async def test_banks_only_release_serves_banks_and_404s_every_other_segment(db_session, monkeypatch):
+    await _seed_two_segments(db_session)
+    monkeypatch.setattr(settings, "filing_score_public", False)
+    monkeypatch.setattr(settings, "filing_score_public_segments", "bank")
+    assert (await get_filing_score("kbank", db_session))["score"] == 47.7
+    with pytest.raises(HTTPException) as e:
+        await get_filing_score("INDCO", db_session)
+    assert e.value.status_code == 404
+
+
+async def test_no_segments_and_flag_off_stays_fully_dark(db_session, monkeypatch):
+    await _seed_two_segments(db_session)
+    monkeypatch.setattr(settings, "filing_score_public", False)
+    monkeypatch.setattr(settings, "filing_score_public_segments", "")
+    with pytest.raises(HTTPException):
+        await get_filing_score("KBANK", db_session)
+
+
+async def test_admin_activate_requires_a_complete_run_with_enough_scores_and_rollback_restores(db_session):
+    from app.api import admin
+    first = await store.start_run(db_session, METHOD_VERSION)
+    await store.complete_run(db_session, first, {"scored": 1500})
+    second = await store.start_run(db_session, METHOD_VERSION)
+    await store.complete_run(db_session, second, {"scored": 10})
+    running = await store.start_run(db_session, METHOD_VERSION)
+    await db_session.commit()
+    with pytest.raises(HTTPException) as e:
+        await admin.filing_score_activate(run_id=running.id, db=db_session)
+    assert e.value.status_code == 400
+    with pytest.raises(HTTPException) as e:
+        await admin.filing_score_activate(run_id=second.id, db=db_session)
+    assert e.value.status_code == 400 and "min_scored" in e.value.detail
+    assert (await admin.filing_score_activate(run_id=first.id, db=db_session))["activated"] is True
+    assert (await store.active_run(db_session, METHOD_VERSION)).id == first.id
+    assert (await admin.filing_score_activate(run_id=second.id, min_scored=5, db=db_session))["activated"] is True
+    out = await admin.filing_score_rollback(db=db_session)
+    assert out["restored_run_id"] == first.id and (await store.active_run(db_session, METHOD_VERSION)).id == first.id
+
+
+async def test_list_overlay_gives_released_banks_their_filing_score_only(db_session, monkeypatch):
+    from app.api.companies import _overlay_filing_bank_scores
+    await _seed_two_segments(db_session)
+    mr = {"INDCO": {"marketripple_score": {"eligible": True, "publishable": True, "score": 70.0, "rating": "Positive"}}}
+    monkeypatch.setattr(settings, "filing_score_public", False)
+    monkeypatch.setattr(settings, "filing_score_public_segments", "")
+    await _overlay_filing_bank_scores(db_session, ["KBANK", "INDCO"], mr)
+    assert "KBANK" not in mr                                     # not released: nothing changes
+    monkeypatch.setattr(settings, "filing_score_public_segments", "bank")
+    await _overlay_filing_bank_scores(db_session, ["KBANK", "INDCO"], mr)
+    assert mr["KBANK"]["marketripple_score"] == {"eligible": True, "publishable": True, "score": 47.7, "rating": "Neutral"}
+    assert mr["INDCO"]["marketripple_score"]["score"] == 70.0    # a non-bank is never touched

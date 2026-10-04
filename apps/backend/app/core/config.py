@@ -210,6 +210,8 @@ class Settings(BaseSettings):
     # Filing-backed MarketRipple Score (NSE_FILING_SCORE_V3): readable through /api/filing-score only when this is True. Default False: the endpoint answers 404 for every
     # symbol, no page links to it, and the live scorer is unchanged either way. Turning it on is a release decision (replaces the live score), not a deploy detail.
     filing_score_public: bool = False
+    # Segments (comma-separated, e.g. "bank") whose filing-backed score is public while filing_score_public stays False. Empty = none.
+    filing_score_public_segments: str = ""
     opportunity_read_source: str = "v1"  # "v1" | "v2"
 
     # Article V2 Production Integration, Phase P5 (owner design,

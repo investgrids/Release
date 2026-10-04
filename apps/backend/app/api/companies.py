@@ -1221,7 +1221,35 @@ async def _fetch_mr_scores(db: AsyncSession, symbols: list[str]) -> dict[str, di
                 if show_local_preview else None
             ),
         }
+    await _overlay_filing_bank_scores(db, symbols, mr_scores)
     return mr_scores
+
+
+async def _overlay_filing_bank_scores(db: AsyncSession, symbols: list[str], mr_scores: dict[str, dict]) -> None:
+    """Banks only: the live method has no bank score, so a bank that is released (settings.filing_score_public_segments contains "bank", or the whole flag is on)
+    and scored in the ACTIVE filing run shows that score in the list, in min_score filtering and in sorting. Never replaces a live score a company already has."""
+    from sqlalchemy import select
+
+    from app.api.filing_score import public_segments
+    from app.core.config import settings
+    from app.db.models.filing_score import FilingScoreSnapshot
+    from app.services.filing_score import store
+    from app.services.filing_score.pipeline import METHOD_VERSION
+
+    if "bank" not in public_segments() and not settings.filing_score_public:
+        return
+    run = await store.active_run(db, METHOD_VERSION)
+    if run is None:
+        return
+    rows = (await db.execute(select(FilingScoreSnapshot).where(
+        FilingScoreSnapshot.run_id == run.id, FilingScoreSnapshot.symbol.in_([s.upper() for s in symbols]),
+        FilingScoreSnapshot.segment == "bank", FilingScoreSnapshot.state == "scored"))).scalars().all()
+    for r in rows:
+        existing = (mr_scores.get(r.symbol) or {}).get("marketripple_score") or {}
+        if existing.get("score") is not None:
+            continue
+        entry = mr_scores.setdefault(r.symbol, {"marketripple_score_local_preview": None})
+        entry["marketripple_score"] = {"eligible": True, "publishable": True, "score": r.score, "rating": r.rating}
 
 
 _SCORE_SORTS = ("score_desc", "score_asc")

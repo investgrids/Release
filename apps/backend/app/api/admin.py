@@ -503,6 +503,34 @@ async def filing_score_refresh(symbols: str | None = None):
     return start_refresh_process(wanted)
 
 
+# Activation is its own deliberate call (a refresh never activates). Only a COMPLETE run can be activated, and only if it scored at least min_scored companies,
+# so a broken run cannot be activated by mistake. The previous active run is retired in the same transaction; /filing-score/rollback restores it.
+@router.post("/filing-score/activate", dependencies=[Depends(require_admin_key)])
+async def filing_score_activate(run_id: str, min_scored: int = 1000, db: AsyncSession = Depends(get_db)):
+    from app.db.models.filing_score import FilingScoreRun
+    from app.services.filing_score import store
+    run = await db.get(FilingScoreRun, run_id)
+    if run is None or run.status != "complete":
+        raise HTTPException(status_code=400, detail="only a complete run can be activated")
+    scored = int((run.counts or {}).get("scored") or 0)
+    if scored < min_scored:
+        raise HTTPException(status_code=400, detail=f"run scored {scored} < min_scored {min_scored}; not activated")
+    await store.activate_run(db, run_id)
+    await db.commit()
+    log.info("filing_score.activated", run_id=run_id, scored=scored)
+    return {"activated": True, "run_id": run_id, "scored": scored}
+
+
+@router.post("/filing-score/rollback", dependencies=[Depends(require_admin_key)])
+async def filing_score_rollback(db: AsyncSession = Depends(get_db)):
+    from app.services.filing_score import store
+    from app.services.filing_score.pipeline import METHOD_VERSION
+    prev = await store.rollback_active(db, METHOD_VERSION)
+    await db.commit()
+    log.info("filing_score.rolled_back", restored=prev.id if prev else None)
+    return {"rolled_back": True, "restored_run_id": prev.id if prev else None}
+
+
 @router.get("/filing-score/refresh/status", dependencies=[Depends(require_admin_key)])
 async def filing_score_refresh_status():
     from sqlalchemy import select

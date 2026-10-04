@@ -288,6 +288,41 @@ export interface MarketRippleScoreData {
   peer_count?: number | null;
   sector?: string | null;
   peer_group?: string | null;
+  // Banks (2026-10-04): the score comes from the filing-backed bank method (NSE_FILING_BANK_V1), three pillars, set by bankFilingOverlay below.
+  filing?: { period_end: string | null; scope: string | null; metrics_used: number | null; coverage_pct: number | null; labels: string[] } | null;
+}
+
+interface FilingScoreResponse {
+  state: "scored" | "withheld";
+  score: number | null; rating: string | null;
+  pillars: { financial_strength: number | null; valuation: number | null; market_behaviour: number | null } | null;
+  coverage_pct: number | null; metrics_used: number | null; labels?: string[];
+  unavailable: { reason: string | null; label: string | null } | null;
+  source?: { period_end?: string | null; scope?: string | null };
+}
+
+const BANK_WITHHELD_TEXT: Record<string, string> = {
+  INSUFFICIENT_FINANCIAL_METRICS: "Not enough filed metrics yet",
+  VALUATION_DATA_DISCREPANCY: "Valuation data under review",
+};
+
+/** For a bank the live (V1) method has no score, so the filing-backed bank score replaces it: scored banks get the number, withheld banks get the reason. */
+export function bankFilingOverlay(base: MarketRippleScoreData, f: FilingScoreResponse): MarketRippleScoreData {
+  if (f.state === "scored" && f.score != null) {
+    return {
+      ...base, resolved: true, snapshot: true, publishable: true, eligible: true, score: f.score, rating: f.rating, coverage_state: "scored",
+      methodology_version: "NSE_FILING_BANK_V1",
+      pillars: { financial_strength: f.pillars?.financial_strength ?? null, valuation: f.pillars?.valuation ?? null, market_behaviour: f.pillars?.market_behaviour ?? null, current_intelligence: null },
+      evidence_coverage_pct: f.coverage_pct ?? undefined, block_headline: null, block_message: null,
+      filing: { period_end: f.source?.period_end ?? null, scope: f.source?.scope ?? null, metrics_used: f.metrics_used, coverage_pct: f.coverage_pct, labels: f.labels ?? [] },
+    };
+  }
+  const reason = f.unavailable?.reason ?? "";
+  return {
+    ...base, eligible: false, score: null, coverage_state: "insufficient_data",
+    coverage_label: BANK_WITHHELD_TEXT[reason] ?? "Score withheld",
+    coverage_message: "This bank's score is withheld rather than guessed. It appears once the filed figures are complete and consistent.",
+  };
 }
 
 function useMarketRippleScore(symbol: string) {
@@ -297,7 +332,16 @@ function useMarketRippleScore(symbol: string) {
     setData(undefined);
     fetch(`${API}/api/companies/${symbol}/marketripple-score`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (!cancelled) setData(d); })
+      .then(async (d: MarketRippleScoreData | null) => {
+        // Banks only: ask for the filing-backed score. The endpoint answers 404 for anything not released, in which case the live answer stands unchanged.
+        if (d && d.sector === "Banking" && !(d.eligible === true && d.score != null)) {
+          try {
+            const r = await fetch(`${API}/api/filing-score/${symbol}`);
+            if (r.ok) d = bankFilingOverlay(d, (await r.json()) as FilingScoreResponse);
+          } catch { /* keep the live answer */ }
+        }
+        if (!cancelled) setData(d);
+      })
       .catch(() => { if (!cancelled) setData(null); });
     return () => { cancelled = true; };
   }, [symbol]);
@@ -1543,6 +1587,38 @@ export function MarketRippleScoreCard({ data, stock, localPreview }: { data: Mar
         {(data.coverage_message ?? data.block_message) && (
           <p className="mt-1 max-w-[68ch] text-[13px] leading-6 text-text-muted">{data.coverage_message ?? data.block_message}</p>
         )}
+      </SectionCard>
+    );
+  }
+
+  if (data.filing) {
+    const f = data.filing;
+    const period = f.period_end ? new Date(`${f.period_end}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : null;
+    const three = pillars.slice(0, 3);
+    return (
+      <SectionCard title="MarketRipple Score" action={methodologyLink}>
+        <p className="mt-1 text-[12px] leading-5 text-text-muted">
+          A combined view of financial strength, valuation and market behaviour, built from this bank&apos;s filed results and ranked against other banks.
+        </p>
+        <div className="mt-3 flex items-baseline gap-3">
+          <span className={`text-[36px] font-semibold leading-none ${marketRippleRatingColor(data.rating)}`}>{marketRippleScoreDisplayInt(data.score)}</span>
+          <span className="text-[13px] text-text-muted">/ 100</span>
+          {data.rating && <span className={`text-[13px] font-medium ${marketRippleRatingColor(data.rating)}`}>{data.rating}</span>}
+        </div>
+        <div className="mt-5 grid grid-cols-3 gap-x-4 gap-y-3">
+          {three.map(p => (
+            <div key={p.label}>
+              <p className="text-[11px] text-text-muted">{p.label}</p>
+              <p className="mt-1 text-[18px] font-semibold tabular-nums text-text-primary">{p.value != null ? Math.round(p.value) : "—"}</p>
+            </div>
+          ))}
+        </div>
+        {f.labels.length > 0 && <p className="mt-3 text-[11px] leading-5 text-amber-700 dark:text-amber-400">{f.labels.map(l => l.replace(/^\[|\]$/g, "")).join(" · ")}</p>}
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-surface-border/10 pt-3 text-[11px] text-text-muted">
+          <span>{f.metrics_used != null ? `${f.metrics_used} of 8 bank metrics available` : null}{f.coverage_pct != null ? ` · coverage ${Math.round(f.coverage_pct)}%` : null}</span>
+          {period && <span>Filed results for the year ended {period}{f.scope ? ` (${f.scope.toLowerCase()})` : ""}</span>}
+        </div>
+        <p className="mt-2 text-[11px] leading-5 text-text-muted">Valuation uses the live market price. Scores are relative to other banks, so they can change when a bank&apos;s results or price change.</p>
       </SectionCard>
     );
   }
