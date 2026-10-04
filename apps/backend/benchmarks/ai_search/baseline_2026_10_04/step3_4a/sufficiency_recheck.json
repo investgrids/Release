@@ -1,0 +1,637 @@
+[
+  {
+    "id": "CR1",
+    "type": "company_research",
+    "query": "What is the outlook for Kotak Mahindra Bank?",
+    "specialist_called": true,
+    "specialist_calls": 1,
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "degraded_reason": "capacity",
+    "gate_a": {
+      "status": "SUFFICIENT",
+      "kind": "company_assessment",
+      "required": [
+        "current_company_evidence"
+      ],
+      "satisfied": [
+        "current_company_evidence"
+      ],
+      "missing": [],
+      "reason": null,
+      "missing_entities": []
+    },
+    "premise_check": null,
+    "public_title": null,
+    "rating": "Not Applicable",
+    "confidence": null,
+    "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question."
+  },
+  {
+    "id": "CR2",
+    "type": "company_research",
+    "query": "How is 3M India doing as a business?",
+    "specialist_called": false,
+    "specialist_calls": 0,
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "insufficient_evidence",
+      "done"
+    ],
+    "degraded_reason": "insufficient_evidence",
+    "gate_a": {
+      "status": "INSUFFICIENT",
+      "kind": "company_assessment",
+      "required": [
+        "current_company_evidence"
+      ],
+      "satisfied": [],
+      "missing": [
+        "current_company_evidence"
+      ],
+      "reason": "no_recent_company_evidence",
+      "missing_entities": [
+        "3MINDIA"
+      ]
+    },
+    "premise_check": {
+      "status": "not_applicable",
+      "terms": []
+    },
+    "public_title": "Not enough recent evidence",
+    "rating": "Not Applicable",
+    "confidence": null,
+    "summary": "MarketRipple doesn't currently have enough recent, company-specific evidence to assess 3M India's business performance reliably. It won't infer current financial strength, valuation, margins or outlook without supporting evidence."
+  },
+  {
+    "id": "CR3",
+    "type": "company_research",
+    "query": "What is happening with TCS lately?",
+    "specialist_called": true,
+    "specialist_calls": 1,
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "degraded_reason": "capacity",
+    "gate_a": {
+      "status": "SUFFICIENT",
+      "kind": "company_assessment",
+      "required": [
+        "current_company_evidence"
+      ],
+      "satisfied": [
+        "current_company_evidence"
+      ],
+      "missing": [],
+      "reason": null,
+      "missing_entities": []
+    },
+    "premise_check": null,
+    "public_title": null,
+    "rating": "Not Applicable",
+    "confidence": null,
+    "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. 1 related event found for this question is listed below."
+  },
+  {
+    "id": "EI1",
+    "type": "event_impact",
+    "query": "BEL just won a new defence order, what does this mean for the stock?",
+    "specialist_called": false,
+    "specialist_calls": 0,
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "insufficient_evidence",
+      "done"
+    ],
+    "degraded_reason": "insufficient_evidence",
+    "gate_a": {
+      "status": "INSUFFICIENT",
+      "kind": "event_impact",
+      "required": [
+        "event_verification"
+      ],
+      "satisfied": [],
+      "missing": [
+        "event_verification"
+      ],
+      "reason": "event_premise_not_established",
+      "missing_entities": [
+        "BEL"
+      ]
+    },
+    "premise_check": {
+      "status": "not_established",
+      "terms": [
+        "order"
+      ],
+      "supporting": []
+    },
+    "public_title": "I couldn't verify the stated event",
+    "rating": "Not Applicable",
+    "confidence": null,
+    "summary": "MarketRipple's available recent evidence doesn't confirm the development described in the question (a order) for Bharat Electronics, so its impact can't be assessed as a confirmed development."
+  },
+  {
+    "id": "EI2",
+    "type": "event_impact",
+    "query": "TCS just announced a new AI research center, what does this mean?",
+    "specialist_called": false,
+    "specialist_calls": 0,
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "insufficient_evidence",
+      "done"
+    ],
+    "degraded_reason": "insufficient_evidence",
+    "gate_a": {
+      "status": "INSUFFICIENT",
+      "kind": "event_impact",
+      "required": [
+        "event_verification"
+      ],
+      "satisfied": [],
+      "missing": [
+        "event_verification"
+      ],
+      "reason": "event_premise_not_established",
+      "missing_entities": [
+        "TCS"
+      ]
+    },
+    "premise_check": {
+      "status": "not_established",
+      "terms": [
+        "research center"
+      ],
+      "supporting": []
+    },
+    "public_title": "I couldn't verify the stated event",
+    "rating": "Not Applicable",
+    "confidence": null,
+    "summary": "MarketRipple's available recent evidence doesn't confirm the development described in the question (a research center) for Tata Consultancy Services, so its impact can't be assessed as a confirmed development."
+  },
+  {
+    "id": "EI3",
+    "type": "event_impact",
+    "query": "Banking sector just reported stronger credit growth, what is the impact?",
+    "specialist_called": true,
+    "specialist_calls": 1,
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "degraded_reason": "capacity",
+    "gate_a": {
+      "status": "SUFFICIENT",
+      "kind": "sector_assessment",
+      "required": [
+        "sector_evidence_banking"
+      ],
+      "satisfied": [
+        "sector_evidence_banking"
+      ],
+      "missing": [],
+      "reason": null,
+      "missing_entities": []
+    },
+    "premise_check": null,
+    "public_title": null,
+    "rating": "Not Applicable",
+    "confidence": null,
+    "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question."
+  },
+  {
+    "id": "SR1",
+    "type": "sector_research",
+    "query": "How is the banking sector doing right now?",
+    "specialist_called": true,
+    "specialist_calls": 1,
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "degraded_reason": "capacity",
+    "gate_a": {
+      "status": "SUFFICIENT",
+      "kind": "sector_assessment",
+      "required": [
+        "sector_evidence_banking"
+      ],
+      "satisfied": [
+        "sector_evidence_banking"
+      ],
+      "missing": [],
+      "reason": null,
+      "missing_entities": []
+    },
+    "premise_check": null,
+    "public_title": null,
+    "rating": "Not Applicable",
+    "confidence": null,
+    "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question."
+  },
+  {
+    "id": "SR2",
+    "type": "sector_research",
+    "query": "What is the outlook for the IT services sector?",
+    "specialist_called": true,
+    "specialist_calls": 1,
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "degraded_reason": "capacity",
+    "gate_a": {
+      "status": "SUFFICIENT",
+      "kind": "sector_assessment",
+      "required": [
+        "sector_evidence_it"
+      ],
+      "satisfied": [
+        "sector_evidence_it"
+      ],
+      "missing": [],
+      "reason": null,
+      "missing_entities": []
+    },
+    "premise_check": null,
+    "public_title": null,
+    "rating": "Not Applicable",
+    "confidence": null,
+    "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question."
+  },
+  {
+    "id": "SR3",
+    "type": "sector_research",
+    "query": "Which sectors look weak in the market at the moment?",
+    "specialist_called": false,
+    "specialist_calls": 0,
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "insufficient_evidence",
+      "done"
+    ],
+    "degraded_reason": "insufficient_evidence",
+    "gate_a": {
+      "status": "INSUFFICIENT",
+      "kind": "sector_scan",
+      "required": [
+        "live_sector_rows"
+      ],
+      "satisfied": [],
+      "missing": [
+        "live_sector_rows"
+      ],
+      "reason": "no_evidence_for_the_stated_condition_or_sector",
+      "missing_entities": []
+    },
+    "premise_check": {
+      "status": "not_applicable",
+      "terms": []
+    },
+    "public_title": "Sector data unavailable",
+    "rating": "Not Applicable",
+    "confidence": null,
+    "summary": "MarketRipple doesn't currently have live sector data to answer this."
+  },
+  {
+    "id": "MP1",
+    "type": "macro_policy",
+    "query": "What happens to Indian banks if the RBI cuts the repo rate?",
+    "specialist_called": true,
+    "specialist_calls": 1,
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "degraded_reason": "capacity",
+    "gate_a": {
+      "status": "SUFFICIENT",
+      "kind": "macro_transmission",
+      "required": [
+        "macro_condition_evidence",
+        "sector_evidence_banking"
+      ],
+      "satisfied": [
+        "macro_condition_evidence",
+        "sector_evidence_banking"
+      ],
+      "missing": [],
+      "reason": null,
+      "missing_entities": []
+    },
+    "premise_check": null,
+    "public_title": null,
+    "rating": "Not Applicable",
+    "confidence": null,
+    "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question."
+  },
+  {
+    "id": "MP2",
+    "type": "macro_policy",
+    "query": "How would higher crude oil prices affect Indian markets?",
+    "specialist_called": true,
+    "specialist_calls": 1,
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "degraded_reason": "capacity",
+    "gate_a": {
+      "status": "SUFFICIENT",
+      "kind": "macro_transmission",
+      "required": [
+        "macro_condition_evidence"
+      ],
+      "satisfied": [
+        "macro_condition_evidence"
+      ],
+      "missing": [],
+      "reason": null,
+      "missing_entities": []
+    },
+    "premise_check": null,
+    "public_title": null,
+    "rating": "Not Applicable",
+    "confidence": null,
+    "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question."
+  },
+  {
+    "id": "MP3",
+    "type": "macro_policy",
+    "query": "How would a weaker rupee affect Indian IT exporters?",
+    "specialist_called": true,
+    "specialist_calls": 1,
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "degraded_reason": "capacity",
+    "gate_a": {
+      "status": "SUFFICIENT",
+      "kind": "macro_transmission",
+      "required": [
+        "macro_condition_evidence",
+        "sector_evidence_it"
+      ],
+      "satisfied": [
+        "macro_condition_evidence",
+        "sector_evidence_it"
+      ],
+      "missing": [],
+      "reason": null,
+      "missing_entities": []
+    },
+    "premise_check": null,
+    "public_title": null,
+    "rating": "Not Applicable",
+    "confidence": null,
+    "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question."
+  },
+  {
+    "id": "CC1",
+    "type": "company_comparison",
+    "query": "TCS vs Infosys, which is stronger?",
+    "specialist_called": true,
+    "specialist_calls": 1,
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "degraded_reason": "capacity",
+    "gate_a": {
+      "status": "SUFFICIENT",
+      "kind": "comparison",
+      "required": [
+        "evidence_for_TCS",
+        "evidence_for_INFY"
+      ],
+      "satisfied": [
+        "evidence_for_TCS",
+        "evidence_for_INFY"
+      ],
+      "missing": [],
+      "reason": null,
+      "missing_entities": []
+    },
+    "premise_check": null,
+    "public_title": null,
+    "rating": "Not Applicable",
+    "confidence": null,
+    "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. 1 related event found for this question is listed below."
+  },
+  {
+    "id": "CC2",
+    "type": "company_comparison",
+    "query": "Compare HDFC Bank and ICICI Bank.",
+    "specialist_called": false,
+    "specialist_calls": 0,
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "insufficient_evidence",
+      "done"
+    ],
+    "degraded_reason": "insufficient_evidence",
+    "gate_a": {
+      "status": "INSUFFICIENT",
+      "kind": "comparison",
+      "required": [
+        "evidence_for_HDFCBANK",
+        "evidence_for_ICICIBANK"
+      ],
+      "satisfied": [
+        "evidence_for_ICICIBANK"
+      ],
+      "missing": [
+        "evidence_for_HDFCBANK"
+      ],
+      "reason": "evidence_missing_for_at_least_one_company",
+      "missing_entities": [
+        "HDFCBANK"
+      ]
+    },
+    "premise_check": {
+      "status": "not_applicable",
+      "terms": []
+    },
+    "public_title": "Not enough evidence for both companies",
+    "rating": "Not Applicable",
+    "confidence": null,
+    "summary": "MarketRipple doesn't have enough recent evidence for HDFC Bank to compare them reliably. It won't substitute evidence about one company for the other."
+  },
+  {
+    "id": "CC3",
+    "type": "company_comparison",
+    "query": "I hold BEL. Should I switch to HAL?",
+    "specialist_called": true,
+    "specialist_calls": 1,
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "degraded_reason": "capacity",
+    "gate_a": {
+      "status": "SUFFICIENT",
+      "kind": "comparison",
+      "required": [
+        "evidence_for_HAL",
+        "evidence_for_BEL"
+      ],
+      "satisfied": [
+        "evidence_for_HAL",
+        "evidence_for_BEL"
+      ],
+      "missing": [],
+      "reason": null,
+      "missing_entities": []
+    },
+    "premise_check": null,
+    "public_title": null,
+    "rating": "Not Applicable",
+    "confidence": null,
+    "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. 1 related event found for this question is listed below."
+  },
+  {
+    "id": "GE1",
+    "type": "general_explanation",
+    "query": "What is a P/E ratio and how should I read it?",
+    "specialist_called": true,
+    "specialist_calls": 1,
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "degraded_reason": "capacity",
+    "gate_a": {
+      "status": "SUFFICIENT",
+      "kind": "not_gated",
+      "required": [],
+      "satisfied": [],
+      "missing": [],
+      "reason": null,
+      "missing_entities": []
+    },
+    "premise_check": null,
+    "public_title": null,
+    "rating": "Not Applicable",
+    "confidence": null,
+    "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question."
+  },
+  {
+    "id": "GE2",
+    "type": "general_explanation",
+    "query": "What does FII selling mean for the Indian market?",
+    "specialist_called": true,
+    "specialist_calls": 1,
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "degraded_reason": "capacity",
+    "gate_a": {
+      "status": "SUFFICIENT",
+      "kind": "not_gated",
+      "required": [],
+      "satisfied": [],
+      "missing": [],
+      "reason": null,
+      "missing_entities": []
+    },
+    "premise_check": null,
+    "public_title": null,
+    "rating": "Not Applicable",
+    "confidence": null,
+    "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question."
+  },
+  {
+    "id": "GE3",
+    "type": "general_explanation",
+    "query": "How does the MarketRipple Score work?",
+    "specialist_called": true,
+    "specialist_calls": 1,
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "degraded_reason": "capacity",
+    "gate_a": {
+      "status": "SUFFICIENT",
+      "kind": "not_gated",
+      "required": [],
+      "satisfied": [],
+      "missing": [],
+      "reason": null,
+      "missing_entities": []
+    },
+    "premise_check": null,
+    "public_title": null,
+    "rating": "Not Applicable",
+    "confidence": null,
+    "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question."
+  }
+]

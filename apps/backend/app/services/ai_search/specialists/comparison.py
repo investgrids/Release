@@ -415,7 +415,7 @@ RELATED EVENTS: {evs}
 {premise_note(evidence)}
 
 INSTRUCTIONS:
-- Fill every string field with real, specific analysis about {holding} and {target}. Name real numbers (valuation multiples, growth rates, margins) wherever you have a basis to estimate them.
+- Fill every string field with real, specific analysis about {holding} and {target}. Use only valuation multiples, growth rates, margins and other numbers that appear in the evidence above; where a number is not in the evidence, say it is not available rather than estimating it.
 - This is a RESEARCH platform, not an advisory one. Never say Buy/Sell/Hold/Strong Buy/Strong Sell/Accumulate/Reduce anywhere.
 - Entity A symbol hint: {symbol_hint(holding, holding_is_commodity, holding_is_sector)}
 - Entity B symbol hint: {symbol_hint(target, target_is_commodity, target_is_sector)}

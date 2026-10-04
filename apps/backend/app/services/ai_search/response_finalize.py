@@ -104,7 +104,7 @@ log = structlog.get_logger(__name__)
 # docstring. A set, not a single name, so a future internal-only
 # addition (e.g. a second attribution source) has one obvious place to
 # register rather than a new ad hoc strip somewhere else.
-_INTERNAL_ONLY_FIELDS = frozenset({"announcements"})
+_INTERNAL_ONLY_FIELDS = frozenset({"announcements", "_rejected_generation"})   # the second holds a withheld model generation: diagnostics only, never sent to a client
 
 
 def _strip_internal_only_fields(result: dict) -> dict:
@@ -207,6 +207,13 @@ def _derive_answer_availability(result: dict, *, is_market_pulse: bool) -> dict:
         }
 
     degraded_reason = result.get("degraded_reason")
+
+    # Step 3.4A: retrieval and (for the second) generation both ran. Insufficient evidence means nothing capable of supporting the analysis exists; a generation that was not
+    # authorized means evidence exists but the model's answer could not be tied to it.
+    if degraded_reason == "insufficient_evidence":
+        return {"state": "no_verified_evidence", "evidence_retrieval_completed": True, "evidence_count": evidence_count}
+    if degraded_reason == "claims_not_authorized":
+        return {"state": "limited_evidence" if evidence_count else "no_verified_evidence", "evidence_retrieval_completed": True, "evidence_count": evidence_count}
 
     if degraded_reason in _PRE_RETRIEVAL_DEGRADED_REASONS:
         return {"state": "no_verified_evidence", "evidence_retrieval_completed": False, "evidence_count": 0}

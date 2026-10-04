@@ -189,6 +189,14 @@ def premise_note(evidence) -> str:
     return fn() if callable(fn) else ""
 
 
+GROUNDING_RULES = (
+    "- GROUNDING: use ONLY facts, numbers, dates and events that appear in the evidence lists and context above. Do not use outside knowledge to supply company facts, financial figures, "
+    "dates, events, forecasts, peer comparisons or market conditions. If the supplied evidence cannot support a requested factual conclusion, state plainly that it cannot be established "
+    "from the available MarketRipple evidence instead of answering from memory. Never invent earnings dates or scenario figures. This is defense in depth: an answer whose factual "
+    "claims cannot be traced to the evidence is withheld."
+)
+
+
 def _claim_rules() -> str:
     from app.services.ai_search.schema import CLAIM_SOURCES_RULES
-    return CLAIM_SOURCES_RULES
+    return GROUNDING_RULES + "\n" + CLAIM_SOURCES_RULES

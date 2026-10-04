@@ -324,7 +324,7 @@ def test_no_claim_sources_is_not_provided_and_malformed_entries_are_reported():
 
 def test_pipeline_premise_check_shapes():
     assert P._premise_check(SimpleNamespace(premise={})) == {"status": "not_applicable", "terms": []}
-    assert P._premise_check(SimpleNamespace(premise={"required": True, "terms": ["order"], "supported": False}))["status"] == "unsupported"
+    assert P._premise_check(SimpleNamespace(premise={"required": True, "terms": ["order"], "supported": False}))["status"] == "not_established"
     assert P._premise_check(SimpleNamespace(premise={"required": True, "terms": ["order"], "supported": True, "supporting": ["x"]}))["status"] == "supported"
 
 

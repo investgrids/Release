@@ -60,6 +60,10 @@ def build_degraded_shape(
     sources_count: int = 0,
     intent: str = "general",
     ui_mode: str | None = None,
+    evidence_sufficiency: dict | None = None,
+    premise_check: dict | None = None,
+    answer_authorization: dict | None = None,
+    public_title: str | None = None,
 ) -> dict:
     """Pure function — no I/O, no logging (each caller logs its own
     reason/field before calling this). Every list/dict default is a
@@ -132,4 +136,6 @@ def build_degraded_shape(
         "source_attribution": source_attribution if source_attribution is not None else [],
         "validation": validation if validation is not None else {"repairs": [], "omissions": [], "contradiction_flagged": False},
         "market_impact_horizons": {}, "what_to_monitor": [], "ai_reasoning_methods": [],
+        # Step 3.4A: why no analysis is shown (pre-model sufficiency / post-model authorization), a short public title for it, and the premise check. None on every other path.
+        "evidence_sufficiency": evidence_sufficiency, "premise_check": premise_check, "answer_authorization": answer_authorization, "public_title": public_title,
     }

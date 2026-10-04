@@ -222,7 +222,7 @@ async def ai_search_stream(
                 else:
                     # Same "reasoning" stage absent == cache hit signal used
                     # by run_ai_search_v3 for the non-streaming route.
-                    was_cached = "reasoning" not in stages_seen
+                    was_cached = "reasoning" not in stages_seen and "insufficient_evidence" not in stages_seen
                     latency_ms = round((time.monotonic() - _t0) * 1000, 1)
                     if was_cached:
                         ai_search_stats.record_cache_hit()

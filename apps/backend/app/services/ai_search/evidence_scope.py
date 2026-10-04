@@ -59,6 +59,21 @@ def is_single_company_filing(title: str) -> bool:
     return bool(_SINGLE_FILING_RE.search(title or ""))
 
 
+# Routine corporate-administration filings. They are real and company-specific, but they say nothing about how the business is doing: a newspaper-publication notice, a trading-window
+# closure, an AGM notice, the schedule of an analyst meet. Such an item cannot, on its own, satisfy a requirement for current company evidence.
+_ADMINISTRATIVE_RE = re.compile(
+    r"(?<![a-z])(?:newspaper\s+publication|trading\s+window|closure\s+of\s+trading|(?:loss|duplicate)\s+(?:of\s+)?share\s+certificate|share\s+certificate|"
+    r"schedule\s+of\s+(?:analyst|institutional|investor|meet)|analyst\s*/\s*institutional|intimation\s+of|notice\s+of\s+(?:the\s+)?(?:annual|extra[- ]?ordinary)|"
+    r"(?:annual|extra[- ]?ordinary)\s+general\s+meeting|postal\s+ballot|voting\s+results|reconciliation\s+of\s+share\s+capital|regulation\s+74|certificate\s+under|"
+    r"change\s+in\s+(?:registrar|company\s+secretary|compliance\s+officer)|insider\s+trading|record\s+date|book\s+closure|compliance\s+certificate|general\s+updates?)(?![a-z])",
+    re.IGNORECASE,
+)
+
+
+def is_administrative(title: str, summary: str = "") -> bool:
+    return bool(_ADMINISTRATIVE_RE.search(f"{title or ''} {summary or ''}"))
+
+
 # ── company naming ───────────────────────────────────────────────────────────
 
 _INSTITUTION_AFTER = re.compile(

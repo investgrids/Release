@@ -37,7 +37,11 @@ async def _no_classifier(query: str) -> bool:
     return False
 
 
-mp_mod._classify_market_pulse_llm = _no_classifier   # regex detection still runs; the LLM fallback does not
+mp_mod._classify_market_pulse_llm = _no_classifier
+# Step 3.4A: this harness measures the FROZEN route / entity / evidence rules, so the new pre-model sufficiency gate is neutralised here (otherwise the stub specialist is never reached for
+# the honest-insufficient questions). The gate itself is measured separately by step3_4a/sufficiency_recheck.py.
+P.suff_mod.assess = lambda *a, **k: {"status": "SUFFICIENT", "kind": "disabled_in_harness"}
+   # regex detection still runs; the LLM fallback does not
 
 
 async def run_one(q: dict) -> tuple[dict, dict, dict]:

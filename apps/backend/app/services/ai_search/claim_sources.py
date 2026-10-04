@@ -22,7 +22,7 @@ import re
 
 from app.services.ai_search import evidence_scope as scope
 
-_FACT_RE = re.compile(r"\d|%|₹|\brs\.?\b|\bcrore\b|\bannounc|\bwon\b|\bwins?\b|\bsigned\b|\breported\b|\braised\b|\bdelivered\b|\bacquir|\bapproved\b|\blaunch|\bawarded\b|\bsecured\b", re.IGNORECASE)
+_FACT_RE = re.compile(r"\d|%|₹|\brs\.?\b|\bcrore\b|\bannounc|\bwon\b|\bwins?\b|\bsigned\b|\breported\b|\braised\b|\bdelivered\b|\bacquir|\bapproved\b|\blaunch|\bawarded\b|\bsecured\b|\bfiled\b|\bdisclosed\b|\binformed\b|\bdeclared\b|\bcompleted\b|\bentered into\b", re.IGNORECASE)
 _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9\"'(])")
 _ID_RE = re.compile(r"^[ENPAC]\d{1,3}$")
 
@@ -63,6 +63,35 @@ def _sentences(text: str) -> list[str]:
     return [s.strip() for s in _SENT_SPLIT.split((text or "").replace("\n", " ")) if len(s.strip()) > 3]
 
 
+_TOKEN_RE = re.compile(r"[a-z0-9%₹.]+")
+
+
+def _tokens(text: str) -> set[str]:
+    return {t.strip(".") for t in _TOKEN_RE.findall((text or "").lower()) if t.strip(".")}
+
+
+def similar(a: str, b: str, threshold: float = 0.7) -> bool:
+    """True when two sentences are the same sentence for our purposes: one contains the other after normalisation, or their word sets overlap by at least `threshold` (Jaccard).
+    Lets a model that copies a sentence with a changed article or trailing punctuation still be matched, without matching different sentences."""
+    na, nb = _norm(a), _norm(b)
+    if not na or not nb:
+        return False
+    if na in nb or nb in na:
+        return True
+    ta, tb = _tokens(a), _tokens(b)
+    return bool(ta and tb) and len(ta & tb) / len(ta | tb) >= threshold
+
+
+def factual_sentences(answer: dict) -> list[str]:
+    """Sentences of the generated prose that look like factual statements (a number, a currency amount, or an event verb)."""
+    out: list[str] = []
+    for p in answer_pieces(answer):
+        for s in _sentences(p):
+            if _FACT_RE.search(s):
+                out.append(s)
+    return list(dict.fromkeys(out))
+
+
 def _claim_scope(sentence: str, resolved: list[str], universe: list[dict], sectors: list[str]) -> tuple[str, str | None]:
     for sym in resolved:
         if scope.names_company(sentence, scope.company_terms(sym, universe)):
@@ -98,7 +127,7 @@ def validate_claim_sources(raw, index: list[dict], answer: dict, entities: dict,
             problems.append("no_source")
         if unknown:
             problems.append(f"unknown_source: {', '.join(unknown)}")
-        if _norm(claim) and _norm(claim) not in haystack:
+        if _norm(claim) and not any(similar(claim, s) for p in pieces for s in _sentences(p)) and _norm(claim) not in haystack:
             problems.append("claim_not_in_answer")
         sc, sym = _claim_scope(claim, resolved, universe, sectors)
         verdicts = []
@@ -125,11 +154,11 @@ def validate_claim_sources(raw, index: list[dict], answer: dict, entities: dict,
         claims_out.append({"claim": claim.strip()[:300], "sources": ids, "scope": sc, "company": sym, "status": "ok" if not problems else "problem", "problems": problems,
                            "ineligible": [i for i, ok, _w in verdicts if not ok]})
 
-    covered = {_norm(c["claim"]) for c in claims_out}
+    claim_texts = [c["claim"] for c in claims_out]
     uncovered = []
     for p in pieces:
         for s in _sentences(p):
-            if _FACT_RE.search(s) and _norm(s) not in covered and not any(_norm(s) in c or c in _norm(s) for c in covered if len(c) > 12):
+            if _FACT_RE.search(s) and not any(similar(s, c) for c in claim_texts):
                 uncovered.append(s[:200])
     uncovered = list(dict.fromkeys(uncovered))
     n_ok = sum(1 for c in claims_out if c["status"] == "ok")

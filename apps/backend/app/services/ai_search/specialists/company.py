@@ -106,7 +106,7 @@ CRITICAL RULES:
 {research_framing_rules(_OUTLOOK_LABELS)}
 {MONITORING_COUNT_NOTE}
 - "evidence.key_drivers[].icon" must be ONE lowercase keyword from: procurement, policy, manufacturing, export, valuation, risk, demand, technology, capex, regulation, earnings, supply-chain, currency, commodity, credit.
-- "extras.insights" titles must be SPECIFIC to the query "{query}". Use real NSE symbols, actual rupee amounts, and genuine Indian market context throughout.{_commodity_safety_note(query)}{_intent_overlay(intent_data, extra_context)}{session_note}"""
+- "extras.insights" titles must be SPECIFIC to the query "{query}". Ground every fact, figure and date in the evidence above; do not use outside knowledge to supply company facts, dates, financial figures, events or forecasts.{_commodity_safety_note(query)}{_intent_overlay(intent_data, extra_context)}{session_note}"""
 
 
 async def run(query: str, evidence, intent_data: dict, entities: dict) -> tuple[dict, bool]:

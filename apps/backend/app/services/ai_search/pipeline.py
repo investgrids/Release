@@ -17,7 +17,9 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.ai_search import cache as cache_mod
+from app.services.ai_search import answer_authorization as auth_mod
 from app.services.ai_search import claim_sources as claim_sources_mod
+from app.services.ai_search import evidence_sufficiency as suff_mod
 from app.services.ai_search.company_matching import filter_events_to_companies
 from app.services.ai_search.degraded_shape import build_degraded_shape
 from app.services.ai_search import entities as entities_mod
@@ -170,6 +172,8 @@ STAGE_LABELS = {
     "evidence": "Searching MarketRipple database and collecting evidence",
     "reasoning": "Running specialist analysis",
     "finalizing": "Building investment decision and finalizing response",
+    # Step 3.4A: emitted only when the pre-model gate stops the run (no specialist is called), so progress is never faked.
+    "insufficient_evidence": "Evidence is not sufficient to support an analysis",
 }
 
 
@@ -350,6 +354,19 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
         entities=entities, thin_evidence=(evidence.source_count < 3),
     )
 
+    # Gate A (Step 3.4A): no evidence capable of supporting the requested analysis means no analytical model call.
+    from app.api.companies import _NSE_UNIVERSE as _UNIV
+    suff = suff_mod.assess(query, intent_data, entities, evidence, _UNIV)
+    if suff["status"] == suff_mod.INSUFFICIENT:
+        log.warning("ai_search_v3.insufficient_evidence", query=query[:80], kind=suff["kind"], missing=suff["missing"], reason=suff["reason"])
+        yield "insufficient_evidence", STAGE_LABELS["insufficient_evidence"], None
+        response = _build_insufficient_response(query, evidence, entities, intent_data, specialist_kind, suff)
+        response["timing"] = {**stage_ms, "total_ms": round((time.monotonic() - _t0) * 1000, 1)}
+        response["context_used"] = context_used
+        response["watch_subject"] = None
+        yield "done", STAGE_LABELS["finalizing"], response      # deliberately not cached and no Investment Watch snapshot: the evidence may change
+        return
+
     yield "reasoning", STAGE_LABELS["reasoning"], None
     parsed, was_degraded = await specialist.run(query, evidence, intent_data, entities)
     _t_stage = _checkpoint("reasoning_ms", _t_stage)
@@ -363,12 +380,28 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
         )
     _t_stage = _checkpoint("validation_ms", _t_stage)
 
+    # Gate B (Step 3.4A): a generated research answer is shown only if its factual claims are traceable to admissible evidence. Otherwise it is withheld (never repaired by another
+    # model, never edited sentence by sentence) and the rejected generation is kept for diagnostics.
+    auth = {"applicable": False, "authorized": True, "reasons": []}
+    if not was_degraded:
+        auth = auth_mod.authorize(validated, evidence, entities, _UNIV, query)
+        if not auth["authorized"]:
+            yield "finalizing", STAGE_LABELS["finalizing"], None
+            response = _build_rejected_response(query, validated, evidence, entities, intent_data, specialist_kind, auth)
+            response["timing"] = {**stage_ms, "total_ms": round((time.monotonic() - _t0) * 1000, 1)}
+            response["context_used"] = context_used
+            response["watch_subject"] = None
+            yield "done", STAGE_LABELS["finalizing"], response
+            return
+
     response = await _assemble_response(
         query, validated, evidence, specialist_kind, was_degraded, validation_report,
         db, entities, dropped_companies=dropped_companies,
         intent_data=intent_data, is_multi_compare=is_multi_compare,
     )
     _checkpoint("assembly_ms", _t_stage)
+    response["evidence_sufficiency"] = _public_sufficiency(suff)
+    response["answer_authorization"] = auth_mod.public_summary(auth)
     response["timing"] = {**stage_ms, "total_ms": round((time.monotonic() - _t0) * 1000, 1)}
     # Phase 1.7 — honestly reports what (if anything) session context
     # contributed to this answer, rather than the frontend guessing.
@@ -417,7 +450,7 @@ async def run_ai_search_v3(query: str, db: AsyncSession, session_context: dict |
         stages_seen.add(stage)
         if payload is not None:
             result = payload
-    was_cached = "reasoning" not in stages_seen
+    was_cached = "reasoning" not in stages_seen and "insufficient_evidence" not in stages_seen
     return result, was_cached
 
 
@@ -430,10 +463,50 @@ def _filter_events_to_entities(events: list[dict], symbols: list[str]) -> list[d
 
 
 def _premise_check(evidence) -> dict:
+    """not_applicable | supported | not_established (no eligible evidence confirms the event the question asserts)."""
     p = getattr(evidence, "premise", None) or {}
     if not p.get("required"):
         return {"status": "not_applicable", "terms": []}
-    return {"status": "supported" if p.get("supported") else "unsupported", "terms": p.get("terms") or [], "supporting": p.get("supporting") or []}
+    return {"status": "supported" if p.get("supported") else "not_established", "terms": p.get("terms") or [], "supporting": p.get("supporting") or []}
+
+
+def _public_sufficiency(suff: dict) -> dict:
+    return {k: suff.get(k) for k in ("status", "kind", "required", "satisfied", "missing", "reason", "missing_entities", "context")}
+
+
+def _build_insufficient_response(query: str, evidence, entities: dict, intent_data: dict | None, specialist_kind: str, suff: dict) -> dict:
+    """Deterministic public response when the evidence cannot support the analysis. No model was called. No verdict, confidence, timeline, scenario, figure or forecast: the shared degraded
+    shape carries none. States exactly what cannot be established; verified related evidence (if any) is listed separately as context."""
+    from app.api.companies import _NSE_UNIVERSE
+    title, body = suff_mod.public_message(suff, entities, _NSE_UNIVERSE, getattr(evidence, "premise", None))
+    symbols = entities.get("companies") or []
+    related = _filter_events_to_entities(evidence.events, symbols)[:6]
+    return build_degraded_shape(
+        query=query, response_id=str(uuid.uuid4()), schema_version=SCHEMA_VERSION, specialist_kind=specialist_kind, degraded_reason="insufficient_evidence", summary=body,
+        related_events=related, sources_count=len(related), source_attribution=[f"event:{e.get('id')}" for e in related if e.get("id")],
+        intent=(intent_data or {}).get("intent", "general"),
+        ui_mode=classify_ui_mode(specialist_kind=specialist_kind, intent_data=intent_data, entities=entities, query=query),
+        evidence_sufficiency=_public_sufficiency(suff), premise_check=_premise_check(evidence), public_title=title,
+    )
+
+
+def _build_rejected_response(query: str, generation: dict, evidence, entities: dict, intent_data: dict | None, specialist_kind: str, auth: dict) -> dict:
+    """Public response when a generated answer is NOT authorized. Carries the outcome and reason codes only; the withheld generation travels in an internal field the finalizer strips and in
+    answer_authorization.REJECTED_GENERATIONS."""
+    title, body = auth_mod.rejection_message(auth)
+    symbols = entities.get("companies") or []
+    related = _filter_events_to_entities(evidence.events, symbols)[:6]
+    response_id = str(uuid.uuid4())
+    shape = build_degraded_shape(
+        query=query, response_id=response_id, schema_version=SCHEMA_VERSION, specialist_kind=specialist_kind, degraded_reason="claims_not_authorized", summary=body,
+        related_events=related, sources_count=len(related), source_attribution=[f"event:{e.get('id')}" for e in related if e.get("id")],
+        intent=(intent_data or {}).get("intent", "general"),
+        ui_mode=classify_ui_mode(specialist_kind=specialist_kind, intent_data=intent_data, entities=entities, query=query),
+        premise_check=_premise_check(evidence), answer_authorization=auth_mod.public_summary(auth), public_title=title,
+    )
+    auth_mod.remember(response_id, query, auth, generation, evidence.index())
+    shape["_rejected_generation"] = {"generation": generation, "reasons": list(auth["reasons"]), "unsupported_figures": auth.get("unsupported_figures")}
+    return shape
 
 
 def degraded_evidence_sentence(shown_events: int) -> str:
