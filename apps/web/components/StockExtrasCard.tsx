@@ -15,8 +15,8 @@ export interface StockExtras {
 const CARD = "rounded-2xl border border-surface-border/10 bg-surface-card shadow-[0_1px_2px_rgb(15_23_42/0.04)] p-6";
 const SUBHEAD = "mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-muted";
 const ROW = "flex items-center justify-between gap-2 py-2 border-b border-surface-border/4 last:border-0";
-const LABEL = "text-[12px] text-text-muted shrink-0";
-const VALUE = "text-[13px] font-medium tabular-nums text-right";
+const LABEL = "min-w-0 text-[12px] text-text-muted";
+const VALUE = "shrink-0 whitespace-nowrap text-[13px] font-medium tabular-nums text-right";
 const UP = "text-emerald-600 dark:text-emerald-400";
 const DOWN = "text-rose-600 dark:text-rose-400";
 const GROWTH_LABELS = new Set(["Revenue growth (latest quarter, YoY)", "Earnings growth (latest quarter, YoY)"]);
