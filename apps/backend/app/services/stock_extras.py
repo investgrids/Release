@@ -12,8 +12,6 @@ from datetime import date, datetime
 
 import yfinance as yf
 
-from app.services.market_data import _fmt_large
-
 _PREFIX = {"INR": "₹", "USD": "$"}
 _TTL = 3600.0
 _CACHE: dict[str, tuple[float, dict]] = {}
@@ -44,7 +42,7 @@ def _money(v, prefix: str | None, decimals: int = 2) -> str | None:
 
 def growth_valuation_rows(info: dict) -> list[dict]:
     """Label/value rows from Yahoo's info dict; a row is left out when its value is missing."""
-    fc = info.get("financialCurrency")
+    # EBITDA, total cash and total debt are left out on purpose: the Financials tab already shows them from the statements.
     rows = [
         ("Revenue growth (YoY)", _pct(info.get("revenueGrowth"))),
         ("Earnings growth (YoY)", _pct(info.get("earningsGrowth"))),
@@ -54,9 +52,6 @@ def growth_valuation_rows(info: dict) -> list[dict]:
         ("PEG ratio", _ratio(info.get("trailingPegRatio") or info.get("pegRatio"))),
         ("Payout ratio", _pct(info.get("payoutRatio"))),
         ("Quick ratio", _ratio(info.get("quickRatio"))),
-        ("EBITDA", _fmt_large(info.get("ebitda"), fc) if _num(info.get("ebitda")) else None),
-        ("Total cash", _fmt_large(info.get("totalCash"), fc) if _num(info.get("totalCash")) else None),
-        ("Total debt", _fmt_large(info.get("totalDebt"), fc) if _num(info.get("totalDebt")) else None),
     ]
     return [{"label": k, "value": v} for k, v in rows if v and v != "—"]
 

@@ -52,7 +52,7 @@ export function StockExtrasCard({ symbol }: { symbol: string }) {
   if (data === null) return <div className="h-[220px] animate-pulse rounded-2xl bg-text-primary/[0.04]" aria-busy="true" aria-label="Loading more details" />;
   const e = data.earnings, gv = data.growth_valuation ?? [], dv = data.dividends;
   const hasEarnings = !!e && (!!e.next_date || e.history.length > 0);
-  const hasDiv = !!dv && (!!dv.yield || dv.history.length > 0);
+  const hasDiv = !!dv && (!!dv.rate || dv.history.length > 0);   // yield is already in Key ratios
   if (!hasEarnings && gv.length === 0 && !hasDiv) return null;
 
   return (
@@ -103,7 +103,6 @@ export function StockExtrasCard({ symbol }: { symbol: string }) {
         {hasDiv && dv && (
           <div className="lg:pl-8">
             <p className={SUBHEAD}>Dividends</p>
-            {dv.yield && <div className={ROW}><span className={LABEL}>Yield</span><span className={`${VALUE} text-text-primary`}>{dv.yield}</span></div>}
             {dv.rate && <div className={ROW}><span className={LABEL}>Annual rate (per share)</span><span className={`${VALUE} text-text-primary`}>{dv.rate}</span></div>}
             {/* Payouts are neutral: interim, final and special dividends differ in size by design, so one smaller than the last is not a cut. */}
             {dv.history.map(h => (

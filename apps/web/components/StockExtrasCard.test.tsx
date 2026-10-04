@@ -18,7 +18,7 @@ describe("StockExtrasCard", () => {
     expect(screen.getByText(/8 Oct 2026 · est\. ₹38\.17/)).toBeInTheDocument();
     expect(screen.getByText(/▲ 2\.5%/)).toBeInTheDocument();
     expect(screen.getByText("₹38.28").className).toMatch(/emerald/);
-    expect(screen.getByText("3.13%")).toBeInTheDocument();
+    expect(screen.queryByText("3.13%")).toBeNull();   // yield lives in Key ratios
   });
 
   it("renders nothing when Yahoo has nothing or the request fails", async () => {
