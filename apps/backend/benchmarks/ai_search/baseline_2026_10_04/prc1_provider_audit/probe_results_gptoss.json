@@ -1,0 +1,197 @@
+{
+  "requests_made": 8,
+  "real_prompt_approx_input_tokens": 2315,
+  "real_max_tokens": 6500,
+  "results": {
+    "groq:openai/gpt-oss-120b": {
+      "state": "QUOTA_EXHAUSTED",
+      "evidence": "provider reports the daily TPD allowance is used up: TPD limit 200000, used 199941, requested 1205, remaining 59",
+      "steps": [
+        {
+          "max_tokens": 5,
+          "approx_input_tokens": 8,
+          "latency_ms": 532,
+          "status": 200,
+          "limit_headers": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "999",
+            "x-ratelimit-remaining-tokens": "7917",
+            "x-ratelimit-reset-requests": "1m26.4s",
+            "x-ratelimit-reset-tokens": "622ms"
+          },
+          "finish_reason": "length",
+          "output_chars": 0,
+          "prompt_tokens": 78,
+          "completion_tokens": 5,
+          "total_tokens": 83,
+          "would_exceed_app_read_timeout": false,
+          "empty_content": true,
+          "step": "S1",
+          "note": "empty at 5 tokens is expected for a reasoning model (budget spent on hidden reasoning); continuing with a realistic budget"
+        },
+        {
+          "max_tokens": 512,
+          "approx_input_tokens": 8,
+          "latency_ms": 312,
+          "status": 200,
+          "limit_headers": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "998",
+            "x-ratelimit-remaining-tokens": "7479",
+            "x-ratelimit-reset-requests": "2m52.8s",
+            "x-ratelimit-reset-tokens": "3.907s"
+          },
+          "finish_reason": "stop",
+          "output_chars": 2,
+          "prompt_tokens": 78,
+          "completion_tokens": 20,
+          "total_tokens": 98,
+          "would_exceed_app_read_timeout": false,
+          "empty_content": false,
+          "step": "S1b"
+        },
+        {
+          "max_tokens": 512,
+          "approx_input_tokens": 551,
+          "latency_ms": 1360,
+          "status": 200,
+          "limit_headers": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "997",
+            "x-ratelimit-remaining-tokens": "6991",
+            "x-ratelimit-reset-requests": "4m19.2s",
+            "x-ratelimit-reset-tokens": "7.567s"
+          },
+          "finish_reason": "stop",
+          "output_chars": 1687,
+          "prompt_tokens": 613,
+          "completion_tokens": 417,
+          "total_tokens": 1030,
+          "would_exceed_app_read_timeout": false,
+          "empty_content": false,
+          "step": "S2"
+        },
+        {
+          "max_tokens": 768,
+          "approx_input_tokens": 1051,
+          "latency_ms": 31,
+          "status": 429,
+          "limit_headers": {
+            "retry-after": "496",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "997",
+            "x-ratelimit-remaining-tokens": "7551",
+            "x-ratelimit-reset-requests": "4m19.2s",
+            "x-ratelimit-reset-tokens": "3.367s",
+            "x-should-retry": "false"
+          },
+          "error": {
+            "type": "tokens",
+            "code": "rate_limit_exceeded",
+            "message": "Rate limit reached for model `openai/gpt-oss-120b` in organization `org_<redacted>` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199941, Requested 1205. Please try again in 8m15.072s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing"
+          },
+          "step": "S3"
+        }
+      ]
+    },
+    "groq:openai/gpt-oss-20b": {
+      "state": "QUOTA_EXHAUSTED",
+      "evidence": "provider reports the daily TPD allowance is used up: TPD limit 200000, used 199993, requested 1364, remaining 7",
+      "steps": [
+        {
+          "max_tokens": 5,
+          "approx_input_tokens": 8,
+          "latency_ms": 453,
+          "status": 200,
+          "limit_headers": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "997",
+            "x-ratelimit-remaining-tokens": "7827",
+            "x-ratelimit-reset-requests": "4m19.2s",
+            "x-ratelimit-reset-tokens": "1.297s"
+          },
+          "finish_reason": "length",
+          "output_chars": 0,
+          "prompt_tokens": 78,
+          "completion_tokens": 5,
+          "total_tokens": 83,
+          "would_exceed_app_read_timeout": false,
+          "empty_content": true,
+          "step": "S1",
+          "note": "empty at 5 tokens is expected for a reasoning model (budget spent on hidden reasoning); continuing with a realistic budget"
+        },
+        {
+          "max_tokens": 512,
+          "approx_input_tokens": 8,
+          "latency_ms": 422,
+          "status": 200,
+          "limit_headers": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "996",
+            "x-ratelimit-remaining-tokens": "7917",
+            "x-ratelimit-reset-requests": "5m45.6s",
+            "x-ratelimit-reset-tokens": "622ms"
+          },
+          "finish_reason": "stop",
+          "output_chars": 2,
+          "prompt_tokens": 78,
+          "completion_tokens": 17,
+          "total_tokens": 95,
+          "would_exceed_app_read_timeout": false,
+          "empty_content": false,
+          "step": "S1b"
+        },
+        {
+          "max_tokens": 512,
+          "approx_input_tokens": 551,
+          "latency_ms": 1047,
+          "status": 200,
+          "limit_headers": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "995",
+            "x-ratelimit-remaining-tokens": "7382",
+            "x-ratelimit-reset-requests": "7m12s",
+            "x-ratelimit-reset-tokens": "4.635s"
+          },
+          "finish_reason": "stop",
+          "output_chars": 1651,
+          "prompt_tokens": 613,
+          "completion_tokens": 418,
+          "total_tokens": 1031,
+          "would_exceed_app_read_timeout": false,
+          "empty_content": false,
+          "step": "S2"
+        },
+        {
+          "max_tokens": 768,
+          "approx_input_tokens": 1051,
+          "latency_ms": 47,
+          "status": 429,
+          "limit_headers": {
+            "retry-after": "587",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "995",
+            "x-ratelimit-remaining-tokens": "7508",
+            "x-ratelimit-reset-requests": "7m12s",
+            "x-ratelimit-reset-tokens": "3.69s",
+            "x-should-retry": "false"
+          },
+          "error": {
+            "type": "tokens",
+            "code": "rate_limit_exceeded",
+            "message": "Rate limit reached for model `openai/gpt-oss-20b` in organization `org_<redacted>` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199993, Requested 1364. Please try again in 9m46.224s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing"
+          },
+          "step": "S3"
+        }
+      ]
+    }
+  }
+}

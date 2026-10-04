@@ -1,0 +1,145 @@
+{
+  "openrouter_free_daily_reset_utc": "2026-10-05T00:00:00+00:00",
+  "classification": {
+    "groq:openai/gpt-oss-120b": {
+      "state": "QUOTA_EXHAUSTED",
+      "evidence": "provider reports the daily TPD allowance is used up: TPD limit 200000, used 199941, requested 1205, remaining 59",
+      "requests": 4,
+      "last_step": "S3",
+      "last_status": 429,
+      "retry_after": "496",
+      "limit_headers": {
+        "retry-after": "496",
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "997",
+        "x-ratelimit-remaining-tokens": "7551",
+        "x-ratelimit-reset-requests": "4m19.2s",
+        "x-ratelimit-reset-tokens": "3.367s",
+        "x-should-retry": "false"
+      }
+    },
+    "groq:openai/gpt-oss-20b": {
+      "state": "QUOTA_EXHAUSTED",
+      "evidence": "provider reports the daily TPD allowance is used up: TPD limit 200000, used 199993, requested 1364, remaining 7",
+      "requests": 4,
+      "last_step": "S3",
+      "last_status": 429,
+      "retry_after": "587",
+      "limit_headers": {
+        "retry-after": "587",
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "995",
+        "x-ratelimit-remaining-tokens": "7508",
+        "x-ratelimit-reset-requests": "7m12s",
+        "x-ratelimit-reset-tokens": "3.69s",
+        "x-should-retry": "false"
+      }
+    },
+    "groq:qwen/qwen3.8-27b": {
+      "state": "QUOTA_EXHAUSTED",
+      "evidence": "provider reports the daily TPD allowance is used up: TPD limit 200000, used 199586, requested 652, remaining 414",
+      "requests": 2,
+      "last_step": "S2",
+      "last_status": 429,
+      "retry_after": "103",
+      "limit_headers": {
+        "retry-after": "103",
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "999",
+        "x-ratelimit-remaining-tokens": "8000",
+        "x-ratelimit-reset-requests": "1m26.4s",
+        "x-ratelimit-reset-tokens": "1ms",
+        "x-should-retry": "false"
+      }
+    },
+    "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free": {
+      "state": "QUOTA_EXHAUSTED",
+      "evidence": "provider text names a daily/quota/credit limit: Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day",
+      "requests": 1,
+      "last_step": "S1",
+      "last_status": 429,
+      "retry_after": null,
+      "limit_headers": {
+        "x-ratelimit-limit": "50",
+        "x-ratelimit-remaining": "0",
+        "x-ratelimit-reset": "1791158400000"
+      }
+    },
+    "openrouter:nvidia/nemotron-3-super-120b-a12b:free": {
+      "state": "QUOTA_EXHAUSTED",
+      "evidence": "provider text names a daily/quota/credit limit: Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day",
+      "requests": 1,
+      "last_step": "S1",
+      "last_status": 429,
+      "retry_after": null,
+      "limit_headers": {
+        "x-ratelimit-limit": "50",
+        "x-ratelimit-remaining": "0",
+        "x-ratelimit-reset": "1791158400000"
+      }
+    },
+    "openrouter:google/gemma-4-31b-it:free": {
+      "state": "QUOTA_EXHAUSTED",
+      "evidence": "provider text names a daily/quota/credit limit: Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day",
+      "requests": 1,
+      "last_step": "S1",
+      "last_status": 429,
+      "retry_after": null,
+      "limit_headers": {
+        "x-ratelimit-limit": "50",
+        "x-ratelimit-remaining": "0",
+        "x-ratelimit-reset": "1791158400000"
+      }
+    },
+    "openrouter:google/gemma-4-26b-a4b-it:free": {
+      "state": "QUOTA_EXHAUSTED",
+      "evidence": "provider text names a daily/quota/credit limit: Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day",
+      "requests": 1,
+      "last_step": "S1",
+      "last_status": 429,
+      "retry_after": null,
+      "limit_headers": {
+        "x-ratelimit-limit": "50",
+        "x-ratelimit-remaining": "0",
+        "x-ratelimit-reset": "1791158400000"
+      }
+    },
+    "openrouter:cohere/north-mini-code:free": {
+      "state": "QUOTA_EXHAUSTED",
+      "evidence": "provider text names a daily/quota/credit limit: Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day",
+      "requests": 1,
+      "last_step": "S1",
+      "last_status": 429,
+      "retry_after": null,
+      "limit_headers": {
+        "x-ratelimit-limit": "50",
+        "x-ratelimit-remaining": "0",
+        "x-ratelimit-reset": "1791158400000"
+      }
+    },
+    "openrouter:nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": {
+      "state": "QUOTA_EXHAUSTED",
+      "evidence": "provider text names a daily/quota/credit limit: Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day",
+      "requests": 1,
+      "last_step": "S1",
+      "last_status": 429,
+      "retry_after": null,
+      "limit_headers": {
+        "x-ratelimit-limit": "50",
+        "x-ratelimit-remaining": "0",
+        "x-ratelimit-reset": "1791158400000"
+      }
+    },
+    "gemini:gemini-3.6-flash / gemini-3.5-flash-lite": {
+      "state": "NOT_TESTED",
+      "evidence": "no Gemini key is configured in the local environment (it is configured in production); testing it needs the production key and is not part of this local diagnostic"
+    },
+    "mistral:*": {
+      "state": "NOT_TESTED",
+      "evidence": "no Mistral key is configured locally or in production"
+    }
+  }
+}
