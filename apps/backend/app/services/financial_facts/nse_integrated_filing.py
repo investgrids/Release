@@ -122,6 +122,8 @@ class FilingExtract:
     prior: dict[str, ExtractedFact] = field(default_factory=dict)       # prior fiscal year comparatives
     missing: list[str] = field(default_factory=list)
     annual_status: str = ""  # "audited" | "unverified_unaudited": a year-end filing is not treated as audited unless it is
+    paid_up_inr: float | None = None    # PaidUpValueOfEquityShareCapital at the period end (INR)
+    face_value: float | None = None     # FaceValueOfEquityShareCapital (INR per share)
     eps: float | None = None       # filed annual basic EPS (continuing + discontinued operations) on the full-year context
     xbrl_fullyear_audit: str = ""  # value of WhetherResultsAreAuditedOrUnaudited on the full-year context ("Audited" / "Unaudited" / "")
     audit_source: str = ""         # "xbrl_fullyear" | "listing": which source decided annual_status
@@ -248,6 +250,17 @@ def extract(ref: FilingRef, session: requests.Session | None = None, raw_dir: st
                 v = el.text.strip()
                 # two different statements for the same full-year context are ambiguous: never treated as audited
                 ex.xbrl_fullyear_audit = v if ex.xbrl_fullyear_audit in ("", v) else "AMBIGUOUS"
+        if name in ("PaidUpValueOfEquityShareCapital", "FaceValueOfEquityShareCapital") and el.text:
+            cd = ctx.get(el.get("contextRef"))
+            if cd and not cd[3] and cd[2] == ref.period_end:
+                try:
+                    v = float(el.text.strip())
+                    if name.startswith("PaidUp") and ex.paid_up_inr is None:
+                        ex.paid_up_inr = v
+                    elif name.startswith("FaceValue") and ex.face_value is None:
+                        ex.face_value = v
+                except ValueError:
+                    pass
         if name == "BasicEarningsLossPerShareFromContinuingAndDiscontinuedOperations" and el.text:
             cd = ctx.get(el.get("contextRef"))
             if cd and cd[0] == "duration" and not cd[3] and _is_year(cd[1], cd[2]) and cd[2] == ref.period_end:
