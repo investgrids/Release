@@ -13,6 +13,7 @@ import { CompanyIntelligenceSection } from "@/components/CompanyIntelligenceSect
 import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
 import { API_BASE_URL as API } from "@/lib/api";
 import { hasCandles } from "@/lib/candles";
+import { dedupeEvidence, evidenceBalance } from "@/lib/intelligenceView";
 import { scoreToColor, impactToStyle, marketRippleRatingColor, marketRippleScoreDisplayInt } from "@/lib/scoring";
 import { labelTone, metricTone, parseMetric } from "@/lib/metricTone";
 import {
@@ -988,11 +989,7 @@ function CompanyNewsTabBody({ stock, relatedNews }: { stock: StockDetail; relate
 function AISentiment({ stock }: { stock: StockDetail }) {
   const total = stock.buy_count + stock.hold_count + stock.sell_count;
   if (!total) {
-    return (
-      <SectionCard title="Analyst consensus">
-        <p className="mt-4 text-[12px] text-text-muted">No analyst coverage data available for this stock.</p>
-      </SectionCard>
-    );
+    return <p className="px-1 text-[11.5px] text-text-muted">Analyst consensus: no analyst coverage data is available for this stock.</p>;
   }
   const bullPct = Math.round((stock.buy_count / total) * 100);
   const bearPct = Math.round((stock.sell_count / total) * 100);
@@ -1803,10 +1800,11 @@ function ContributorRow({ c, tone }: { c: CompanyScoreContributor; tone: "positi
             ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
             : "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-300"
         }`}>
-          {positive ? "Evidence" : "Counter-Signal"}
+          {positive ? "Supports" : "Counters"}
         </span>
-        <span className={`text-[11px] font-bold ${positive ? "text-emerald-400" : "text-rose-400"}`}>
-          {c.signed_magnitude >= 0 ? "+" : ""}{Math.round(c.signed_magnitude)}
+        <span className={`text-[11px] font-bold ${positive ? "text-emerald-500" : "text-rose-500"}`}
+          title="Impact on a 0-100 scale, taken from the source analysis or opportunity. The sign shows which way it points.">
+          Impact {c.signed_magnitude >= 0 ? "+" : ""}{Math.round(c.signed_magnitude)}
         </span>
       </div>
       <p className="mt-1.5 text-[12px] leading-5 text-text-secondary">{c.reason || "—"}</p>
@@ -1845,8 +1843,10 @@ export function CompanyScoreContributors({ stock }: { stock: StockDetail }) {
     );
   }
 
-  const positives = data.positive_reasons?.filter(r => r.reason) ?? [];
-  const negatives = data.risk_factors?.filter(r => r.reason) ?? [];
+  const positives = dedupeEvidence(data.positive_reasons);
+  const negatives = dedupeEvidence(data.risk_factors);
+  const balance = evidenceBalance(positives, negatives);
+  const SHOWN = 3;
 
   return (
     <SectionCard title="Recent intelligence evidence">
@@ -1854,29 +1854,48 @@ export function CompanyScoreContributors({ stock }: { stock: StockDetail }) {
         Based on {data.contributing_signal_count} contributing signal{data.contributing_signal_count === 1 ? "" : "s"} from published analysis and opportunity tracking — this evidence feeds the MarketRipple Score's Current Intelligence pillar; it is not itself a company rating.
       </p>
 
+      {balance && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between text-[11.5px]">
+            <span className="font-medium text-emerald-700 dark:text-emerald-400">{balance.support} point{balance.support === 1 ? "" : "s"} support</span>
+            <span className="font-medium text-rose-700 dark:text-rose-400">{balance.counter} point{balance.counter === 1 ? "" : "s"} counter</span>
+          </div>
+          <div className="mt-1.5 flex h-2 overflow-hidden rounded-full bg-text-primary/[0.06]" role="img" aria-label={`${balance.support} supporting and ${balance.counter} countering points`}>
+            <div className="bg-emerald-500" style={{ width: `${balance.supportPct}%` }} />
+            <div className="bg-rose-500" style={{ width: `${100 - balance.supportPct}%` }} />
+          </div>
+          <p className="mt-1.5 text-[10.5px] text-text-muted">Repeated points are counted once. Impact is on a 0–100 scale from the source analysis; it shows how strongly a point pulls, not a prediction.</p>
+        </div>
+      )}
+
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <div>
-          <p className="mb-2.5 text-[13px] font-medium text-emerald-700 dark:text-emerald-400">Supporting evidence</p>
-          {positives.length > 0 ? (
-            <div className="space-y-2.5">
-              {positives.map((c, i) => <ContributorRow key={i} c={c} tone="positive"/>)}
-            </div>
-          ) : (
-            <p className="text-[12px] text-text-muted">No positive signals in the current evidence.</p>
-          )}
-        </div>
-        <div>
-          <p className="mb-2.5 text-[13px] font-medium text-rose-700 dark:text-rose-400">Counter-signals</p>
-          {negatives.length > 0 ? (
-            <div className="space-y-2.5">
-              {negatives.map((c, i) => <ContributorRow key={i} c={c} tone="negative"/>)}
-            </div>
-          ) : (
-            <p className="text-[12px] text-text-muted">No disagreeing signals in the current evidence.</p>
-          )}
-        </div>
+        <EvidenceColumn title="What supports it" tone="positive" items={positives} shown={SHOWN} empty="No supporting points in the current evidence."/>
+        <EvidenceColumn title="What counters it" tone="negative" items={negatives} shown={SHOWN} empty="No countering points in the current evidence."/>
       </div>
     </SectionCard>
+  );
+}
+
+function EvidenceColumn({ title, tone, items, shown, empty }: { title: string; tone: "positive" | "negative"; items: CompanyScoreContributor[]; shown: number; empty: string }) {
+  const [all, setAll] = useState(false);
+  const rows = all ? items : items.slice(0, shown);
+  return (
+    <div>
+      <p className={`mb-2.5 text-[13px] font-medium ${tone === "positive" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"}`}>{title}</p>
+      {items.length > 0 ? (
+        <div className="space-y-2.5">
+          {rows.map((c, i) => <ContributorRow key={i} c={c} tone={tone}/>)}
+          {items.length > shown && (
+            <button type="button" onClick={() => setAll(a => !a)} aria-expanded={all}
+              className="w-full rounded-xl border border-surface-border/10 py-2 text-[11.5px] font-medium text-text-secondary transition hover:bg-text-primary/[0.04]">
+              {all ? "Show fewer" : `Show ${items.length - shown} more`}
+            </button>
+          )}
+        </div>
+      ) : (
+        <p className="text-[12px] text-text-muted">{empty}</p>
+      )}
+    </div>
   );
 }
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Eye, TrendingUp, TrendingDown, Minus, ArrowRight, CalendarClock } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
+import { confidenceWord, plainDate } from "@/lib/intelligenceView";
 
 export interface WatchSubject {
   subject_key: string;
@@ -17,7 +18,7 @@ interface WatchTrigger {
   detail: string;
 }
 
-interface WatchResponse {
+export interface WatchResponse {
   available: boolean;
   subject_label?: string;
   current_verdict?: { verdict_scale: string | null; confidence: number; as_of: string };
@@ -62,11 +63,13 @@ function verdictDelta(from: string, to: string) {
  * same "don't guess, don't show a hollow panel" stance as the rest of
  * this session's features.
  */
-export function InvestmentWatchPanel({ subject }: { subject: WatchSubject | null | undefined }) {
-  const [data, setData] = useState<WatchResponse | null>(null);
+export function InvestmentWatchPanel({ subject, initialData }: { subject: WatchSubject | null | undefined; initialData?: WatchResponse | null }) {
+  // initialData: the caller already has this payload (the company intelligence response carries it), so no second request is made.
+  const [data, setData] = useState<WatchResponse | null>(initialData ? { ...initialData, available: initialData.available ?? true } : null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (initialData !== undefined) { setData(initialData ? { ...initialData, available: initialData.available ?? true } : null); return; }
     if (!subject) { setData(null); return; }
     let cancelled = false;
     setLoading(true);
@@ -76,7 +79,7 @@ export function InvestmentWatchPanel({ subject }: { subject: WatchSubject | null
       .catch(() => { if (!cancelled) setData(null); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [subject?.subject_key]);
+  }, [subject?.subject_key, initialData]);
 
   if (!subject || loading) return null;
   if (!data?.available || !data.current_verdict) return null;
@@ -96,7 +99,7 @@ export function InvestmentWatchPanel({ subject }: { subject: WatchSubject | null
       {/* Current verdict */}
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <p className="text-[9px] uppercase tracking-wider text-text-muted mb-1">Current Verdict</p>
+          <p className="text-[9px] uppercase tracking-wider text-text-muted mb-1">Current verdict{current_verdict.as_of ? ` · as of ${plainDate(current_verdict.as_of)}` : ""}</p>
           <p className={`text-[15px] font-bold ${VERDICT_TONE[current_verdict.verdict_scale || ""] ?? "text-text-secondary"}`}>
             {current_verdict.verdict_scale || "—"}
           </p>
@@ -108,8 +111,8 @@ export function InvestmentWatchPanel({ subject }: { subject: WatchSubject | null
             re-traced through this panel's own watch endpoint), disclosed
             via tooltip rather than asserted without confirming. */}
         <div className="text-right" title="An evidence-based composite with a minor self-assessed component -- not a fully computed score">
-          <p className="text-[9px] uppercase tracking-wider text-text-muted mb-1">Confidence</p>
-          <p className="text-[15px] font-bold text-text-primary">{current_verdict.confidence}%</p>
+          <p className="text-[9px] uppercase tracking-wider text-text-muted mb-1">Confidence in this view</p>
+          <p className="text-[15px] font-bold text-text-primary">{confidenceWord(current_verdict.confidence)} <span className="text-[12px] font-medium text-text-muted">({current_verdict.confidence}%)</span></p>
         </div>
       </div>
 
@@ -120,7 +123,7 @@ export function InvestmentWatchPanel({ subject }: { subject: WatchSubject | null
             {delta === "up" ? <TrendingUp className="h-3 w-3 text-emerald-400" />
               : delta === "down" ? <TrendingDown className="h-3 w-3 text-rose-400" />
               : <Minus className="h-3 w-3 text-text-muted" />}
-            Last Change · {last_change.from_date} → {last_change.to_date}
+            Last change · {plainDate(last_change.from_date)} → {plainDate(last_change.to_date)}
           </p>
           <p className="flex items-center gap-1.5 text-[12px] font-medium text-text-primary">
             <span className={VERDICT_TONE[last_change.from] ?? "text-text-secondary"}>{last_change.from}</span>
@@ -151,11 +154,11 @@ export function InvestmentWatchPanel({ subject }: { subject: WatchSubject | null
       {next_trigger && (
         <div className="rounded-[12px] border border-violet-500/15 bg-violet-500/[0.05] p-3">
           <p className="mb-1 flex items-center gap-1.5 text-[9px] uppercase tracking-wider text-violet-600 dark:text-violet-300">
-            <CalendarClock className="h-3 w-3" /> Next Possible Trigger
+            <CalendarClock className="h-3 w-3" /> Next possible trigger
           </p>
           <p className="text-[12px] font-medium text-text-primary">{next_trigger.label}</p>
           <p className="mt-0.5 text-[10px] text-text-muted">
-            {next_trigger.date} · in {next_trigger.days_until}d
+            {plainDate(next_trigger.date)} · in {next_trigger.days_until} day{next_trigger.days_until === 1 ? "" : "s"}
           </p>
         </div>
       )}

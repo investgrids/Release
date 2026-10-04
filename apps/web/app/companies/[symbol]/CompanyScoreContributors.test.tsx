@@ -91,3 +91,35 @@ describe("CompanyScoreContributors — Recent Intelligence Evidence (2026-09-26 
     await waitFor(() => expect(container).toBeEmptyDOMElement());
   });
 });
+
+
+// Intelligence tab clarity pass (2026-10-04): repeated points counted once, a short list with the rest behind a button, and the impact number explained.
+describe("CompanyScoreContributors — readable evidence", () => {
+  const mk = (reason: string, mag: number, at = "2026-09-10T00:00:00Z") => ({ reason, source_type: "article" as const, href: null, signed_magnitude: mag, signal_at: at });
+  const base = { symbol: "TESTCO", score: null, confidence: null, sector: null, top_contributors: [] as never[] };
+
+  it("counts a repeated point once, shows the strongest copy, and explains the impact scale", async () => {
+    mockFetchOnce({ ...base, signal_count: 4, contributing_signal_count: 4,
+      positive_reasons: [mk("Directly exposed to Technology opportunity.", 85), mk("directly exposed to technology opportunity", 91)],
+      risk_factors: [mk("Rupee appreciation compresses margins", -80)] } as CompanyScoreData);
+    render(<CompanyScoreContributors stock={stock} />);
+    await waitFor(() => expect(screen.getByText("What supports it")).toBeInTheDocument());
+    expect(screen.getAllByText(/Directly exposed to Technology opportunity/i)).toHaveLength(1);
+    expect(screen.getByText(/Impact \+91/)).toBeInTheDocument();
+    expect(screen.queryByText(/Impact \+85/)).not.toBeInTheDocument();
+    expect(screen.getByText(/1 point support/)).toBeInTheDocument();
+    expect(screen.getByText(/1 point counter/)).toBeInTheDocument();
+    expect(screen.getByText(/0–100 scale/)).toBeInTheDocument();
+  });
+
+  it("shows three points per side and reveals the rest on request", async () => {
+    const many = Array.from({ length: 5 }, (_, i) => mk(`Distinct supporting point number ${i}`, 90 - i));
+    mockFetchOnce({ ...base, signal_count: 5, contributing_signal_count: 5, positive_reasons: many, risk_factors: [] } as CompanyScoreData);
+    render(<CompanyScoreContributors stock={stock} />);
+    await waitFor(() => expect(screen.getByText("What supports it")).toBeInTheDocument());
+    expect(screen.queryByText("Distinct supporting point number 3")).not.toBeInTheDocument();
+    screen.getByRole("button", { name: "Show 2 more" }).click();
+    await waitFor(() => expect(screen.getByText("Distinct supporting point number 4")).toBeInTheDocument());
+    expect(screen.getByText("No countering points in the current evidence.")).toBeInTheDocument();
+  });
+});

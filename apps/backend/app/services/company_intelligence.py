@@ -261,7 +261,30 @@ def _stars(confidence: float) -> int:
     return max(1, min(5, round(confidence / 20)))
 
 
+_INTEL_CACHE: dict = {}   # (SYMBOL, gov_score, price_positive) -> (monotonic time, payload); the page opens this tab often and the build was 2-4 s
+_INTEL_TTL = 120.0
+
+
 async def get_company_intelligence(
+    db: AsyncSession, symbol: str,
+    gov_score: float | None = None, price_positive: bool | None = None,
+) -> dict:
+    """Cached for 2 minutes per (symbol, gov_score, price_positive); an unrecognised symbol or a failure is never cached."""
+    import time
+    key = (symbol.upper(), gov_score, price_positive)
+    hit = _INTEL_CACHE.get(key)
+    if hit and time.monotonic() - hit[0] < _INTEL_TTL:
+        return hit[1]
+    out = await _build_company_intelligence(db, symbol, gov_score, price_positive)
+    if out.get("available"):
+        _INTEL_CACHE[key] = (time.monotonic(), out)
+        if len(_INTEL_CACHE) > 600:   # bounded: drop the oldest entries
+            for k in sorted(_INTEL_CACHE, key=lambda k: _INTEL_CACHE[k][0])[:100]:
+                _INTEL_CACHE.pop(k, None)
+    return out
+
+
+async def _build_company_intelligence(
     db: AsyncSession, symbol: str,
     gov_score: float | None = None, price_positive: bool | None = None,
 ) -> dict:
@@ -278,10 +301,20 @@ async def get_company_intelligence(
         return {"available": False}
     name, sector = company["name"], company.get("sector")
 
-    events = await get_active_events(db, symbol.upper(), sector)
-    ripple = await get_ripple_position(symbol.upper(), sector)
-    historical = await get_historical(sector, name)
-    opportunities = await get_related_opportunities(db, symbol.upper())
+    import asyncio
+    # The ripple chain and the historical lookup do not use this request's DB session, so they run alongside the session's own queries (which stay
+    # sequential: one AsyncSession is not safe for concurrent use).
+    ripple_task = asyncio.ensure_future(get_ripple_position(symbol.upper(), sector))
+    historical_task = asyncio.ensure_future(get_historical(sector, name))
+    try:
+        events = await get_active_events(db, symbol.upper(), sector)
+        opportunities = await get_related_opportunities(db, symbol.upper())
+        ripple = await ripple_task
+        historical = await historical_task
+    finally:
+        for t in (ripple_task, historical_task):
+            if not t.done():
+                t.cancel()
 
     # Read-only — the verdict snapshot itself is written by AI Search's own
     # pipeline (pipeline.py) whenever this company is searched; this only
