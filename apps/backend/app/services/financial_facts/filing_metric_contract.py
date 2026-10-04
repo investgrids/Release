@@ -1,0 +1,342 @@
+"""
+NSE_FILING_METRICS_V1 - the metric contract derived from the two 25-company reconciliation samples (2026-10-03).
+Executable, not wired into the scorer or any scheduler. Input: FilingExtract objects from nse_integrated_filing.py.
+
+Canonical source: NSE Integrated Filing - Financials XBRL (as given on the listing row). Yahoo is used only for market cap
+(price x shares), labelled as such; its revenue, "unusual items" and "normalized income" are NOT inputs.
+
+FILING SELECTION  newest Ind-AS filing with a ~12-month revenue context; scope Consolidated preferred, else Standalone;
+                  Audited preferred; the latest of original/revisions. Period end can be any month.
+AUDITED POLICY    an Un-Audited year-end filing is "unverified_unaudited": every filing metric is unavailable
+                  (UNVERIFIED_UNAUDITED). The prior audited year is used only if it passes FRESH_DAYS.
+UNITS             INR from the raw XBRL value; reported in crore (value / 1e7). Rounding level is recorded, not applied.
+REVENUE           RevenueFromOperations as reported on NSE (canonical even where Yahoo defines revenue differently).
+PROFIT            three separately named values, never merged:
+                    reported_profit            ProfitLossForPeriod (total, after tax, incl. minority)
+                    owners_profit              owners_profit() with its basis label (owners / total-less-NCI / standalone total)
+                    pre_exceptional_pretax     ProfitBeforeExceptionalItemsAndTax
+                  The filing gives no adjusted after-tax figure; none is derived.
+EXCEPTIONAL       ExceptionalItemsBeforeTax. Material when |exceptional| > EXCEPTIONAL_MATERIAL_PCT of max(|PBT|,|pre-exceptional|).
+                  Material exceptional GAIN: score fails closed (EXCEPTIONAL_GAIN_REVIEW). Material loss: flagged; ROE unavailable.
+SCORED METRICS    revenue_growth, profit_growth (pre_exceptional_pretax), roe (owners_profit / owners equity), roce
+                  (pre_exceptional_pretax + FinanceCosts) / (Assets - CurrentLiabilities), debt_to_equity, interest_coverage.
+                  Negative or zero owners equity: roe and debt_to_equity rank worst (flag negative_equity), never dropped.
+GROWTH            only on a comparable basis: prior filing must be the same scope, audited, exactly one year earlier, and the
+                  current filing must carry no discontinued-operations / held-for-sale facts. Otherwise growth is unavailable
+                  (COMPARATIVE_MAY_BE_RESTATED / NO_COMPARABLE_PRIOR). The integrated XBRL has no income-statement comparatives.
+VALUATION         P/B = market cap / owners equity (equity > 0); P/E = market cap / owners_profit when owners_profit > 0,
+                  pre_exceptional_pretax > 0 and exceptional is not material. Valuation needs BOTH components (no single-component
+                  pillar). Market cap is the labelled Yahoo interim input.
+MISSING DATA      every unavailable metric carries one reason code (REASONS below); nothing is inferred or defaulted.
+PROVENANCE        per score: contract version, filing seq_Id, file id, URL, retrieved_at, sha256, scope, audited, type_sub,
+                  period end, concept names and values (crore), growth basis, market-cap source.
+INCOME QUALITY    income outside the "exceptional" line can still distort earnings ratios, but its label alone does not make it one-off or unsuitable.
+                  So these are REVIEW FLAGS that make only the affected earnings metrics unavailable (profit growth, ROE, ROCE, interest coverage, P/E, because all
+                  of them are built on profit that includes that income); the existing metric and pillar gates then decide whether a headline remains.
+                    NON-CORE INCOME BASIS  core = pre-exceptional profit - other income - positive regulatory movement. Positive pre-exceptional profit with core <= 0
+                      means the profit rests on other income: flag non_core_profit and mark the earnings metrics unavailable (NON_CORE_INCOME_BASIS). No company-level gate.
+                    REGULATORY DEFERRAL   a material change in the regulatory-deferral balances between this filing and the prior-year filing is a WARNING to investigate,
+                      not a verified profit-and-loss adjustment (filers net the P&L effect into expenses or revenue, so no P&L tag exposes it). Material movement (same
+                      test as exceptional items) or balances with no prior-year filing mark the earnings metrics unavailable (REGULATORY_DEFERRAL_UNVERIFIED); a material
+                      POSITIVE movement, or an unknown one, also keeps the company under review (REGULATORY_DEFERRAL_REVIEW / REGULATORY_MOVEMENT_UNKNOWN).
+                    Flags only: other income above 50% of pre-exceptional profit; associates' share above 50% of owners' profit.
+                  Peer comparison is per metric: an invalid metric is left out of its own comparison; the company's valid metrics still count.
+UNRESOLVED CASES  KNRCON, VEDL, TRANSWORLD, PRINCEPIPE are forced to UNRESOLVED_REVIEW (no scored values) in shadow runs.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import date
+
+from app.services.financial_facts import nse_integrated_filing as nif
+
+CONTRACT_VERSION = "NSE_FILING_METRICS_V1"
+CR_UNIT = 1.0e7
+EXCEPTIONAL_MATERIAL_PCT = 10.0
+EXCEPTIONAL_REVENUE_FLOOR_PCT = 0.5   # a near-zero profit base never makes a tiny item material
+# V2-Rule-4A: a material exceptional LOSS no longer blocks ROE / P/E; they are computed on owners' profit with the loss added back net of tax
+# at the company's effective tax rate (hard-capped). V2-Rule-4B: a material exceptional GAIN stays under review and out of scoring.
+RULE_4A = "V2-Rule-4A-ExceptionalLossBypass"
+RULE_4B = "V2-Rule-4B-WindfallReview"
+EXCEPTIONAL_LOSS_TAX_CAP = 0.30
+ADJUSTED_LABEL = "[Core Earnings / Pre-Exceptional Adjusted]"
+# V2-Rule-4C: a filing-backed P/B or P/E that differs from the live reference multiple by more than this factor (either direction) means a unit,
+# scale or share-count error somewhere in the inputs; the company is withheld with its own status rather than scored on suspect numbers.
+RULE_4C = "V2-Rule-4C-PlausibilityGuard"
+PLAUSIBILITY_FACTOR = 3.0
+DISCREPANCY_STATUS = "VALUATION_DATA_DISCREPANCY"
+DISCREPANCY_LABEL = "N/A - Valuation Data Discrepancy"
+FRESH_DAYS = 456
+UNRESOLVED_CASES = {"KNRCON", "VEDL", "TRANSWORLD", "PRINCEPIPE"}
+REASONS = (
+    "UNVERIFIED_UNAUDITED", "NO_FILING", "VALUATION_DATA_DISCREPANCY", "EXCEPTIONAL_GAIN_REVIEW", "EXCEPTIONAL_MATERIAL", "COMPARATIVE_MAY_BE_RESTATED",
+    "NO_COMPARABLE_PRIOR", "CONCEPT_MISSING", "CAPITAL_EMPLOYED_NOT_POSITIVE", "NO_FINANCE_COSTS", "OWNERS_PROFIT_SOURCE_GAP",
+    "NEGATIVE_EQUITY", "NO_MARKET_CAP", "PROFIT_NOT_POSITIVE", "UNRESOLVED_REVIEW", "REGULATORY_DEFERRAL_MATERIAL",
+)
+SCORED = ("revenue_growth", "profit_growth", "roe", "roce", "debt_to_equity", "interest_coverage")
+WORST = {"roe": -1.0e9, "debt_to_equity": 1.0e9}  # negative equity ranks worst on these two
+
+
+@dataclass
+class FilingMetrics:
+    symbol: str
+    contract_version: str = CONTRACT_VERSION
+    provenance: dict = field(default_factory=dict)
+    values: dict = field(default_factory=dict)        # named reported figures (crore)
+    metrics: dict = field(default_factory=dict)       # scored metrics: value or None
+    reasons: dict = field(default_factory=dict)       # metric -> reason code when None
+    flags: dict = field(default_factory=dict)
+    valuation: dict = field(default_factory=dict)     # pe / pb or None
+    status: str = "ok"                                # ok | UNVERIFIED_UNAUDITED | NO_FILING | EXCEPTIONAL_GAIN_REVIEW | UNRESOLVED_REVIEW
+
+
+def exceptional_materiality(exc, pbt, pbet, revenue) -> tuple[bool, bool, str]:
+    """(material, gain, rule). Explicit for zero, negative and near-zero profit:
+      base = max(|PBT|, |pre-exceptional|)   (absolute values, so a loss-making year is judged on its size)
+      threshold = max(10% of base, 0.5% of revenue)   (a near-zero base cannot make a tiny item material)
+      sign flip: a positive exceptional item that turns a loss (pre-exceptional <= 0) into a profit (PBT > 0) is ALWAYS material
+      base == 0 with no revenue to compare: any non-zero item is material (cannot be judged, fails closed)."""
+    if exc is None or exc == 0:
+        return False, False, "no exceptional item"
+    base = max(abs(pbt or 0.0), abs(pbet or 0.0))
+    if exc > 0 and pbet is not None and pbt is not None and pbet <= 0 < pbt:
+        return True, True, "sign flip: gain turns a loss into a profit"
+    threshold = max(EXCEPTIONAL_MATERIAL_PCT / 100 * base, EXCEPTIONAL_REVENUE_FLOOR_PCT / 100 * (revenue or 0.0))
+    if threshold == 0:
+        return True, exc > 0, "no profit base and no revenue: fails closed"
+    material = abs(exc) > threshold
+    return material, material and exc > 0, f"|exceptional| {'>' if material else '<='} {threshold:.2f} (max of 10% of base {base:.2f}, 0.5% of revenue)"
+
+
+def plausibility_check(valuation: dict, reference: dict | None, pe_basis_adjusted: bool = False) -> dict | None:
+    """Rule 4C. reference = {"pb": live P/B, "pe": live P/E, "pe_eps": price / filed annual EPS, "mc_inconsistent": {...} or None}; every key optional.
+    Returns the failing comparison, or None when plausible or not checkable.
+      P/B arm      filing P/B vs live P/B, factor 3 either way.
+      P/E arm      filing P/E vs live P/E, factor 3 either way. Skipped when Rule 4A adjusted the earnings basis (the basis differs by design) and when
+                   the filing's own reported EPS reproduces the filing P/E within 1.5x (then the difference is the period or profit basis of the
+                   live trailing figure, not a unit or share-count error).
+      market cap   precomputed by the reference collector: the stored market cap differs from price x the filing's own share count by more than 1.5x
+                   AND live P/B x filed equity agrees with the filing-share figure rather than with the stored one (Yahoo share count wrong)."""
+    if not reference:
+        return None
+
+    def num(x):
+        try:
+            v = float(x)
+        except (TypeError, ValueError):
+            return None
+        return v if v == v and abs(v) != float("inf") else None  # Yahoo sends strings such as "Infinity" for undefined multiples
+    pe_eps = num(reference.get("pe_eps"))
+    for k in ("pb", "pe"):
+        mine, ref = num((valuation or {}).get(k)), num(reference.get(k))
+        if k == "pe" and (pe_basis_adjusted or (mine and pe_eps and pe_eps > 0 and 1 / 1.5 <= mine / pe_eps <= 1.5)):
+            continue
+        if mine and ref and mine > 0 and ref > 0:
+            ratio = mine / ref
+            if ratio > PLAUSIBILITY_FACTOR or ratio < 1 / PLAUSIBILITY_FACTOR:
+                return {"multiple": k, "filing": mine, "reference": ref, "ratio": round(ratio, 2)}
+    mci = reference.get("mc_inconsistent")
+    if mci:
+        return {"multiple": "market_cap", **mci}
+    return None
+
+
+def _c(ex: "nif.FilingExtract | None", name: str):
+    return nif.crore(ex.facts.get(name)) if ex else None
+
+
+def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtract | None", market_cap_cr: float | None,
+            today: date | None = None, newer_unaudited_year_end: bool = False, reference: dict | None = None) -> FilingMetrics:
+    today = today or date.today()
+    fm = FilingMetrics(symbol=symbol)
+    if symbol.upper() in UNRESOLVED_CASES:
+        fm.status = "UNRESOLVED_REVIEW"
+        fm.reasons = {m: "UNRESOLVED_REVIEW" for m in SCORED}
+        return fm
+    if ex is None:
+        fm.status = "NO_FILING"
+        fm.reasons = {m: "NO_FILING" for m in SCORED}
+        return fm
+    ref = ex.ref
+    fm.provenance = {"seq_Id": ref.seq_id, "file_id": ref.filing_file_id, "url": ref.xbrl_url, "retrieved_at": ex.retrieved_at, "sha256": ex.sha256,
+                     "scope": ref.scope, "audited": ref.audited, "audit_source": ex.audit_source, "fullyear_audit_statement": ex.xbrl_fullyear_audit, "type_sub": ref.type_sub, "period_end": str(ref.period_end),
+                     "currency": ex.currency, "level_of_rounding": ex.level_of_rounding, "market_cap_source": "Yahoo Finance (interim)"}
+    stale = (today - ref.period_end).days > FRESH_DAYS
+    if ex.annual_status != "audited" or stale:
+        # an older audited year is usable only while fresh; if a newer un-audited year-end exists and the audited one is stale,
+        # the honest status is UNVERIFIED_UNAUDITED, otherwise the filing is simply too old
+        why = "UNVERIFIED_UNAUDITED" if (ex.annual_status != "audited" or newer_unaudited_year_end) else "NO_FILING"
+        fm.status = why
+        fm.reasons = {m: why for m in SCORED}
+        return fm
+    rev, pbet, exc, pbt = _c(ex, "RevenueFromOperations"), _c(ex, "ProfitBeforeExceptionalItemsAndTax"), _c(ex, "ExceptionalItemsBeforeTax"), _c(ex, "ProfitBeforeTax")
+    fin, assets, cl = _c(ex, "FinanceCosts"), _c(ex, "Assets"), _c(ex, "CurrentLiabilities")
+    eq = _c(ex, "EquityAttributableToOwnersOfParent") if ref.scope == "Consolidated" and _c(ex, "EquityAttributableToOwnersOfParent") is not None else _c(ex, "Equity")
+    if eq is None:
+        eq = _c(ex, "ShareholdersFunds")  # older/MSME-format filers tag total equity only as shareholders' funds
+    owners, basis = nif.owners_profit(ex)
+    bc, bn = _c(ex, "BorrowingsCurrent"), _c(ex, "BorrowingsNoncurrent")
+    debt_total, debt_basis = (None if bc is None and bn is None else (bc or 0.0) + (bn or 0.0)), "current + non-current borrowings"
+    if debt_total is None:
+        # filers without a current/non-current split: Ind AS financial-sector split (borrowings + debt securities + subordinated liabilities),
+        # or the separate long-term / short-term borrowings tags
+        fin_parts = [_c(ex, k) for k in ("Borrowings", "DebtSecurities", "SubordinatedLiabilities")]
+        lt_st = [_c(ex, k) for k in ("LongTermBorrowings", "ShortTermBorrowings")]
+        if fin_parts[0] is not None:
+            debt_total, debt_basis = sum(x or 0.0 for x in fin_parts), "borrowings + debt securities + subordinated liabilities"
+        elif any(x is not None for x in lt_st):
+            debt_total, debt_basis = sum(x or 0.0 for x in lt_st), "long-term + short-term borrowings"
+    fm.values = {"revenue_from_operations": rev, "reported_profit": _c(ex, "ProfitLossForPeriod"), "owners_profit": owners, "owners_profit_basis": basis,
+                 "pre_exceptional_pretax": pbet, "exceptional_items": exc, "profit_before_tax": pbt, "finance_costs": fin, "assets": assets,
+                 "current_liabilities": cl, "owners_equity": eq, "borrowings": debt_total, "borrowings_basis": debt_basis if debt_total is not None else None}
+    material, gain, mat_rule = exceptional_materiality(exc, pbt, pbet, rev)
+    # Rule 4A: adjusted owners' profit = owners' profit + exceptional loss x (1 - effective tax rate), rate = tax / PBT clamped to [0, cap]
+    loss_bypass = bool(material and not gain and exc is not None and exc < 0 and owners is not None)
+    tax_rate, adj_owners = 0.0, None
+    if loss_bypass:
+        tax = _c(ex, "TaxExpense")
+        if pbt is not None and pbt > 0 and tax is not None:
+            tax_rate = max(0.0, min(tax / pbt, EXCEPTIONAL_LOSS_TAX_CAP))
+        adj_owners = round(owners - exc * (1 - tax_rate), 2)
+    # ---- income quality outside the exceptional line
+    oi = _c(ex, "OtherIncome") or 0.0
+    assoc = _c(ex, "ShareOfProfitLossOfAssociatesAndJointVenturesAccountedForUsingEquityMethod") or 0.0
+    reg_cur = ex.regulatory or {}
+    reg_present = abs(reg_cur.get("debit", 0.0)) + abs(reg_cur.get("credit", 0.0)) > 0.005
+    reg_move, reg_state = 0.0, "none"
+    if reg_present:
+        reg_prior = (prior.regulatory if prior is not None else None)
+        if prior is None or reg_prior is None:
+            reg_state = "unknown"
+        else:
+            reg_move = round((reg_cur.get("debit", 0.0) - reg_prior.get("debit", 0.0)) - (reg_cur.get("credit", 0.0) - reg_prior.get("credit", 0.0)), 2)
+            thr = max(EXCEPTIONAL_MATERIAL_PCT / 100 * max(abs(pbt or 0.0), abs(pbet or 0.0)), EXCEPTIONAL_REVENUE_FLOOR_PCT / 100 * (rev or 0.0))
+            reg_state = "material_gain" if (reg_move > 0 and (thr == 0 or reg_move > thr)) else "material_loss" if (reg_move < 0 and (thr == 0 or -reg_move > thr)) else "immaterial"
+    core_pretax = None if pbet is None else round(pbet - oi - max(reg_move, 0.0), 2)
+    non_core_profit = pbet is not None and pbet > 0 and core_pretax is not None and core_pretax <= 0
+    # A disposal / discontinued-operations disclosure counts only when its VALUE is non-zero (most filings carry these concepts as 0).
+    # Matched by concept-name pattern (HeldForSale | DisposalGroup | DiscontinuedOperations), not a fixed list: e.g. SKYGOLD tags
+    # NoncurrentAssetsClassifiedAsHeldForSale, which a fixed list missed.
+    dfacts = dict(ex.disposal_facts)
+    for k in ("ProfitLossFromDiscontinuedOperationsAfterTax", "AssetsClassifiedAsHeldForSale", "NoncurrentAssetsOrDisposalGroupsClassifiedAsHeldForSale",
+              "LiabilitiesDirectlyAssociatedWithAssetsInDisposalGroupClassifiedAsHeldForSale"):
+        if ex.facts.get(k) is not None:
+            dfacts[k] = ex.facts[k].value_inr / CR_UNIT
+    disposal = any(abs(v) > 0.005 for v in dfacts.values())
+    fm.flags = {"exceptional_material": bool(material), "exceptional_gain_material": bool(gain), "disposal_or_discontinued": bool(disposal),
+                "negative_equity": eq is not None and eq <= 0, "scope": ref.scope, "exceptional_rule": mat_rule}
+    fm.flags.update({"regulatory_balances_present": reg_present, "regulatory_movement_cr": reg_move if reg_state not in ("none", "unknown") else None, "regulatory_state": reg_state,
+                     "core_pretax_cr": core_pretax, "non_core_profit": bool(non_core_profit),
+                     "other_income_over_half_of_pbet": bool(pbet and pbet > 0 and oi / pbet > 0.5),
+                     "associates_over_half_of_owners_profit": bool(owners and owners > 0 and assoc / owners > 0.5)})
+    if gain:
+        fm.status = "EXCEPTIONAL_GAIN_REVIEW"
+    elif reg_state == "material_gain":
+        fm.status = "REGULATORY_DEFERRAL_REVIEW"
+    elif reg_state == "unknown":
+        fm.status = "REGULATORY_MOVEMENT_UNKNOWN"
+
+    def na(metric, reason):
+        fm.metrics[metric] = None
+        fm.reasons[metric] = reason
+
+    # growth (comparable basis only)
+    if disposal:
+        na("revenue_growth", "COMPARATIVE_MAY_BE_RESTATED"); na("profit_growth", "COMPARATIVE_MAY_BE_RESTATED")
+    elif prior is None or prior.ref.scope != ref.scope or prior.annual_status != "audited" or (ref.period_end.year - prior.ref.period_end.year) != 1 or prior.ref.period_end.month != ref.period_end.month:
+        na("revenue_growth", "NO_COMPARABLE_PRIOR"); na("profit_growth", "NO_COMPARABLE_PRIOR")
+    else:
+        pr, pp = _c(prior, "RevenueFromOperations"), _c(prior, "ProfitBeforeExceptionalItemsAndTax")
+        if rev is None or not pr:
+            na("revenue_growth", "CONCEPT_MISSING")
+        else:
+            fm.metrics["revenue_growth"] = round((rev / pr - 1) * 100, 2)
+        if pbet is None or pp in (None, 0):
+            na("profit_growth", "CONCEPT_MISSING")
+        else:
+            fm.metrics["profit_growth"] = round((pbet - pp) / abs(pp) * 100, 2)
+        fm.provenance["growth_basis"] = {"prior_seq_Id": prior.ref.seq_id, "prior_file_id": prior.ref.filing_file_id, "prior_url": prior.ref.xbrl_url,
+                                         "prior_sha256": prior.sha256, "basis": "as filed one year earlier, same scope, no disposal facts in current filing"}
+    # ROE
+    if eq is None:
+        na("roe", "CONCEPT_MISSING")
+    elif eq <= 0:
+        fm.metrics["roe"] = WORST["roe"]; fm.reasons["roe"] = "NEGATIVE_EQUITY"
+    elif material and not loss_bypass:
+        na("roe", "EXCEPTIONAL_MATERIAL")
+    elif reg_state == "material_loss":
+        na("roe", "REGULATORY_DEFERRAL_MATERIAL")
+    elif owners is None:
+        na("roe", "OWNERS_PROFIT_SOURCE_GAP")
+    else:
+        fm.metrics["roe"] = round((adj_owners if loss_bypass else owners) / eq * 100, 2)
+    # ROCE and interest coverage on EBIT before exceptional items
+    ebit = None if pbet is None or fin is None else pbet + fin
+    if ebit is None or assets is None or cl is None:
+        na("roce", "CONCEPT_MISSING")
+    elif assets - cl <= 0:
+        na("roce", "CAPITAL_EMPLOYED_NOT_POSITIVE")
+    else:
+        fm.metrics["roce"] = round(ebit / (assets - cl) * 100, 2)
+    if ebit is None or fin is None:
+        na("interest_coverage", "CONCEPT_MISSING")
+    elif fin <= 0:
+        na("interest_coverage", "NO_FINANCE_COSTS")
+    else:
+        fm.metrics["interest_coverage"] = round(ebit / fin, 2)
+    # debt to equity
+    debt = fm.values["borrowings"]
+    if eq is None or debt is None:
+        na("debt_to_equity", "CONCEPT_MISSING")
+    elif eq <= 0:
+        fm.metrics["debt_to_equity"] = WORST["debt_to_equity"]; fm.reasons["debt_to_equity"] = "NEGATIVE_EQUITY"
+    else:
+        fm.metrics["debt_to_equity"] = round(debt / eq, 3)
+    # valuation (needs both components)
+    if market_cap_cr is None or market_cap_cr <= 0:
+        fm.valuation = {"pe": None, "pb": None, "reason": "NO_MARKET_CAP"}
+    else:
+        pb = round(market_cap_cr / eq, 3) if eq and eq > 0 else None
+        pe, pe_reason = None, None
+        if owners is None:
+            pe_reason = "OWNERS_PROFIT_SOURCE_GAP"
+        elif material and not loss_bypass:
+            pe_reason = "EXCEPTIONAL_MATERIAL"
+        elif reg_state == "material_loss":
+            pe_reason = "REGULATORY_DEFERRAL_MATERIAL"
+        elif (adj_owners if loss_bypass else owners) <= 0 or pbet is None or pbet <= 0:
+            pe_reason = "PROFIT_NOT_POSITIVE"
+        else:
+            pe = round(market_cap_cr / (adj_owners if loss_bypass else owners), 2)
+        fm.valuation = {"pe": pe, "pb": pb, "pe_reason": pe_reason, "pb_reason": None if pb is not None else "NEGATIVE_EQUITY" if eq is not None else "CONCEPT_MISSING",
+                        "market_cap_cr": market_cap_cr}
+    # ---- earnings-quality invalidation: affected earnings metrics become unavailable, never the whole company
+    inv = "REGULATORY_DEFERRAL_UNVERIFIED" if reg_state in ("material_gain", "material_loss", "unknown") else ("NON_CORE_INCOME_BASIS" if non_core_profit else None)
+    if inv:
+        for m in ("profit_growth", "roe", "roce", "interest_coverage"):
+            if fm.metrics.get(m) is not None and not (m == "roe" and fm.reasons.get("roe") == "NEGATIVE_EQUITY"):
+                fm.metrics[m] = None
+                fm.reasons[m] = inv
+        if fm.valuation.get("pe") is not None:
+            fm.valuation["pe"] = None
+            fm.valuation["pe_reason"] = inv
+    fm.flags["earnings_basis_invalid_reason"] = inv
+    # Rule 4C runs on the final multiples (after the earnings-quality invalidation) and, on failure, clears every scored metric so the
+    # suspect inputs also stay out of the peer pools.
+    fm.flags["plausibility_checked"] = bool(reference and any(isinstance(reference.get(k), (int, float)) and reference[k] > 0 and reference[k] != float("inf") and (fm.valuation.get(k) or 0) > 0 for k in ("pb", "pe")))
+    bad = plausibility_check(fm.valuation, reference, pe_basis_adjusted=bool(loss_bypass and (fm.metrics.get("roe") is not None or fm.valuation.get("pe") is not None)))
+    if bad:
+        fm.status = DISCREPANCY_STATUS
+        fm.reasons = {m: DISCREPANCY_STATUS for m in SCORED}
+        fm.metrics = {m: None for m in SCORED}
+        fm.valuation = {"pe": None, "pb": None, "reason": DISCREPANCY_STATUS, "discrepancy": bad, "market_cap_cr": market_cap_cr}
+        fm.flags.update({"rule_4c_discrepancy": bad, "rule_tags": [RULE_4C], "na_label": DISCREPANCY_LABEL})
+        return fm
+    used_4a = loss_bypass and (fm.metrics.get("roe") is not None or fm.valuation.get("pe") is not None)
+    fm.flags.update({"rule_4a_exceptional_loss_bypass": bool(used_4a), "rule_4b_windfall_review": bool(gain),
+                     "adjusted_label": ADJUSTED_LABEL if used_4a else None,
+                     "rule_tags": ([RULE_4A] if used_4a else []) + ([RULE_4B] if gain else [])})
+    if used_4a:
+        fm.values["owners_profit_pre_exceptional"] = adj_owners
+        fm.values["exceptional_loss_tax_rate"] = round(tax_rate, 4)
+    return fm
