@@ -61,7 +61,8 @@ def _num(text) -> float | None:
         return None
 
 
-def extract_bank(ref: nif.FilingRef, session: requests.Session | None = None, raw_dir: str | None = None) -> BankFiling:
+def extract_bank(ref: nif.FilingRef, session: requests.Session | None = None, raw_dir: str | None = None, flow=None, instant=None, ratio=None, per_share=None) -> BankFiling:
+    flow, instant, ratio, per_share = flow or _FLOW, instant or _INSTANT, ratio or _RATIO, per_share or _PER_SHARE
     import glob
     body = None
     if raw_dir:
@@ -110,19 +111,19 @@ def extract_bank(ref: nif.FilingRef, session: requests.Session | None = None, ra
         v = _num(el.text)
         if v is None:
             continue
-        if name in _FLOW and kind == "duration" and nif._is_year(start, end):
+        if name in flow and kind == "duration" and nif._is_year(start, end):
             if end == pe:
                 bf.facts.setdefault(name, round(v / 1e7, 4))
             elif end == prior_end:
                 bf.prior.setdefault(name, round(v / 1e7, 4))
-        elif name in _INSTANT and kind == "instant":
+        elif name in instant and kind == "instant":
             if end == pe:
                 bf.facts.setdefault(name, round(v / 1e7, 4))
             elif end == prior_end:
                 bf.prior.setdefault(name, round(v / 1e7, 4))
-        elif name in _RATIO and end == pe:
+        elif name in ratio and end == pe:
             bf.facts.setdefault(name, v)
-        elif name in _PER_SHARE and kind == "duration" and nif._is_year(start, end) and end == pe:
+        elif name in per_share and kind == "duration" and nif._is_year(start, end) and end == pe:
             bf.eps = v
     bf.fullyear_audit = next(iter(stmts)) if len(stmts) == 1 else ("AMBIGUOUS" if stmts else "")
     bf.annual_status = "audited" if bf.fullyear_audit.lower() == "audited" else "unverified_unaudited"
@@ -130,12 +131,15 @@ def extract_bank(ref: nif.FilingRef, session: requests.Session | None = None, ra
 
 
 def select_bank_annual(rows: list[dict], scope_preference=("Consolidated", "Standalone"), session: requests.Session | None = None,
-                       raw_dir: str | None = None, max_periods: int = 6) -> tuple["BankFiling | None", dict]:
+                       raw_dir: str | None = None, max_periods: int = 6, marker: str = _BANKING_MARKER, core=("InterestEarned", "ProfitLossForThePeriod"),
+                       **concepts) -> tuple["BankFiling | None", dict]:
     """Newest year-end banking filing whose own full-year statement says Audited; scope preference applies within a year end."""
     info: dict = {"notes": [], "newer_unaudited_year_end": False}
-    brows = [r for r in rows if _BANKING_MARKER in (r.get("xbrl") or "") and nif._parse_qe(r.get("qe_Date"))]
+    brows = [r for r in rows if marker in (r.get("xbrl") or "") and nif._parse_qe(r.get("qe_Date"))]
     fy_months = {nif._parse_qe(r["qe_Date"]).month for r in brows if r.get("audited") == "Audited"}
-    ends = sorted({nif._parse_qe(r["qe_Date"]) for r in brows if nif._parse_qe(r["qe_Date"]).month in fy_months}, reverse=True)
+    # year-end periods share a month with a listing row flagged Audited; when no row is flagged (the listing flag describes the quarter), every period
+    # end is a candidate and the filing's own full-year context and statement decide
+    ends = sorted({nif._parse_qe(r["qe_Date"]) for r in brows if (not fy_months or nif._parse_qe(r["qe_Date"]).month in fy_months)}, reverse=True)
     unverified: list[date] = []
     for pe in ends[:max_periods]:
         for scope in scope_preference:
@@ -146,11 +150,11 @@ def select_bank_annual(rows: list[dict], scope_preference=("Consolidated", "Stan
             aud = [c for c in cands if c.audited == "Audited"]
             ref = sorted(aud or cands, key=lambda c: (c.revised or c.broadcast or __import__("datetime").datetime.min))[-1]
             try:
-                bf = extract_bank(ref, session, raw_dir)
+                bf = extract_bank(ref, session, raw_dir, **concepts)
             except requests.HTTPError:
                 info["notes"].append(f"{pe} {scope}: link error")
                 continue
-            if "InterestEarned" not in bf.facts and "ProfitLossForThePeriod" not in bf.facts:
+            if not any(c in bf.facts for c in core):
                 info["notes"].append(f"{pe} {scope}: no full-year context")
                 continue
             if bf.annual_status != "audited":
@@ -285,15 +289,17 @@ def compute_bank(symbol: str, bf: "BankFiling | None", prior: "BankFiling | None
     return fm
 
 
-def score_bank_group(members: list[str], fm: dict, mb: dict) -> dict:
+def score_bank_group(members: list[str], fm: dict, mb: dict, directions: dict | None = None, min_metrics: int | None = None) -> dict:
     """Peer scoring for banks. fm: symbol -> BankMetrics dict; mb: symbol -> stored market-behaviour pillar. Same rules as the industrial scorer:
     mid-rank percentiles per metric, valuation = mean of peer P/E and P/B percentiles (both required), headline 8/15 FS + 4/15 valuation + 3/15 market
     behaviour, coverage >= 65, bands Strong >= 75 / Positive >= 60 / Neutral >= 45 / Cautious."""
     from fractions import Fraction
     from app.services.financial_facts import filing_shadow_score as fss
+    directions = directions or BANK_HIGHER_IS_BETTER
+    min_metrics = BANK_MIN_METRICS if min_metrics is None else min_metrics
     usable = {s: f for s, f in fm.items() if s in members and f and f.get("metrics")}
     pct = {}
-    for m, hib in BANK_HIGHER_IS_BETTER.items():
+    for m, hib in directions.items():
         vals = {s: f["metrics"].get(m) for s, f in usable.items() if f["metrics"].get(m) is not None}
         pct[m] = {s: fss.percentile_rank(vals, s, cheaper_is_better=not hib) for s in vals}
     pes = {s: f["valuation"].get("pe") for s, f in usable.items() if f["valuation"].get("pe") is not None}
@@ -308,20 +314,20 @@ def score_bank_group(members: list[str], fm: dict, mb: dict) -> dict:
             if (f.get("flags") or {}).get("na_label"):
                 out[s]["label"] = f["flags"]["na_label"]
             continue
-        used = [m for m in BANK_HIGHER_IS_BETTER if pct[m].get(s) is not None]
+        used = [m for m in directions if pct[m].get(s) is not None]
         fs = round(sum(pct[m][s] for m in used) / len(used), 1) if used else None
         pe_p = fss.percentile_rank(pes, s, True) if s in pes else None
         pb_p = fss.percentile_rank(pbs, s, True) if s in pbs else None
         val = round((pe_p + pb_p) / 2, 1) if pe_p is not None and pb_p is not None else None
         r = {"fs": fs, "fs_n": len(used), "val": val, "val_parts": [k for k, v in (("pe", pe_p), ("pb", pb_p)) if v is not None], "mb": mb.get(s)}
-        if len(used) < BANK_MIN_METRICS:
+        if len(used) < min_metrics:
             r.update(state="withheld", reason="INSUFFICIENT_FINANCIAL_METRICS")
         elif val is None:
             r.update(state="withheld", reason="VALUATION_NEEDS_TWO_COMPONENTS (%s)" % ("PE_ONLY" if pe_p is not None else "PB_ONLY" if pb_p is not None else "NONE"))
         elif mb.get(s) is None:
             r.update(state="withheld", reason="MARKET_BEHAVIOUR_MISSING")
         else:
-            cov = (len(used) / len(BANK_HIGHER_IS_BETTER) * 100) * 8 / 15 + 100 * 4 / 15 + 100 * 3 / 15
+            cov = (len(used) / len(directions) * 100) * 8 / 15 + 100 * 4 / 15 + 100 * 3 / 15
             if cov < 65:
                 r.update(state="withheld", reason="INSUFFICIENT_OVERALL_COVERAGE")
             else:
