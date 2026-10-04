@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
 import sys
 import time
@@ -29,6 +30,8 @@ from app.services.ai_search import pipeline as P  # noqa: E402
 from app.services.ai_search.response_finalize import finalize_v3_response  # noqa: E402
 
 HERE = Path(__file__).parent
+OUT = Path(os.environ.get("BASELINE_OUT_DIR") or HERE)
+OUT.mkdir(parents=True, exist_ok=True)
 MAX_MODEL_CALLS = 30
 CIRCUIT_AFTER = 3
 
@@ -201,7 +204,7 @@ async def main():
         out.append(await run_one(q))
         r = out[-1]
         print(r["id"], f'{r["latency_s"]}s calls={r["model_call_count"]}', r.get("ui_mode"), "incomplete=", r.get("synthesis_incomplete"), r.get("degraded_reason"), r.get("crash", ""), flush=True)
-        (HERE / "stage2_results.json").write_text(json.dumps({"state": state, "results": out}, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+        (OUT / "stage2_results.json").write_text(json.dumps({"state": state, "results": out}, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
     print("total pipeline-level model calls:", state["calls"], "circuit_open:", state["circuit_open"])
 
 

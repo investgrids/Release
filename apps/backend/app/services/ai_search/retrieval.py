@@ -56,7 +56,7 @@ def _event_row_to_dict(e: Event) -> dict:
 
 
 async def _search_events(
-    db: AsyncSession, query: str, limit: int = 10, entities: dict | None = None,
+    db: AsyncSession, query: str, limit: int = 10, entities: dict | None = None, tagged_only: bool = False, terms: list[str] | None = None,
 ) -> list[dict]:
     ws = _words(query)
     symbols = [s for s in (entities or {}).get("companies", []) if s]
@@ -77,8 +77,15 @@ async def _search_events(
             return [_event_row_to_dict(e) for e in rows]
         # Resolved a company but nothing is tagged to it — fall through to
         # the word-match path below instead of returning nothing.
+        # tagged_only (Step 2 retrieval planning): a company-scoped question must not be answered from other companies' events, so no fall-through.
+        if tagged_only:
+            return []
+    elif tagged_only:
+        return []
 
-    conds = [Event.title.ilike(f"%{w}%") for w in ws] + [Event.summary.ilike(f"%{w}%") for w in ws]
+    # terms (Step 2 topic retrieval): the sector/policy/macro vocabulary replaces the raw query words.
+    search = list(terms) if terms else ws
+    conds = [Event.title.ilike(f"%{w}%") for w in search] + [Event.summary.ilike(f"%{w}%") for w in search]
     stmt = (
         select(Event).where(or_(*conds)).order_by(Event.impact_score.desc()).limit(limit)
         if conds else
@@ -95,12 +102,16 @@ def _symbols_to_names(symbols: list[str]) -> list[str]:
 
 
 async def _search_news(
-    db: AsyncSession, query: str, limit: int = 8, entities: dict | None = None,
+    db: AsyncSession, query: str, limit: int = 8, entities: dict | None = None, entity_terms: list[str] | None = None,
 ) -> list[dict]:
     ws = _words(query)
 
     def _matches(text: str) -> bool:
         t = text.lower()
+        if entity_terms is not None:
+            # Company-scoped: the item must NAME the company (alias, symbol or short name), not merely share a word like "outlook" or "bank" with the question.
+            import re as _re
+            return any(_re.search(r"(?<![a-z0-9])" + _re.escape(term) + r"(?![a-z0-9])", t) for term in entity_terms)
         return any(w in t for w in ws)
 
     results: list[dict] = []
@@ -141,8 +152,10 @@ async def _search_news(
             )
             db_rows = (await db.execute(stmt)).scalars().all()
 
-        if not db_rows and ws:
-            conds = [NewsModel.headline.ilike(f"%{w}%") for w in ws]
+        # company-scoped (names): entity-name rows only. Topic-scoped (entity_terms without companies): search by those terms. Otherwise the raw words.
+        search = ws if entity_terms is None else (entity_terms if not names else [])
+        if not db_rows and search:
+            conds = [NewsModel.headline.ilike(f"%{w}%") for w in search]
             # P1 fix: this query had no .order_by() at all before — rows
             # came back in whatever order SQLite happened to return them,
             # not by relevance or any other defined criterion.

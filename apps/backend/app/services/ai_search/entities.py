@@ -42,7 +42,15 @@ _SHORT_TOKEN_RE = {
 }
 
 
-def _term_in_query(term: str, q: str) -> bool:
+# "it" is the IT sector only when written "IT" or followed by a sector noun ("it sector", "it services"). Lowercase \bit\b alone is the pronoun: "how should I
+# read it" resolved the IT sector (Step 1 baseline, GE1).
+_IT_UPPER_RE = re.compile(r"\bIT\b")
+_IT_LOWER_CONTEXT_RE = re.compile(r"\bit\s+(?:sector|stocks?|services|industry|companies|firms|exporters|space|index)\b")
+
+
+def _term_in_query(term: str, q: str, original: str | None = None) -> bool:
+    if term == "it":
+        return bool((original is not None and _IT_UPPER_RE.search(original)) or _IT_LOWER_CONTEXT_RE.search(q))
     pat = _SHORT_TOKEN_RE.get(term)
     return bool(pat.search(q)) if pat else term in q
 
@@ -81,7 +89,46 @@ _SINGLE_WORD_STOCK_RE = re.compile(
 )
 
 
-def _match_companies(q: str) -> list[str]:
+# Our own product vocabulary is not a company: "How does the MarketRipple Score work?" matched the capitalized-phrase detector and was rejected as an unlisted
+# company (Step 1 baseline, GE3).
+_PRODUCT_TERMS_RE = re.compile(
+    r"\bmarket\s?ripple(?:'s)?(?:\s+(?:score|ai|search|radar|intelligence|ripple|newsroom|methodology|platform|app|data))*\b|\binvestgrids\b", re.IGNORECASE,
+)
+
+_LEGAL_SUFFIX_RE = re.compile(r"\s+(?:ltd\.?|limited|inc\.?|plc)$", re.IGNORECASE)
+_ALIAS_CACHE: dict[int, list[str]] = {}
+
+
+def _company_aliases(co: dict) -> list[str]:
+    """Every lowercase string a user can use for this company: its aliases, symbol, full registered name, AND the name without its legal suffix.
+
+    The suffix-free form is what people actually type: "Kotak Mahindra Bank" (registered name ends in Ltd), "3M India". Without it Kotak matched only the short
+    alias "kotak" while M&M's alias "mahindra" matched separately inside the same phrase (both resolved), and "3M India" matched nothing exactly and fell to a
+    fuzzy pass that picked Bank of India."""
+    key = id(co)
+    cached = _ALIAS_CACHE.get(key)
+    if cached is not None:
+        return cached
+    name = co["name"].lower()
+    out = [a.lower() for a in (co.get("aliases") or [])] + [name, co["symbol"].lower()]
+    stripped = _LEGAL_SUFFIX_RE.sub("", name).strip()
+    if stripped and stripped != name:
+        out.append(stripped)
+    if " & " in stripped:
+        out.append(stripped.replace(" & ", " and "))
+    result = list(dict.fromkeys(a for a in out if len(a) >= 3))
+    _ALIAS_CACHE[key] = result
+    return result
+
+
+# Aliases that are also ordinary commodity/market words. "crude oil" resolved Oil India because its alias is the bare word "oil". These match only when the user
+# typed the ticker in capitals ("OIL"); the full name "Oil India" still matches through its own alias.
+def _is_common_word_alias(alias: str) -> bool:
+    from app.services.ai_search.regexes import _COMMODITY_NAMES
+    return alias in _COMMODITY_NAMES
+
+
+def _match_companies(q: str, original: str | None = None) -> list[str]:
     """
     Word-boundary-aware alias matching. Plain substring containment (the
     original implementation) let short tickers/aliases match inside
@@ -107,10 +154,11 @@ def _match_companies(q: str) -> list[str]:
     # (span_start, span_end, symbol) — one best span per company.
     candidates: list[tuple[int, int, str]] = []
     for co in _NSE_UNIVERSE:
-        aliases = (co.get("aliases") or []) + [co["name"].lower(), co["symbol"].lower()]
         best: tuple[int, int] | None = None
-        for a in aliases:
+        for a in _company_aliases(co):
             if len(a) < 3:
+                continue
+            if original is not None and _is_common_word_alias(a) and not re.search(rf"\b{re.escape(a.upper())}\b", original):
                 continue
             start = 0
             while True:
@@ -164,7 +212,7 @@ def _looks_like_unrecognized_company(query: str, entities: dict) -> bool:
     company text is stripped out first, then the residual is checked for a
     still-unaccounted-for company-shaped phrase.
     """
-    residual = query
+    residual = _PRODUCT_TERMS_RE.sub(" ", query)
     if entities["companies"]:
         from app.api.companies import _NSE_UNIVERSE
         matched_set = set(entities["companies"])
@@ -193,7 +241,7 @@ def _looks_like_unrecognized_company(query: str, entities: dict) -> bool:
             # consumption scoped to the actual matched occurrence.
             _SUFFIX_ALT = "|".join(re.escape(w) for w in _GENERIC_SUFFIX_WORDS)
             strip_candidates = sorted(
-                {a for a in (co.get("aliases") or []) + [co["name"], co["symbol"]] if len(a) >= 3},
+                {a for a in (co.get("aliases") or []) + [co["name"], co["symbol"], *_company_aliases(co)] if len(a) >= 3},
                 key=len, reverse=True,
             )
             for alias in strip_candidates:
@@ -435,6 +483,10 @@ def _word_ngrams(text: str, max_len: int = 3) -> list[str]:
             gram_words = words[i:i + n]
             if all(w.lower() in _GATE_GENERIC_WORDS for w in gram_words):
                 continue
+            # A phrase that starts or ends with a function word ("How India", "is doing") is a question fragment, not a company name; "Bank of India" is
+            # unaffected (function word inside, not at an edge).
+            if n > 1 and (gram_words[0].lower() in _STOPWORDS_FOR_GATE or gram_words[-1].lower() in _STOPWORDS_FOR_GATE):
+                continue
             grams.append(" ".join(gram_words))
     return grams
 
@@ -509,7 +561,7 @@ def extract_entities(query: str) -> dict:
     universe. Multi-company queries return every match, not just the first."""
     q_lower = query.lower()
 
-    exact_symbols = _match_companies(q_lower)
+    exact_symbols = _match_companies(q_lower, original=query)
     matches: list[dict] = []
     seen_symbols: set[str] = set()
     residual = query
@@ -529,7 +581,7 @@ def extract_entities(query: str) -> dict:
             # word ("Minda") in the residual to spuriously fuzzy-match a
             # different real company (Minda Corporation Ltd) sharing that word.
             strip_candidates = sorted(
-                {a for a in (co.get("aliases") or []) + [co["name"], co["symbol"]] if len(a) >= 3},
+                {a for a in (co.get("aliases") or []) + [co["name"], co["symbol"], *_company_aliases(co)] if len(a) >= 3},
                 key=len, reverse=True,
             )
             for alias in strip_candidates:
@@ -556,8 +608,11 @@ def extract_entities(query: str) -> dict:
                 })
                 seen_symbols.add(co["symbol"])
 
-    sectors = [s for s in _SECTORS if _term_in_query(s, q_lower)]
-    policies = [p for p in _POLICIES if _term_in_query(p, q_lower)]
+    sectors = [s for s in _SECTORS if _term_in_query(s, q_lower, query)]
+    # "Indian banks" names the banking sector; plural only ("bank" alone is part of company names and would tag every bank-company question).
+    if "banking" not in sectors and re.search(r"\bbanks\b", q_lower):
+        sectors.append("banking")
+    policies = [p for p in _POLICIES if _term_in_query(p, q_lower, query)]
 
     return {
         # kept as plain symbol list for backward compatibility with every

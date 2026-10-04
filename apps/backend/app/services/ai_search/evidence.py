@@ -21,6 +21,7 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.ai_search import cache as cache_mod
+from app.services.ai_search import evidence_filter
 from app.services.evidence_clustering.dedup import cluster_evidence
 from app.services.evidence_clustering.evidence import (
     DETERMINISTIC,
@@ -74,6 +75,9 @@ class EvidenceBundle:
     # Ordered, human-readable evidence lines — the *view* of this bundle used
     # for prompt injection (mirrors V2's extra_context string exactly).
     context_lines: list[str] = field(default_factory=list)
+    # Step 2: what the retrieval plan fetched and what the date/relevance checks dropped (see evidence_filter.py). Internal; never part of the public response.
+    plan_kind: str | None = None
+    filter_report: dict = field(default_factory=dict)
 
     # Phase 5E.5: real developments, not raw row count. Populated by
     # collect() via the shared evidence_clustering primitive (5E.3) —
@@ -297,20 +301,45 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
     async def _policies_factory():
         return await _search_policies(db, query, entities=entities)
 
-    # P1 fix: `entities` was already a parameter of this function (used below
-    # for valuation lookups) but wasn't reaching these two calls — they ran
-    # query-independent, identical to V2's pre-fix behavior.
-    events, news, policies = await asyncio.gather(
-        _search_events(db, query, entities=entities), _search_news(db, query, entities=entities),
-        cache_mod.component("policy", policy_sig, _policies_factory),
-        return_exceptions=True,
-    )
+    # Step 2 (baseline fix): WHAT to fetch depends on the question type, see evidence_filter.plan_for.
+    plan = evidence_filter.plan_for(query, intent_data, entities)
+    bundle.plan_kind = plan.kind
+    companies = [c for c in (entities.get("companies") or []) if c]
+
+    async def _events_task():
+        if plan.events == "none":
+            return []
+        if plan.events == "tagged":
+            # Per company, so a comparison gets evidence for EACH side instead of whichever company has the higher-impact events.
+            per = 5 if plan.kind == "comparison" else 30
+            out, seen = [], set()
+            for sym in companies[:3]:
+                for ev in await _search_events(db, query, limit=per, entities={"companies": [sym]}, tagged_only=True):
+                    if ev["id"] not in seen:
+                        seen.add(ev["id"])
+                        out.append(ev)
+            return out
+        return await _search_events(db, query, limit=30, entities=entities, terms=evidence_filter.topic_search_terms(query, entities) or None)
+
+    async def _news_task():
+        if plan.news == "none":
+            return []
+        if plan.news == "entity":
+            return await _search_news(db, query, limit=20, entities=entities, entity_terms=evidence_filter.company_terms(companies))
+        return await _search_news(db, query, limit=20, entities=entities, entity_terms=evidence_filter.topic_search_terms(query, entities) or None)
+
+    async def _policies_task():
+        if not plan.policies:
+            return []
+        return await cache_mod.component("policy", policy_sig, _policies_factory)
+
+    events, news, policies = await asyncio.gather(_events_task(), _news_task(), _policies_task(), return_exceptions=True)
     bundle.events = events if isinstance(events, list) else []
     bundle.news = news if isinstance(news, list) else []
     bundle.policies = policies if isinstance(policies, list) else []
 
-    if _VALUATION_TRIGGERS.search(query):
-        co_syms = [c.upper() for c in entities.get("companies", [])[:2]]
+    if plan.valuation_for or _VALUATION_TRIGGERS.search(query):
+        co_syms = [c.upper() for c in (plan.valuation_for or entities.get("companies", [])[:2])]
         if co_syms:
             try:
                 bundle.valuation = await loop.run_in_executor(None, _fetch_valuation_sync, co_syms)
@@ -519,6 +548,7 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
         except Exception:
             pass
 
+    ann_syms: set[str] = set()
     if intent_data.get("intent") == "general" and not intent_data.get("is_comparison") and len(entities.get("companies") or []) == 1:
         try:
             from app.services.intelligence.engine import get_symbol_context
@@ -536,6 +566,7 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
 
             intel = await cache_mod.component("company", sym, _company_intel_factory)
             ctx, ann = intel.get("ctx"), intel.get("ann")
+            ann_syms.add(sym)
             if isinstance(ctx, dict) and ctx.get("story"):
                 story_val = ctx["story"]
                 story_text = story_val.get("text") if isinstance(story_val, dict) else str(story_val)
@@ -576,6 +607,26 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
                     bundle.context_lines.append(f"Real filed results announcements for {sym}: {lines}")
         except Exception:
             pass
+
+    # Step 2: recent filed announcements for every company the plan names (comparisons and event/company questions used to get none unless intent was "general"
+    # with exactly one company).
+    for sym in plan.announcements_for:
+        if sym in ann_syms:
+            continue
+        try:
+            from app.services.company_announcements_service import get_recent_announcements
+            rows = await get_recent_announcements(sym, limit=8)
+        except Exception:
+            rows = []
+        if rows:
+            bundle.announcements = (bundle.announcements or []) + [r for r in rows if r not in (bundle.announcements or [])]
+            bundle.context_lines.append(
+                f"Recent real filed announcements for {sym}: " + "; ".join(f"{a.get('subject', '')} ({a.get('category', '')}, {a.get('announcement_date', '')})" for a in rows[:5])
+            )
+
+    # Step 2: date and relevance checks BEFORE the evidence reaches the prompt or the response.
+    bundle.filter_report = evidence_filter.filter_bundle(bundle, plan, query, entities)
+    log.info("ai_search_v3.evidence_filtered", plan=plan.kind, report=bundle.filter_report)
 
     await _apply_clustering(db, bundle)
     return bundle

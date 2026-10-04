@@ -271,6 +271,7 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
     if (
         session_context_mod._REFERENTIAL_RE.search(query)
         and not entities.get("companies") and not entities.get("sectors")
+        and not session_context_mod.referential_has_antecedent(query)
     ):
         log.info("ai_search_v3.referential_no_context", query=query[:80])
         result = _referential_no_context_response(query)
@@ -427,6 +428,13 @@ def _filter_events_to_entities(events: list[dict], symbols: list[str]) -> list[d
     return filter_events_to_companies(events, symbols)
 
 
+def degraded_evidence_sentence(shown_events: int) -> str:
+    """One sentence about the evidence shown with a degraded answer, derived from the count actually displayed."""
+    if shown_events <= 0:
+        return "No supporting evidence is shown for this question."
+    return f"{shown_events} related event{'s' if shown_events != 1 else ''} found for this question {'are' if shown_events != 1 else 'is'} listed below."
+
+
 def _build_degraded_response(
     query: str, ai: dict, evidence, specialist_kind: str, degraded_reason: str,
     entities: dict, response_id: str, intent_data: dict | None = None,
@@ -456,9 +464,11 @@ def _build_degraded_response(
     sources_count = len(related_events)
     summary = (
         ai.get("bottom_line") or ai.get("summary") or
-        "Full AI analysis wasn't available for this query — showing the real evidence "
-        "found, with no generated conclusion, confidence score, or outlook."
+        "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook."
     )
+    # Step 2: the copy may only describe evidence that is actually displayed below. It used to promise "event and news data is available below" while the
+    # degraded shape shows no news at all and only entity-tagged events (8 of 14 capacity-degraded baseline answers showed nothing).
+    summary = summary + " " + degraded_evidence_sentence(len(related_events))
     # ui_mode/intent are structural routing metadata, not a verdict —
     # safe to carry through even here (they only tell the frontend which
     # shell variant's evidence layout to use, e.g. a comparison-shaped

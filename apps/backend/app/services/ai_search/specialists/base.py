@@ -92,8 +92,7 @@ def degraded_response(query: str) -> dict:
         "summary": "Market intelligence analysis for this question. Analysis based on real-time database events and news.",
         "bottom_line": (
             "There isn't enough freshly generated analysis to answer this question with confidence right now "
-            "— the underlying event and news data is available below, but the synthesis step didn't complete. "
-            "Try rephrasing the question or checking back shortly."
+            "— the synthesis step didn't complete. Try rephrasing the question or checking back shortly."
         ),
         "what_happened": "A significant market development has been identified related to the queried topic.",
         "why_it_happened": "Multiple macro, policy, and sector-specific factors are driving this development.",

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 import time
 from datetime import datetime, timezone
@@ -20,6 +21,8 @@ from app.db.session import AsyncSessionLocal  # noqa: E402
 from app.services.ai_search import pipeline as P  # noqa: E402
 
 HERE = Path(__file__).parent
+OUT = Path(os.environ.get("BASELINE_OUT_DIR") or HERE)   # a rerun writes elsewhere so the committed baseline is never overwritten
+OUT.mkdir(parents=True, exist_ok=True)
 TODAY = datetime(2026, 10, 4, tzinfo=timezone.utc)
 
 
@@ -94,6 +97,8 @@ async def run_one(q: dict) -> dict:
     rec["entities"] = {"companies": ents.get("companies"), "sectors": ents.get("sectors"), "policies": ents.get("policies")}
     if cap.get("evidence") is not None:
         rec["evidence"] = _summarize_evidence(cap["evidence"], [c for c in (ents.get("companies") or [])])
+        rec["plan_kind"] = getattr(cap["evidence"], "plan_kind", None)          # present from Step 2 on
+        rec["filter_report"] = getattr(cap["evidence"], "filter_report", None)
     return rec
 
 
@@ -106,8 +111,8 @@ async def main():
         except Exception as exc:  # a crash is itself a finding
             out.append({"id": q["id"], "type": q["type"], "query": q["query"], "crash": f"{type(exc).__name__}: {str(exc)[:300]}"})
         print(q["id"], out[-1].get("specialist"), out[-1].get("ui_mode"), out[-1].get("short_circuit"), out[-1].get("crash", ""), flush=True)
-    (HERE / "stage1_results.json").write_text(json.dumps(out, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
-    print("wrote", HERE / "stage1_results.json")
+    (OUT / "stage1_results.json").write_text(json.dumps(out, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+    print("wrote", OUT / "stage1_results.json")
 
 
 if __name__ == "__main__":

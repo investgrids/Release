@@ -8,14 +8,16 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import re
 from collections import Counter, defaultdict
 from pathlib import Path
 
 HERE = Path(__file__).parent
+DIR = Path(os.environ.get("BASELINE_OUT_DIR") or HERE)   # where stage1/stage2 results are read and the matrix written
 Q = {q["id"]: q for q in json.loads((HERE / "questions.json").read_text(encoding="utf-8"))["questions"]}
-S1 = {x["id"]: x for x in json.loads((HERE / "stage1_results.json").read_text(encoding="utf-8"))}
-S2 = {x["id"]: x for x in json.loads((HERE / "stage2_results.json").read_text(encoding="utf-8"))["results"]}
+S1 = {x["id"]: x for x in json.loads((DIR / "stage1_results.json").read_text(encoding="utf-8"))}
+S2 = {x["id"]: x for x in json.loads((DIR / "stage2_results.json").read_text(encoding="utf-8"))["results"]}
 
 PASS, FAIL, UNV = "PASS", "FAIL", "UNVERIFIED"
 
@@ -31,6 +33,29 @@ def tagged(i, symbols):
 def fresh_days(i, items):
     ages = [e["age_days"] for e in items if e.get("age_days") is not None]
     return min(ages) if ages else None
+
+
+# Scoring-only company names used to decide whether a filed announcement is about a company (announcement rows carry a subject, not a symbol).
+ANN_TERMS = {"TCS": ["tata consultancy", "tcs"], "INFY": ["infosys"], "HDFCBANK": ["hdfc bank"], "ICICIBANK": ["icici bank"], "BEL": ["bharat electronics"],
+             "HAL": ["hindustan aeronautics"], "KOTAKBANK": ["kotak"], "3MINDIA": ["3m india"]}
+
+
+def anns_for(i, syms):
+    return [a for a in ev(i).get("announcements", []) if any(t in a["subject"].lower() for s in syms for t in ANN_TERMS.get(s, [s.lower()]))]
+
+
+def ann_age(a):
+    from datetime import datetime
+    try:
+        return (datetime(2026, 10, 4) - datetime.fromisoformat(a["date"][:10])).days
+    except Exception:
+        return None
+
+
+def mentions_any(i, pattern):
+    e = ev(i)
+    texts = [x["title"] for x in e.get("events", [])] + [x["headline"] for x in e.get("news", [])] + [x["title"] for x in e.get("policies", [])]
+    return sum(1 for t in texts if re.search(pattern, t, re.I))
 
 
 def check_route(i):
@@ -64,6 +89,11 @@ def check_entities(i):
             problems.append(f"unexpected sectors {sorted(gs)}")
     elif not exp.get("companies") and gs:
         problems.append(f"unexpected sectors {sorted(gs)}")
+    if exp.get("policies"):
+        gp = {x.lower() for x in (got.get("policies") or [])}
+        miss = [x for x in exp["policies"] if x.lower() not in gp]
+        if miss:
+            problems.append(f"missing policies {miss}")
     return (FAIL if problems else PASS), "; ".join(problems) or "as expected"
 
 
@@ -78,10 +108,10 @@ def check_evidence(i):
     notes = [f"events={n_ev} news={n_news} policies={len(e['policies'])} announcements={len(e['announcements'])} valuation={e['valuation_symbols']} sector_rows={len(e['sector_rows'])}"]
     t = Q[i]["type"]
     if t == "company_comparison":
-        both = [sym for sym in syms if tagged(i, [sym])]
+        both = [sym for sym in syms if tagged(i, [sym]) or anns_for(i, [sym])]
         val_ok = all(sym in e["valuation_symbols"] for sym in syms)
         if len(both) < len(syms):
-            notes.append(f"events tagged to only {both} of {syms}")
+            notes.append(f"events/announcements cover only {both} of {syms}")
         if not val_ok:
             notes.append("valuation missing for at least one side")
         old = fresh_days(i, e["events"])
@@ -89,17 +119,20 @@ def check_evidence(i):
             notes.append(f"newest event {old} days old")
         return (PASS if len(both) == len(syms) and val_ok else FAIL), "; ".join(notes)
     if t == "company_research" or (t == "event_impact" and syms):
-        if i == "CR2":
-            return FAIL, "; ".join(notes + ["evidence is for a different company (resolved BANKINDIA, not 3MINDIA)"])
         mine = tagged(i, syms)
-        ann_recent = [a for a in e["announcements"] if a["date"] and a["date"][:10] >= "2026-09-04"]
-        if not mine and not ann_recent:
+        resolved = set(S1[i]["entities"]["companies"] or [])
+        if resolved != set(syms):
+            notes.append(f"evidence is for resolved companies {sorted(resolved)}, not {syms}")
+            return FAIL, "; ".join(notes)
+        anns = anns_for(i, syms)
+        if not mine and not anns:
             return FAIL, "; ".join(notes + [f"no event/announcement tied to {syms}"])
-        age = fresh_days(i, mine)
-        if maxage and age is not None and age > maxage and not ann_recent:
-            return FAIL, "; ".join(notes + [f"newest company event {age} days old (> {maxage})"])
+        ages = [a for a in [fresh_days(i, mine)] + [ann_age(x) for x in anns] if a is not None]
+        age = min(ages) if ages else None
+        if maxage and age is not None and age > maxage:
+            return FAIL, "; ".join(notes + [f"newest company evidence {age} days old (> {maxage})"])
         if age is not None and age > 30:
-            notes.append(f"STALE: only company event is {age} days old")
+            notes.append(f"STALE: newest company evidence is {age} days old")
         return PASS, "; ".join(notes)
     if i in ("EI3", "SR1"):
         hit = sum(1 for x in e["events"] if re.search(r"bank|credit|loan|nbfc|lend", x["title"], re.I))
@@ -112,7 +145,20 @@ def check_evidence(i):
         notes.append(f"IT-related events {hit}/{n_ev}; IT sector row={'yes' if row else 'no'}")
         return (PASS if (row and hit) else FAIL), "; ".join(notes)
     if i == "SR3":
-        return FAIL, "; ".join(notes + ["no live sector rows retrieved (no sector trigger word)"])
+        if not e["sector_rows"]:
+            return FAIL, "; ".join(notes + ["no live sector rows retrieved"])
+        return PASS, "; ".join(notes + ["live sector rows retrieved (naming the weakest sectors from them is an answer-level check)"])
+    if i == "MP1":
+        rbi = mentions_any(i, r"rbi|repo|monetary")
+        macro = bool(e["macro_indices"] or e["sector_rows"])
+        notes.append(f"RBI/repo items {rbi}; macro indices or sector rows={'yes' if macro else 'no'}")
+        return (PASS if (rbi and macro) else FAIL), "; ".join(notes)
+    if i == "MP3":
+        fx = mentions_any(i, r"rupee|usd/?inr|dollar")
+        it = mentions_any(i, r"\bIT\b|software|infosys|tcs|wipro|hcl|tech mahindra|nasdaq")
+        macro = bool(e["macro_indices"]) or fx > 0
+        notes.append(f"rupee/FX items {fx}; IT-linked items {it}; macro indices={bool(e['macro_indices'])}")
+        return (PASS if (macro and it) else FAIL), "; ".join(notes)
     if i == "MP2":
         hit = sum(1 for x in e["events"] if re.search(r"crude|oil|brent|opec|energy", x["title"], re.I))
         hist_blank = any(not h["title"] for h in e["historical"])
@@ -175,12 +221,12 @@ for i, q in Q.items():
     ROWS.append(row)
 
 CHECKS = ["route", "entities", "evidence", "addresses_question", "numbers_supported", "citations", "score_consistency", "degraded_honesty", "degraded_copy_vs_evidence"]
-with open(HERE / "results_matrix.csv", "w", newline="", encoding="utf-8") as f:
+with open(DIR / "results_matrix.csv", "w", newline="", encoding="utf-8") as f:
     w = csv.writer(f)
     w.writerow(["id", "type", "query", *CHECKS, "route_selected", "degraded_state", "availability", "latency_s_live", "retrieval_s", "model_calls", "evidence_items"])
     for r in ROWS:
         w.writerow([r["id"], r["type"], r["query"], *[r[c] for c in CHECKS], r["route_selected"], r["degraded_state"], r["availability"], r["latency_s_live"], r["retrieval_s"], r["model_calls"], r["evidence_items"]])
-(HERE / "results_matrix.json").write_text(json.dumps(ROWS, indent=2, ensure_ascii=False), encoding="utf-8")
+(DIR / "results_matrix.json").write_text(json.dumps(ROWS, indent=2, ensure_ascii=False), encoding="utf-8")
 
 by = defaultdict(lambda: defaultdict(Counter))
 for r in ROWS:
