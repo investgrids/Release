@@ -148,7 +148,7 @@ async def get_index_chart(name: str, ticker: str) -> list[dict]:
 
 
 _PERIOD_MAP: dict = {
-    "1D":  ("1d",  "5m"),
+    "1D":  ("5d",  "5m"),    # fetched as 5 days and cut to the latest session (_SINGLE_SESSION): period="1d" is empty on weekends and market holidays
     "1W":  ("5d",  "60m"),
     "5D":  ("5d",  "60m"),   # the company page sends 5D and 3M; before these keys existed both silently returned the 6M weekly series
     "1M":  ("1mo", "1d"),
@@ -1010,6 +1010,17 @@ async def get_index_chart(symbol: str, period: str = "6M") -> list:
     return await loop.run_in_executor(None, _fetch)
 
 
+_SINGLE_SESSION = {"1D"}   # periods that show only the most recent trading session
+
+
+def _last_session(hist):
+    """Keep only the rows of the most recent trading day in the frame (the live session during market hours, the last completed one otherwise)."""
+    if hist is None or hist.empty:
+        return hist
+    days = hist.index.normalize() if hasattr(hist.index, "normalize") else hist.index
+    return hist[days == days.max()]
+
+
 _CHART_CACHE: dict = {}   # (SYMBOL, period) -> (monotonic time, rows): 60 s for intraday bars, 5 min otherwise
 _CHART_TTL_INTRADAY = 60.0
 _CHART_TTL = 300.0
@@ -1066,7 +1077,11 @@ async def get_stock_chart(symbol: str, period: str = "6M") -> list:
     def _fetch():
         try:
             hist = yf.download(ns_ticker, period=yf_period, interval=interval, progress=False, auto_adjust=True, timeout=10)
-            return [] if hist.empty else _chart_rows(hist, interval)
+            if hist.empty:
+                return []
+            if period in _SINGLE_SESSION:
+                hist = _last_session(hist)
+            return _chart_rows(hist, interval)
         except Exception:
             return []
 

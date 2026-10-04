@@ -57,3 +57,21 @@ async def test_chart_is_cached_but_an_empty_answer_never_is(monkeypatch):
     again = await md.get_stock_chart("TCS", "6M")                  # cached now
     assert first and again == first and calls["n"] == 2
     md._CHART_CACHE.clear()
+
+
+def test_one_day_is_the_latest_session_even_when_yahoo_returns_several_days():
+    idx = pd.DatetimeIndex(["2026-09-30 09:15", "2026-09-30 09:20", "2026-10-01 09:15", "2026-10-01 09:20", "2026-10-01 09:25"], tz="Asia/Kolkata")
+    df = _frame(idx, [[1, 2, 0.5, 1.5, 1]] * 5)
+    kept = md._last_session(df)
+    assert len(kept) == 3 and set(kept.index.strftime("%Y-%m-%d")) == {"2026-10-01"}
+    assert md._last_session(pd.DataFrame()).empty
+    assert md._PERIOD_MAP["1D"] == ("5d", "5m") and "1D" in md._SINGLE_SESSION and "5D" not in md._SINGLE_SESSION
+
+
+async def test_one_day_chart_returns_only_the_last_session(monkeypatch):
+    md._CHART_CACHE.clear()
+    idx = pd.DatetimeIndex(["2026-09-30 15:25", "2026-10-01 09:15", "2026-10-01 09:20"], tz="Asia/Kolkata")
+    monkeypatch.setattr(md.yf, "download", lambda *a, **k: _frame(idx, [[1, 2, 0.5, 1.5, 10]] * 3))
+    rows = await md.get_stock_chart("TCS", "1D")
+    assert [r["label"] for r in rows] == ["09:15", "09:20"]
+    md._CHART_CACHE.clear()
