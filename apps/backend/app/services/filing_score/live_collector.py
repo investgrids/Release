@@ -15,16 +15,29 @@ from app.services.financial_facts import nbfc_metric_contract as fin
 from app.services.financial_facts import nse_integrated_filing as nif
 
 
-def _yahoo(symbol: str) -> dict:
-    import yfinance as yf
+def _info(yf, ticker: str) -> dict:
     try:
-        i = yf.Ticker(symbol + ".NS").info or {}
+        return yf.Ticker(ticker).info or {}
     except Exception:
-        i = {}
+        return {}
+
+
+def _yahoo(symbol: str) -> dict:
+    """Price, market cap and live reference multiples (interim, labelled). Yahoo's NSE ticker sometimes returns a price but no share count or market cap
+    (CMPDI, CMRGREEN, CORONA, OMPOWER, RAMBHAJO): shares then come from the BSE ticker, and the NSE price is still used."""
+    import yfinance as yf
+    i = _info(yf, symbol + ".NS")
     px = i.get("currentPrice") or i.get("regularMarketPrice")
     sh, mc = i.get("sharesOutstanding"), i.get("marketCap")
+    source = "Yahoo Finance (NSE ticker)"
+    if not (px and sh) and not mc:
+        b = _info(yf, symbol + ".BO")
+        px = px or b.get("currentPrice") or b.get("regularMarketPrice")
+        sh, mc = b.get("sharesOutstanding"), b.get("marketCap")
+        i = {**b, **{k: v for k, v in i.items() if v is not None}}
+        source = "Yahoo Finance (BSE ticker shares)"
     mcap = round((px * sh if (px and sh) else (mc or 0)) / 1e7, 2) or None
-    return {"price": px, "market_cap_cr": mcap, "pb": i.get("priceToBook"), "pe": i.get("trailingPE")}
+    return {"price": px, "market_cap_cr": mcap, "pb": i.get("priceToBook"), "pe": i.get("trailingPE"), "source": source}
 
 
 def _same_scope_prior(rows, marker: str, period: date, scope: str):
@@ -58,7 +71,7 @@ class LiveCollector:
             segment = "bank"   # a banking-format filer is scored as a bank whatever its sector label says
         y = _yahoo(sym)
         ref = {"pb": y["pb"], "pe": y["pe"]}
-        inputs: dict = {"price": y["price"], "market_cap_cr": y["market_cap_cr"], "market_cap_source": "Yahoo Finance (interim)", "reference": ref}
+        inputs: dict = {"price": y["price"], "market_cap_cr": y["market_cap_cr"], "market_cap_source": y["source"] + " (interim)", "reference": ref}
         if segment == "bank":
             bf, info = bmc.select_bank_annual(rows, session=self.sess, raw_dir=self.raw_dir)
             prior = ratio = None
@@ -85,7 +98,13 @@ class LiveCollector:
         prior = None
         if ex is not None:
             pe = ex.ref.period_end
-            pr = nif.select_filing(rows, date(pe.year - 1, pe.month, min(pe.day, 28) if pe.month == 2 else pe.day), ex.ref.scope)
+            prior_end = date(pe.year - 1, pe.month, min(pe.day, 28) if pe.month == 2 else pe.day)
+            pr = nif.select_filing(rows, prior_end, ex.ref.scope)
+            if pr is None:   # no FY-1 integrated filing: the older-format annual result, if the company has one for the same scope and year
+                try:
+                    pr = nif.legacy_prior_ref(nif.list_legacy_annual(sym, self.sess), sym, prior_end, ex.ref.scope)
+                except Exception:
+                    pr = None
             if pr:
                 try:
                     prior = nif.extract(pr, self.sess, self.raw_dir)

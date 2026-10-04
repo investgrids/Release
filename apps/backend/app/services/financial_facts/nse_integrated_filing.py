@@ -400,3 +400,38 @@ def select_annual(rows: list[dict], scope_preference=("Consolidated", "Standalon
     info["notes"] += notes
     info["fallback_unaudited"] = ex is not None
     return ex, info
+
+
+# ---- Legacy (pre-integrated-filing) annual results --------------------------------------------------------------------------------------------------
+# Some companies have no FY-1 filing in the Integrated Filing listing, only an annual result in NSE's older format (in-bse-fin taxonomy: the same concept
+# names, with the real period of each context stated in DateOfStart/EndOfReportingPeriod facts, which extract() already honours). Used only as the PRIOR
+# year for growth, under the same rules: same scope, exactly one year earlier, audited by the filing's own full-year statement.
+_LEGACY_URL = "https://www.nseindia.com/api/corporates-financial-results"
+
+
+def list_legacy_annual(symbol: str, session: requests.Session | None = None) -> list[dict]:
+    s = session or _session()
+    r = s.get(_LEGACY_URL, headers=_HEADERS, params={"index": "equities", "symbol": symbol.upper(), "period": "Annual"}, timeout=30)
+    r.raise_for_status()
+    j = r.json()
+    return j if isinstance(j, list) else []
+
+
+def legacy_prior_ref(rows: list[dict], symbol: str, period_end: date, scope: str) -> "FilingRef | None":
+    """FilingRef for the legacy annual result that ended on `period_end` in `scope` ('Consolidated' / 'Standalone'), or None."""
+    want = "Consolidated" if scope == "Consolidated" else "Non-Consolidated"
+    best = None
+    for r in rows or []:
+        try:
+            end = datetime.strptime(r.get("toDate") or "", "%d-%b-%Y").date()
+        except ValueError:
+            continue
+        url = r.get("xbrl") or ""
+        m = re.search(r"INDAS_(\d+)_(\d+)", url)
+        if end != period_end or r.get("consolidated") != want or not m or "/null" in url:
+            continue
+        ref = FilingRef(symbol=symbol.upper(), period_end=end, scope=scope, audited=r.get("audited"), type_sub="Original", seq_id=m.group(1),
+                        broadcast=_parse_dt(r.get("broadCastDate")), revised=None, xbrl_url=url, filing_file_id=m.group(2))
+        if best is None or (ref.broadcast and best.broadcast and ref.broadcast > best.broadcast) or best.broadcast is None:
+            best = ref
+    return best
