@@ -22,6 +22,14 @@ _DMY = re.compile(r"(?<!\d)(\d{1,2})(?:st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|
 _MDY = re.compile(r"(?<![a-z])(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(20\d{2})(?!\d)", re.IGNORECASE)
 _NUM = re.compile(r"(?<![\w.])[-+]?\d[\d,]*\.?\d*%?")
 _HORIZON = re.compile(r"\d+\s*(?:-|to|–)\s*\d+\s*(?:months?|years?|quarters?|weeks?|days?|yrs?)|\d+\s*(?:months?|years?|quarters?|weeks?|days?|yrs?)", re.IGNORECASE)
+# Step 3.4B.1: a number is supported only by a COMPLETE numeric token with the same canonical value ("18" is never supported by "2,180", "118", "180" or "18.5"); no fuzzy matching.
+_EVNUM = re.compile(r"(?<![\d.,])\d[\d,]*(?:\.\d+)?")
+_UNITS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15,
+          "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19}
+_TENS = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90}
+_NUMWORD = "|".join(sorted(list(_UNITS) + list(_TENS) + ["hundred"], key=len, reverse=True))
+# Bounded: only "<number words> percent / per cent" (1-99 and "one hundred"); other word forms (basis points, fractions, "one hundred and seventy-three point four") are NOT parsed.
+_WORD_PCT = re.compile(r"(?<![a-z])((?:one\s+)?hundred|(?:" + "|".join(_TENS) + r")(?:[-\s](?:" + "|".join(list(_UNITS)[:9]) + r"))?|" + "|".join(_UNITS) + r")\s+(?:percent|per\s*cent)(?![a-z])", re.IGNORECASE)
 _FISCAL = re.compile(r"\b(?:FY\s?\d{2,4}|Q[1-4](?:\s?FY\s?\d{2,4})?|H[12]\s?FY\s?\d{2,4})\b", re.IGNORECASE)
 
 # Top-level keys of the flat specialist output whose STRINGS a user can read.
@@ -86,12 +94,44 @@ def public_strings(ai: dict) -> list[tuple[str, str]]:
     return out
 
 
+def _word_value(words: str) -> int | None:
+    parts = [w for w in re.split(r"[-\s]+", words.lower().strip()) if w]
+    low = " ".join(parts)
+    if low in ("hundred", "one hundred"):
+        return 100
+    total = 0
+    for w in parts:
+        if w in _TENS:
+            total += _TENS[w]
+        elif w in _UNITS:
+            total += _UNITS[w]
+        else:
+            return None
+    return total or None
+
+
+def word_percents_to_digits(text: str) -> str:
+    """'eighteen percent' / 'eighteen per cent' -> '18%'. Anything else written in words is left untouched (documented limitation, not parsed)."""
+    def sub(m):
+        v = _word_value(m.group(1))
+        return f" {v}% " if v is not None else m.group(0)
+    return _WORD_PCT.sub(sub, text or "")
+
+
+def canonical_number(tok: str) -> str:
+    """Comma-free, sign/percent/trailing-dot-free, trailing decimal zeros removed: '1,200.50' -> '1200.5', '12.0%' -> '12'."""
+    n = tok.replace(",", "").rstrip(".").lstrip("+").rstrip("%")
+    if "." in n:
+        n = n.rstrip("0").rstrip(".")
+    return n
+
+
 def unsupported_figures(ai: dict, evidence_text: str, query: str, today: date | None = None) -> list[dict]:
     """Figures and dates in the generated public text that neither the evidence nor the question contains. Each result: {kind, value, path, text}."""
     today = today or datetime.now(timezone.utc).date()
     ev_dates = find_dates(evidence_text) | find_dates(query) | {today}
-    hay = re.sub(r"[,\s]", "", _strip_dates(evidence_text + " " + query))
-    hay_nums = {n.replace(",", "").rstrip(".").lstrip("+") for n in _NUM.findall(_strip_dates(evidence_text + " " + query))}
+    ev_clean = word_percents_to_digits(_strip_dates(evidence_text + " " + query))
+    hay_nums = {canonical_number(t) for t in _EVNUM.findall(ev_clean)}
     flagged: list[dict] = []
     seen: set[tuple[str, str]] = set()
     for path, text in public_strings(ai):
@@ -99,16 +139,17 @@ def unsupported_figures(ai: dict, evidence_text: str, query: str, today: date | 
             if d not in ev_dates and ("date", d.isoformat()) not in seen:
                 seen.add(("date", d.isoformat()))
                 flagged.append({"kind": "date", "value": d.isoformat(), "path": path, "text": text[:160]})
-        scrub = _FISCAL.sub(" ", _HORIZON.sub(" ", _strip_dates(text)))
+        scrub = _FISCAL.sub(" ", _HORIZON.sub(" ", word_percents_to_digits(_strip_dates(text))))
         for tok in _NUM.findall(scrub):
             n = tok.replace(",", "").rstrip(".").lstrip("+").rstrip("%")
             if not n or n in ("-",):
                 continue
+            cn = canonical_number(tok)
             if re.fullmatch(r"\d{4}", n) and 2000 <= int(n) <= 2035:
                 continue
             if "." not in n and len(n.lstrip("-")) < 2 and not tok.endswith("%"):
                 continue
-            if n in {h.rstrip("%") for h in hay_nums} or n in hay:
+            if cn in hay_nums:
                 continue
             if ("number", f"{tok}|{path}") in seen:
                 continue

@@ -294,8 +294,24 @@ VARIANTS = [
     ("number: 1200.5 vs 1,200.50", "Profit was 1200.5 crore.", "Profit of 1,200.50 crore", "accept", "ideal (prefix of the evidence digits)"),
     ("number: 1.2 lakh crore vs 120,000 crore", "A 1.2 lakh crore order.", "an order of 120,000 crore", "reject", "KNOWN_FALSE_REJECT: unit conversion is not attempted"),
     ("number: 2,500 MW vs 2500MW", "A 2500MW contract.", "supply of 2,500 MW", "accept", "ideal"),
-    ("number: spelled-out figure", "Revenue rose eighteen percent.", "", "accept", "KNOWN_FALSE_ACCEPT: a number written in words is not checked at all"),
-    ("number: substring collision", "Revenue rose 18%.", "Market cap Rs 2,180 crore", "accept", "KNOWN_FALSE_ACCEPT: '18' is found inside '2,180' because the match is a substring of the digit string"),
+    ("number: spelled-out percent is now checked (invented)", "Revenue rose eighteen percent.", "", "reject", "fixed in 3.4B.1"),
+    ("number: spelled-out 'per cent' is now checked (invented)", "Revenue rose eighteen per cent.", "", "reject", "fixed in 3.4B.1"),
+    ("number: spelled-out percent supported by digits", "Revenue rose eighteen percent.", "Revenue up 18%", "accept", "ideal"),
+    ("number: digits supported by spelled-out percent in evidence", "Revenue rose 18%.", "Revenue up eighteen per cent", "accept", "ideal"),
+    ("number: compound spelled-out percent", "Margins rose twenty-five percent.", "Margins up 25%", "accept", "ideal"),
+    ("number: spelled-out figure in an unprotected unit is not parsed", "Margins rose eighteen basis points.", "", "accept", "KNOWN_FALSE_ACCEPT: only '<words> percent / per cent' is parsed; other word forms are out of scope"),
+    ("number: 18% not supported by 2,180", "Revenue rose 18%.", "Market cap Rs 2,180 crore", "reject", "fixed in 3.4B.1"),
+    ("number: 18 not supported by 2180", "Revenue rose 18%.", "Market cap Rs 2180 crore", "reject", "fixed in 3.4B.1"),
+    ("number: 18% not supported by 118", "Revenue rose 18%.", "Order book of 118 units", "reject", "fixed in 3.4B.1"),
+    ("number: 18% not supported by 180", "Revenue rose 18%.", "Order book of 180 units", "reject", "fixed in 3.4B.1"),
+    ("number: 18% not supported by 18.5", "Revenue rose 18%.", "Revenue up 18.5%", "reject", "fixed in 3.4B.1 (no implicit rounding)"),
+    ("number: 18.5% not supported by 18", "Revenue rose 18.5%.", "Revenue up 18%", "reject", "fixed in 3.4B.1"),
+    ("number: 18% supported by 18%", "Revenue rose 18%.", "Revenue up 18%", "accept", "ideal"),
+    ("number: 18 percent supported by 18%", "Revenue rose 18 percent.", "Revenue up 18%", "accept", "ideal"),
+    ("number: 18% supported by '18 per cent'", "Revenue rose 18%.", "Revenue up 18 per cent", "accept", "ideal"),
+    ("number: evidence glued to a prefix (Rs1,200)", "Order worth 1,200 crore.", "orders worth Rs1,200 crore", "accept", "ideal"),
+    ("number: Indian grouping in evidence", "Order worth 118000 crore.", "orders worth Rs 1,18,000 crore", "accept", "ideal"),
+    ("number: trailing sentence period", "Profit was 1,200.50.", "Profit of 1200.5 crore", "accept", "ideal"),
     ("number: year-like value exempt", "Guided for 2027.", "", "accept", "ideal"),
     ("number: fiscal label exempt", "Expected in Q2 FY27.", "", "accept", "ideal"),
     ("number: horizon exempt", "Over 6-12 months.", "", "accept", "ideal"),
@@ -312,7 +328,7 @@ def test_figure_date_representation_variants_are_deterministic(label, text, evid
 def test_known_limitation_inventory_matches_the_variant_table():
     """The 3.4B report lists exactly these. A change in the rule must update this list deliberately."""
     assert sorted(v[0] for v in VARIANTS if "KNOWN_" in v[4]) == sorted([
-        "date: DD/MM/YYYY form is not parsed as a date", "number: 1.2 lakh crore vs 120,000 crore", "number: spelled-out figure", "number: substring collision"])
+        "date: DD/MM/YYYY form is not parsed as a date", "number: 1.2 lakh crore vs 120,000 crore", "number: spelled-out figure in an unprotected unit is not parsed"])
 
 
 # ═══ zero leakage from rejected generations ════════════════════════════════════════════════════════════════════════════════════════════════
