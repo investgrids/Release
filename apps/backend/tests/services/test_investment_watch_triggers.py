@@ -47,3 +47,23 @@ def test_names_other_company_flags_comparison_text():
     assert names_other_company("Infosys's deal pipeline is thinning while TCS wins deals.", "TCS", uni[0]["name"], uni)
     assert not names_other_company("TCS continues to win AI and cloud deals.", "TCS", uni[0]["name"], uni)
     assert not names_other_company(None, "TCS", uni[0]["name"], uni)
+
+
+def test_record_snapshot_does_not_store_comparison_why(monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+    from app.services.ai_search import investment_watch as iw
+    monkeypatch.setattr("app.api.companies._NSE_UNIVERSE", [{"symbol": "TCS", "name": "Tata Consultancy Services Ltd"}, {"symbol": "INFY", "name": "Infosys Limited"}])
+    added = []
+
+    class DB:
+        async def execute(self, *_a, **_k):
+            return SimpleNamespace(scalar_one_or_none=lambda: None)
+        def add(self, row): added.append(row)
+        async def commit(self): pass
+
+    subject = {"subject_key": "company:TCS", "subject_type": "company", "subject_label": "TCS", "company_name": "Tata Consultancy Services Ltd"}
+    asyncio.run(iw.record_snapshot(DB(), subject, "q", "r1", "Cautious", None, 50, "Infosys pipeline is thinning while TCS wins deals."))
+    asyncio.run(iw.record_snapshot(DB(), subject, "q", "r2", "Cautious", None, 50, "TCS keeps winning AI deals."))
+    assert added[0].why is None and added[0].verdict_scale == "Cautious"
+    assert added[1].why == "TCS keeps winning AI deals."

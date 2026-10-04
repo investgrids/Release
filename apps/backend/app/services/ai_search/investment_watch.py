@@ -75,6 +75,10 @@ async def record_snapshot(
     """Upserts today's snapshot for this subject. Fire-and-forget from the
     caller's perspective — any failure here must never affect the actual
     search response, so the caller wraps this in try/except."""
+    if subject["subject_type"] == "company":
+        from app.api.companies import _NSE_UNIVERSE
+        if names_other_company(why, subject["subject_label"], subject.get("company_name"), _NSE_UNIVERSE):
+            why = None   # comparison reasoning belongs to the comparison, not to the one company this snapshot is filed under
     today = _today()
     existing = (await db.execute(
         select(AISearchVerdictSnapshot).where(
