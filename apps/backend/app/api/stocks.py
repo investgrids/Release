@@ -173,6 +173,13 @@ async def get_financials(symbol: str, db: AsyncSession = Depends(get_db)):
     return await get_stock_financials(sym_upper)
 
 
+@router.get("/{symbol}/extras")
+async def get_extras(symbol: str):
+    """Yahoo-sourced extras for the Financials overview (earnings dates/estimates, growth and valuation multiples, dividend history). Not used by the score."""
+    from app.services.stock_extras import get_stock_extras
+    return await get_stock_extras(symbol)
+
+
 @router.get("/{symbol}", response_model=StockDetail)
 async def get_stock(symbol: str, db: AsyncSession = Depends(get_db)):
     sym_upper = symbol.upper()

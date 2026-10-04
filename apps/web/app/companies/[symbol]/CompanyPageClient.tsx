@@ -10,6 +10,7 @@ import { useIntelligence } from "@/hooks/useIntelligence";
 import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { SmartCTA } from "@/components/SmartCTA";
 import { CompanyIntelligenceSection } from "@/components/CompanyIntelligenceSection";
+import { StockExtrasCard } from "@/components/StockExtrasCard";
 import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
 import { API_BASE_URL as API } from "@/lib/api";
 import { hasCandles } from "@/lib/candles";
@@ -2314,6 +2315,7 @@ function FinancialsTabBody({ stock }: { stock: StockDetail }) {
       {subTab === "overview" && <>
         <FinancialHighlights stock={stock}/>
         <KeyRatios stock={stock}/>
+        <StockExtrasCard symbol={stock.symbol}/>
         <Shareholding stock={stock}/>
         <HistoricalPerformance stock={stock}/>
       </>}
