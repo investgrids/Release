@@ -16,12 +16,11 @@ export async function generateMetadata({
     if (res.ok) {
       const stock = await res.json();
       const name  = stock.name ?? upper;
-      // Matches the page's own real, visible <h1> ("... Share Price & AI
-      // Investment Analysis" in page.tsx) — the previous title ("— AI
-      // Analysis") dropped "Share Price", the actual dominant search term
-      // for a stock page ("TCS share price" far outranks "TCS AI
-      // analysis"), so the <title> tag and the page's own on-page intent
-      // disagreed.
+      // The title carries "Share Price" — the dominant search term for a
+      // stock page ("TCS share price" far outranks "TCS AI analysis"); the
+      // previous title ("— AI Analysis") dropped it. (The visible <h1> is the
+      // company name alone, and the hero's context sentence repeats the
+      // share price, so the on-page intent still matches.)
       const desc  = `${name} (${upper}) share price, AI-powered market analysis, investment thesis, ripple chain impact, and event-driven intelligence on MarketRipple.`;
       return {
         title: `${name} (${upper}) Share Price & AI Analysis`,

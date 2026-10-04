@@ -14,6 +14,7 @@ import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
 import { API_BASE_URL as API } from "@/lib/api";
 import { hasCandles } from "@/lib/candles";
 import { dedupeEvidence, evidenceBalance } from "@/lib/intelligenceView";
+import { aboutHeading, aboutSummary } from "@/lib/companyAbout";
 import { scoreToColor, impactToStyle, marketRippleRatingColor, marketRippleScoreDisplayInt } from "@/lib/scoring";
 import { labelTone, metricTone, parseMetric } from "@/lib/metricTone";
 import {
@@ -302,8 +303,8 @@ function useMarketRippleScore(symbol: string) {
   return data;
 }
 
-function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRenderedH1 }: {
-  stock: StockDetail; symbol: string; watchlisted: boolean; setWatchlisted: (v: boolean) => void; serverRenderedH1: boolean;
+function CompanyHero({ stock, symbol, watchlisted, setWatchlisted }: {
+  stock: StockDetail; symbol: string; watchlisted: boolean; setWatchlisted: (v: boolean) => void;
 }) {
   const isPos = stock.pct_change >= 0;
   const sign  = isPos ? "+" : "";
@@ -349,9 +350,8 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
               {symbol.slice(0, 2).toUpperCase()}
             </div>
             <div className="min-w-0">
-              {/* page.tsx renders the real <h1> when the stock was found
-                  server-side; this falls back to an <h1> only when it wasn't. */}
-              {serverRenderedH1 ? <p className={NAME}>{stock.name}</p> : <h1 className={NAME}>{stock.name}</h1>}
+              {/* The page's single <h1>: the company name. The searchable context (share price, sector, market cap, P/E) lives in the About card, the page title and the meta description. */}
+              <h1 className={NAME}>{stock.name}</h1>
               <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px] text-text-muted">
                 <span className="font-semibold text-text-secondary">{symbol.toUpperCase()}</span>
                 <span aria-hidden>·</span><span>NSE</span>
@@ -1334,17 +1334,19 @@ function OverviewCell({ label, children, href }: { label: string; children: Reac
 // better-sourced positive/negative evidence on the Intelligence tab) are
 // both gone rather than carried forward here.
 function AboutSection({ stock }: { stock: StockDetail }) {
-  if (!stock.description) return null;
-  let sentences = stock.description.split(/(?<=[.!?])\s+/).filter(Boolean).slice(0, 3);
+  let sentences = (stock.description ?? "").split(/(?<=[.!?])\s+/).filter(Boolean).slice(0, 3);
   // The backend caps descriptions at 600 chars, which can cut mid-word —
   // drop a truncated trailing fragment rather than print "software prod".
   const last = sentences[sentences.length - 1];
   if (last && !/[.!?]["')\]]?$/.test(last)) {
     sentences = sentences.length > 1 ? sentences.slice(0, -1) : [last.replace(/\s+\S*$/, "") + "…"];
   }
+  // Always shown (a company without a description still has a name, ticker, sector and price): the first paragraph is what the company does, the second the
+  // searchable context that used to sit as a plain-text row above the header (see lib/companyAbout.ts).
   return (
-    <SectionCard title="About">
-      <p className="mt-2 text-[13px] leading-6 text-text-secondary">{sentences.join(" ")}</p>
+    <SectionCard title={aboutHeading(stock)}>
+      {sentences.length > 0 && <p className="mt-2 text-[13px] leading-6 text-text-secondary">{sentences.join(" ")}</p>}
+      <p className={`${sentences.length > 0 ? "mt-3" : "mt-2"} text-[13px] leading-6 text-text-secondary`}>{aboutSummary(stock)}</p>
     </SectionCard>
   );
 }
@@ -2718,7 +2720,7 @@ function StockPageInner({ params, initialStock, initialRelated, faqs }: PageProp
       <TrackPageVisit type="company" id={symbol.toUpperCase()} title={stock.name ?? symbol.toUpperCase()} subtitle={`${stock.price} · ${stock.sector}`} href={`/companies/${symbol.toUpperCase()}`} />
 
       {/* ── Persistent header — stays fixed across every tab ─────────── */}
-      <CompanyHero stock={stock} symbol={symbol} watchlisted={watchlisted} setWatchlisted={setWatchlisted} serverRenderedH1={!!initialStock}/>
+      <CompanyHero stock={stock} symbol={symbol} watchlisted={watchlisted} setWatchlisted={setWatchlisted}/>
 
       <CompanyTabNav active={activeTab} onChange={setTab}/>
 

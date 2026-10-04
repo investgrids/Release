@@ -220,25 +220,6 @@ export default async function CompanyPage({ params }: { params: Promise<{ symbol
       {faqJsonLd && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(faqJsonLd) }} />
       )}
-      {stock && (
-        <section className="mb-5">
-          {/* The single real <h1> for this page (CompanyHero renders the
-              company name as a styled <p>). Visible page context, not a
-              cloaked SEO block. The company description itself lives once,
-              in the Overview tab's About card — repeating it here doubled
-              the same paragraph on every page. */}
-          <h1 className="text-[13px] font-medium text-text-muted">
-            {stock.name} ({upper}) share price &amp; AI investment analysis
-          </h1>
-          <p className="mt-1 max-w-[75ch] text-[13px] leading-relaxed text-text-muted">
-            Live NSE:{upper} share price ₹{stock.price}{stock.change ? ` (${stock.change})` : ""}
-            {fmtCrore(stock.market_cap) ? `, market cap ${withRupee(stock.market_cap)}` : ""}
-            {fmtCrore(stock.pe) ? `, P/E ${stock.pe}` : ""}
-            {stock.sector && stock.sector !== "N/A" ? ` · ${stock.sector} sector` : ""}. MarketRipple covers the
-            investment thesis, ripple-chain impact and sector outlook for {upper}.
-          </p>
-        </section>
-      )}
       {/* Company Simplification spec §3 — FAQ moves to the bottom of the
           Overview tab (was previously rendered above the entire page,
           ahead of the header, and repeated on every tab regardless of
