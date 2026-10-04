@@ -493,6 +493,31 @@ async def marketripple_score_refresh_status():
     return refresh_status()
 
 
+# ── Filing-backed score: one NON-activating shadow refresh (owner decision 2026-10-04) ─────────────────────
+# Starts the committed refresh task in a separate process and returns at once. There is deliberately no activate option here: a run is written and kept,
+# readers see nothing until a run is activated by a separate, explicit step, and the public flag (filing_score_public) stays off.
+@router.post("/filing-score/refresh", dependencies=[Depends(require_admin_key)])
+async def filing_score_refresh(symbols: str | None = None):
+    from app.services.filing_score.runner import start_refresh_process
+    wanted = [s.strip().upper() for s in symbols.split(",") if s.strip()] if symbols else None
+    return start_refresh_process(wanted)
+
+
+@router.get("/filing-score/refresh/status", dependencies=[Depends(require_admin_key)])
+async def filing_score_refresh_status():
+    from sqlalchemy import select
+
+    from app.db.models.filing_score import FilingScoreRun
+    from app.db.session import AsyncSessionLocal
+    from app.services.filing_score.runner import refresh_status
+    out = refresh_status()
+    async with AsyncSessionLocal() as db:
+        runs = (await db.execute(select(FilingScoreRun).order_by(FilingScoreRun.started_at.desc()).limit(5))).scalars().all()
+    out["recent_runs"] = [{"id": r.id, "method_version": r.method_version, "status": r.status, "is_active": r.is_active, "started_at": str(r.started_at),
+                           "finished_at": str(r.finished_at), "counts": r.counts, "notes": r.notes} for r in runs]
+    return out
+
+
 # ── Company Master rename repair (2026-10-03, HEG -> HEGAM) ──────────────────
 # Applies NSE symbol renames to entities still under their old symbol, only
 # when NSE's equity master lists the new symbol with the SAME ISIN (see

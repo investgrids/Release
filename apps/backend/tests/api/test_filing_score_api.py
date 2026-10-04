@@ -64,3 +64,27 @@ async def test_nothing_is_served_before_a_run_is_activated(db_session, monkeypat
     await store.complete_run(db_session, run, {})
     with pytest.raises(HTTPException):
         await get_filing_score("A", db_session)
+
+
+async def test_admin_refresh_endpoint_never_activates_and_refuses_a_second_start(monkeypatch, tmp_path):
+    from app.api import admin
+    from app.services.filing_score import runner
+    started = {}
+
+    class FakeProc:
+        pid = 4242
+
+    def fake_popen(cmd, **kw):
+        started["cmd"] = cmd
+        return FakeProc()
+
+    import subprocess
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(runner, "lock_path", lambda: tmp_path / "running.lock")
+    out = await admin.filing_score_refresh(symbols="syrma, tcs")
+    assert out["started"] is True and out["activates"] is False and "--activate" not in started["cmd"] and "SYRMA,TCS" in started["cmd"]
+    (tmp_path / "running.lock").write_text("1")
+    import os
+    monkeypatch.setattr(runner, "_pid_alive", lambda pid: True)
+    again = await admin.filing_score_refresh()
+    assert again["started"] is False and "already running" in again["reason"]

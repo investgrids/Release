@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import sys
 
 from app.db.session import AsyncSessionLocal
@@ -25,6 +26,11 @@ async def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--no-behaviour", action="store_true", help="skip the market-behaviour pillar (those companies are then withheld)")
     ap.add_argument("--raw-dir", default=None, help="optional folder to cache raw filings (not the database)")
     args = ap.parse_args(argv)
+    if hasattr(os, "nice"):
+        try:
+            os.nice(10)   # background work must not starve the web worker
+        except OSError:
+            pass
     if not runner.acquire_lock():
         print(json.dumps({"status": "skipped", "reason": "another filing_score_refresh is running"}))
         return 2
