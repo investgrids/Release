@@ -1,0 +1,983 @@
+{
+  "mode": "dry",
+  "model": "gpt-6-luna",
+  "cap": 2,
+  "model_requests_made": 0,
+  "stopped": null,
+  "results": {
+    "CR2": {
+      "id": "CR2",
+      "query": "How is 3M India doing as a business?",
+      "entities": {
+        "companies": [
+          "3MINDIA"
+        ],
+        "sectors": [],
+        "policies": []
+      },
+      "wall_s": 3.0,
+      "calls": [],
+      "model_calls": 0,
+      "expected_model_calls": 0,
+      "call_count_as_expected": true,
+      "response": {
+        "query": "How is 3M India doing as a business?",
+        "response_id": "cfa63ccc-f89c-42c1-9067-ca792a2a3836",
+        "schema_version": "v3.0",
+        "specialist": "company",
+        "degraded_reason": "insufficient_evidence",
+        "intent": "general",
+        "ui_mode": "direct_company_research",
+        "switch_holding": null,
+        "switch_target": null,
+        "synthesis_incomplete": true,
+        "answer": {
+          "summary": "MarketRipple doesn't currently have enough recent, company-specific evidence to assess 3M India's business performance reliably. It won't infer current financial strength, valuation, margins or outlook without supporting evidence.",
+          "bottom_line": "MarketRipple doesn't currently have enough recent, company-specific evidence to assess 3M India's business performance reliably. It won't infer current financial strength, valuation, margins or outlook without supporting evidence.",
+          "what_happened": "",
+          "why_it_happened": "",
+          "immediate_impact": "",
+          "medium_term": "",
+          "long_term": "",
+          "what_priced_in": "",
+          "risks": [],
+          "opportunities": [],
+          "confidence": null,
+          "confidence_level": "unscored",
+          "sentiment": "neutral",
+          "sources_count": 0
+        },
+        "key_drivers": [],
+        "insights": [],
+        "companies": [],
+        "sectors": [],
+        "related_events": [],
+        "news": [],
+        "policies": [],
+        "timeline": [],
+        "historical_comparison": [],
+        "ripple_chain": [],
+        "scenarios": {},
+        "monitoring": {
+          "items": []
+        },
+        "follow_up_questions": [],
+        "follow_up_groups": [],
+        "investment_verdict": {
+          "rating": "Not Applicable",
+          "direction": "neutral",
+          "confidence": null,
+          "horizon": null,
+          "top_picks": [],
+          "risks": [],
+          "catalysts": [],
+          "opportunity_score": null,
+          "risk_level": "",
+          "suitable_for": "",
+          "engine_verdict": null
+        },
+        "market_chart": {
+          "labels": [],
+          "series": []
+        },
+        "graph": {
+          "nodes": [],
+          "edges": []
+        },
+        "citations": [],
+        "decision_intelligence": null,
+        "confidence_data": {
+          "level": "unscored",
+          "score": null,
+          "reasons": [],
+          "breakdown": {},
+          "caveats": []
+        },
+        "decision_engine_v2": {},
+        "timeline_intelligence": {},
+        "opportunity_risk_matrix": {},
+        "ai_conclusion": {},
+        "evidence_score": {
+          "stars": null,
+          "checklist": {},
+          "source_count": 0,
+          "development_count": 0,
+          "corroborating_source_count": 0
+        },
+        "confidence_breakdown": {
+          "final_confidence": null,
+          "level": "unscored"
+        },
+        "confidence": {
+          "status": "unscored",
+          "score": null,
+          "components": {
+            "evidence_quality": null,
+            "market_confirmation": null,
+            "historical_similarity": null,
+            "data_freshness": null
+          }
+        },
+        "source_attribution": [],
+        "validation": {
+          "repairs": [],
+          "omissions": [],
+          "contradiction_flagged": false
+        },
+        "market_impact_horizons": {},
+        "what_to_monitor": [],
+        "ai_reasoning_methods": [],
+        "evidence_sufficiency": {
+          "status": "INSUFFICIENT",
+          "kind": "company_assessment",
+          "required": [
+            "current_company_evidence"
+          ],
+          "satisfied": [],
+          "missing": [
+            "current_company_evidence"
+          ],
+          "reason": "no_recent_company_evidence",
+          "missing_entities": [
+            "3MINDIA"
+          ],
+          "context": []
+        },
+        "premise_check": {
+          "status": "not_applicable",
+          "terms": []
+        },
+        "answer_authorization": null,
+        "public_title": "Not enough recent evidence",
+        "timing": {
+          "intent_detection_ms": 0.0,
+          "entity_detection_ms": 0.0,
+          "evidence_collection_ms": 2984.0,
+          "total_ms": 2984.0
+        },
+        "context_used": {
+          "companies": [],
+          "sectors": []
+        },
+        "watch_subject": null,
+        "answer_availability": {
+          "state": "no_verified_evidence",
+          "evidence_retrieval_completed": true,
+          "evidence_count": 0
+        }
+      },
+      "gate_a": {
+        "status": "INSUFFICIENT",
+        "kind": "company_assessment",
+        "required": [
+          "current_company_evidence"
+        ],
+        "satisfied": [],
+        "missing": [
+          "current_company_evidence"
+        ],
+        "reason": "no_recent_company_evidence",
+        "missing_entities": [
+          "3MINDIA"
+        ],
+        "context": []
+      },
+      "premise_check": {
+        "status": "not_applicable",
+        "terms": []
+      },
+      "gate_b": null,
+      "claim_validation": null,
+      "claim_sources": null,
+      "degraded_reason": "insufficient_evidence",
+      "rejected_generation": [],
+      "evidence": {
+        "plan_kind": "company",
+        "filter_report": {
+          "plan": "company",
+          "events": {
+            "kept": 0,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "news": {
+            "kept": 0,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_undated": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "announcements": {
+            "kept": 0,
+            "dropped_stale": 0
+          },
+          "policies": {
+            "kept": 0,
+            "dropped_irrelevant": 0
+          },
+          "premise": {
+            "required": false,
+            "terms": [],
+            "supported": null,
+            "supporting": []
+          }
+        },
+        "events": [],
+        "news": [],
+        "announcements": [],
+        "policies": [],
+        "valuation": {},
+        "vix": null,
+        "sector_rows": [],
+        "macro_indices": [],
+        "context_lines": [
+          "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+          "Company context for 3MINDIA (real, from Intelligence Graph): The Nifty 50 and Bank Nifty are slightly down, with the market trading in a tight range as investors await the RBI’s upcoming repo rate decision. The lack of sectoral movement suggests a cautious stance amid concerns ove · Mood: Cautious Bull"
+        ],
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        },
+        "index": [
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:1"
+          },
+          {
+            "id": "C2",
+            "kind": "context",
+            "title": "Company context for 3MINDIA (real, from Intelligence Graph): The Nifty 50 and Bank Nifty are slightly down, with the market trading in a tight range as investor",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:2"
+          }
+        ],
+        "historical": []
+      },
+      "outcome": "deterministic_refusal"
+    },
+    "EI1": {
+      "id": "EI1",
+      "query": "BEL just won a new defence order, what does this mean for the stock?",
+      "entities": {
+        "companies": [
+          "BEL"
+        ],
+        "sectors": [
+          "defence"
+        ],
+        "policies": []
+      },
+      "wall_s": 0.61,
+      "calls": [],
+      "model_calls": 0,
+      "expected_model_calls": 0,
+      "call_count_as_expected": true,
+      "response": {
+        "query": "BEL just won a new defence order, what does this mean for the stock?",
+        "response_id": "87c60de6-e013-4d3d-bbd7-755a2fff9f23",
+        "schema_version": "v3.0",
+        "specialist": "company",
+        "degraded_reason": "insufficient_evidence",
+        "intent": "news_reaction",
+        "ui_mode": "event_impact",
+        "switch_holding": null,
+        "switch_target": null,
+        "synthesis_incomplete": true,
+        "answer": {
+          "summary": "MarketRipple's available recent evidence doesn't confirm the development described in the question (a order) for Bharat Electronics, so its impact can't be assessed as a confirmed development.",
+          "bottom_line": "MarketRipple's available recent evidence doesn't confirm the development described in the question (a order) for Bharat Electronics, so its impact can't be assessed as a confirmed development.",
+          "what_happened": "",
+          "why_it_happened": "",
+          "immediate_impact": "",
+          "medium_term": "",
+          "long_term": "",
+          "what_priced_in": "",
+          "risks": [],
+          "opportunities": [],
+          "confidence": null,
+          "confidence_level": "unscored",
+          "sentiment": "neutral",
+          "sources_count": 0
+        },
+        "key_drivers": [],
+        "insights": [],
+        "companies": [],
+        "sectors": [],
+        "related_events": [],
+        "news": [],
+        "policies": [],
+        "timeline": [],
+        "historical_comparison": [],
+        "ripple_chain": [],
+        "scenarios": {},
+        "monitoring": {
+          "items": []
+        },
+        "follow_up_questions": [],
+        "follow_up_groups": [],
+        "investment_verdict": {
+          "rating": "Not Applicable",
+          "direction": "neutral",
+          "confidence": null,
+          "horizon": null,
+          "top_picks": [],
+          "risks": [],
+          "catalysts": [],
+          "opportunity_score": null,
+          "risk_level": "",
+          "suitable_for": "",
+          "engine_verdict": null
+        },
+        "market_chart": {
+          "labels": [],
+          "series": []
+        },
+        "graph": {
+          "nodes": [],
+          "edges": []
+        },
+        "citations": [],
+        "decision_intelligence": null,
+        "confidence_data": {
+          "level": "unscored",
+          "score": null,
+          "reasons": [],
+          "breakdown": {},
+          "caveats": []
+        },
+        "decision_engine_v2": {},
+        "timeline_intelligence": {},
+        "opportunity_risk_matrix": {},
+        "ai_conclusion": {},
+        "evidence_score": {
+          "stars": null,
+          "checklist": {},
+          "source_count": 0,
+          "development_count": 0,
+          "corroborating_source_count": 0
+        },
+        "confidence_breakdown": {
+          "final_confidence": null,
+          "level": "unscored"
+        },
+        "confidence": {
+          "status": "unscored",
+          "score": null,
+          "components": {
+            "evidence_quality": null,
+            "market_confirmation": null,
+            "historical_similarity": null,
+            "data_freshness": null
+          }
+        },
+        "source_attribution": [],
+        "validation": {
+          "repairs": [],
+          "omissions": [],
+          "contradiction_flagged": false
+        },
+        "market_impact_horizons": {},
+        "what_to_monitor": [],
+        "ai_reasoning_methods": [],
+        "evidence_sufficiency": {
+          "status": "INSUFFICIENT",
+          "kind": "event_impact",
+          "required": [
+            "event_verification"
+          ],
+          "satisfied": [],
+          "missing": [
+            "event_verification"
+          ],
+          "reason": "event_premise_not_established",
+          "missing_entities": [
+            "BEL"
+          ],
+          "context": []
+        },
+        "premise_check": {
+          "status": "not_established",
+          "terms": [
+            "order"
+          ],
+          "supporting": []
+        },
+        "answer_authorization": null,
+        "public_title": "I couldn't verify the stated event",
+        "timing": {
+          "intent_detection_ms": 0.0,
+          "entity_detection_ms": 32.0,
+          "evidence_collection_ms": 578.0,
+          "total_ms": 610.0
+        },
+        "context_used": {
+          "companies": [],
+          "sectors": []
+        },
+        "watch_subject": null,
+        "answer_availability": {
+          "state": "no_verified_evidence",
+          "evidence_retrieval_completed": true,
+          "evidence_count": 0
+        }
+      },
+      "gate_a": {
+        "status": "INSUFFICIENT",
+        "kind": "event_impact",
+        "required": [
+          "event_verification"
+        ],
+        "satisfied": [],
+        "missing": [
+          "event_verification"
+        ],
+        "reason": "event_premise_not_established",
+        "missing_entities": [
+          "BEL"
+        ],
+        "context": []
+      },
+      "premise_check": {
+        "status": "not_established",
+        "terms": [
+          "order"
+        ],
+        "supporting": []
+      },
+      "gate_b": null,
+      "claim_validation": null,
+      "claim_sources": null,
+      "degraded_reason": "insufficient_evidence",
+      "rejected_generation": [],
+      "evidence": {
+        "plan_kind": "company",
+        "filter_report": {
+          "plan": "company",
+          "events": {
+            "kept": 0,
+            "dropped_stale": 1,
+            "dropped_irrelevant": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "news": {
+            "kept": 0,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_undated": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "announcements": {
+            "kept": 0,
+            "dropped_stale": 2
+          },
+          "policies": {
+            "kept": 0,
+            "dropped_irrelevant": 0
+          },
+          "premise": {
+            "required": true,
+            "terms": [
+              "order"
+            ],
+            "supported": false,
+            "supporting": []
+          }
+        },
+        "events": [],
+        "news": [],
+        "announcements": [],
+        "policies": [],
+        "valuation": {},
+        "vix": null,
+        "sector_rows": [],
+        "macro_indices": [],
+        "context_lines": [
+          "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)"
+        ],
+        "premise": {
+          "required": true,
+          "terms": [
+            "order"
+          ],
+          "supported": false,
+          "supporting": []
+        },
+        "index": [
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:1"
+          }
+        ],
+        "historical": []
+      },
+      "outcome": "deterministic_refusal"
+    },
+    "CC1": {
+      "id": "CC1",
+      "query": "TCS vs Infosys, which is stronger?",
+      "entities": {
+        "companies": [
+          "TCS",
+          "INFY"
+        ],
+        "sectors": [],
+        "policies": []
+      },
+      "wall_s": 0.59,
+      "calls": [
+        {
+          "provider": "openai-benchmark-project",
+          "model": "gpt-6-luna",
+          "max_completion_tokens": 7000,
+          "prompt_chars": 12640,
+          "approx_input_tokens": 3160,
+          "dry_run_would_call": true
+        }
+      ],
+      "model_calls": 1,
+      "expected_model_calls": 1,
+      "call_count_as_expected": true,
+      "response": {
+        "query": "TCS vs Infosys, which is stronger?",
+        "response_id": "64691bd2-e84b-4658-9cb2-83cd9a349deb",
+        "schema_version": "v3.0",
+        "specialist": "comparison",
+        "degraded_reason": "capacity",
+        "intent": "compare",
+        "ui_mode": "company_comparison",
+        "switch_holding": null,
+        "switch_target": null,
+        "synthesis_incomplete": true,
+        "answer": {
+          "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the synthesis step didn't complete. Try rephrasing the question or checking back shortly. 1 related event found for this question is listed below.",
+          "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the synthesis step didn't complete. Try rephrasing the question or checking back shortly. 1 related event found for this question is listed below.",
+          "what_happened": "",
+          "why_it_happened": "",
+          "immediate_impact": "",
+          "medium_term": "",
+          "long_term": "",
+          "what_priced_in": "",
+          "risks": [],
+          "opportunities": [],
+          "confidence": null,
+          "confidence_level": "unscored",
+          "sentiment": "neutral",
+          "sources_count": 1
+        },
+        "key_drivers": [],
+        "insights": [],
+        "companies": [],
+        "sectors": [],
+        "related_events": [
+          {
+            "id": "evt-it-deal-slowdown-2026",
+            "slug": "us-enterprise-it-spending-contracts-for-second-consecutive-quarter-evt-it-d",
+            "title": "US enterprise IT spending contracts for second consecutive quarter",
+            "summary": "CIO surveys and enterprise software vendors report discretionary IT budget freezes. Indian IT majors with high US revenue exposure face near-term demand headwinds, though management guidance remains cautious.",
+            "category": "Global",
+            "impact_score": 7.4,
+            "confidence": 0.8,
+            "sectors": [
+              "IT",
+              "Technology"
+            ],
+            "companies": [
+              {
+                "symbol": "TCS",
+                "name": "Tata Consultancy Services",
+                "impact": "Negative"
+              },
+              {
+                "symbol": "INFY",
+                "name": "Infosys",
+                "impact": "Negative"
+              },
+              {
+                "symbol": "WIPRO",
+                "name": "Wipro",
+                "impact": "Negative"
+              }
+            ],
+            "date": "Jul 10, 2026",
+            "source": "",
+            "event_date": null,
+            "published_at": "2026-07-10T09:30:00"
+          }
+        ],
+        "news": [],
+        "policies": [],
+        "timeline": [],
+        "historical_comparison": [],
+        "ripple_chain": [],
+        "scenarios": {},
+        "monitoring": {
+          "items": []
+        },
+        "follow_up_questions": [],
+        "follow_up_groups": [],
+        "investment_verdict": {
+          "rating": "Not Applicable",
+          "direction": "neutral",
+          "confidence": null,
+          "horizon": null,
+          "top_picks": [],
+          "risks": [],
+          "catalysts": [],
+          "opportunity_score": null,
+          "risk_level": "",
+          "suitable_for": "",
+          "engine_verdict": null
+        },
+        "market_chart": {
+          "labels": [],
+          "series": []
+        },
+        "graph": {
+          "nodes": [],
+          "edges": []
+        },
+        "citations": [],
+        "decision_intelligence": null,
+        "confidence_data": {
+          "level": "unscored",
+          "score": null,
+          "reasons": [],
+          "breakdown": {},
+          "caveats": []
+        },
+        "decision_engine_v2": {},
+        "timeline_intelligence": {},
+        "opportunity_risk_matrix": {},
+        "ai_conclusion": {},
+        "evidence_score": {
+          "stars": null,
+          "checklist": {},
+          "source_count": 1,
+          "development_count": 1,
+          "corroborating_source_count": 1
+        },
+        "confidence_breakdown": {
+          "final_confidence": null,
+          "level": "unscored"
+        },
+        "confidence": {
+          "status": "unscored",
+          "score": null,
+          "components": {
+            "evidence_quality": null,
+            "market_confirmation": null,
+            "historical_similarity": null,
+            "data_freshness": null
+          }
+        },
+        "source_attribution": [
+          "event:evt-it-deal-slowdown-2026"
+        ],
+        "validation": {
+          "repairs": [],
+          "omissions": [],
+          "contradiction_flagged": false
+        },
+        "market_impact_horizons": {},
+        "what_to_monitor": [],
+        "ai_reasoning_methods": [],
+        "evidence_sufficiency": {
+          "status": "SUFFICIENT",
+          "kind": "comparison",
+          "required": [
+            "evidence_for_TCS",
+            "evidence_for_INFY"
+          ],
+          "satisfied": [
+            "evidence_for_TCS",
+            "evidence_for_INFY"
+          ],
+          "missing": [],
+          "reason": null,
+          "missing_entities": [],
+          "context": [
+            "TCS: US enterprise IT spending contracts for second consecutive quarter",
+            "TCS: Tata Consultancy Services Limited has informed the Exchange regarding a press re",
+            "INFY: US enterprise IT spending contracts for second consecutive quarter",
+            "INFY: Infosys Limited has informed the Exchange regarding 'Infosys and Columbia Univer"
+          ]
+        },
+        "premise_check": null,
+        "answer_authorization": {
+          "applicable": false,
+          "authorized": true,
+          "reasons": [],
+          "unsupported_figure_count": 0,
+          "factual_sentences": null
+        },
+        "public_title": null,
+        "timing": {
+          "intent_detection_ms": 0.0,
+          "entity_detection_ms": 15.0,
+          "evidence_collection_ms": 532.0,
+          "reasoning_ms": 0.0,
+          "validation_ms": 46.0,
+          "assembly_ms": 0.0,
+          "total_ms": 593.0
+        },
+        "context_used": {
+          "companies": [],
+          "sectors": []
+        },
+        "watch_subject": null,
+        "answer_availability": {
+          "state": "temporarily_unavailable",
+          "evidence_retrieval_completed": true,
+          "evidence_count": 1
+        }
+      },
+      "gate_a": {
+        "status": "SUFFICIENT",
+        "kind": "comparison",
+        "required": [
+          "evidence_for_TCS",
+          "evidence_for_INFY"
+        ],
+        "satisfied": [
+          "evidence_for_TCS",
+          "evidence_for_INFY"
+        ],
+        "missing": [],
+        "reason": null,
+        "missing_entities": [],
+        "context": [
+          "TCS: US enterprise IT spending contracts for second consecutive quarter",
+          "TCS: Tata Consultancy Services Limited has informed the Exchange regarding a press re",
+          "INFY: US enterprise IT spending contracts for second consecutive quarter",
+          "INFY: Infosys Limited has informed the Exchange regarding 'Infosys and Columbia Univer"
+        ]
+      },
+      "premise_check": null,
+      "gate_b": {
+        "applicable": false,
+        "authorized": true,
+        "reasons": [],
+        "unsupported_figure_count": 0,
+        "factual_sentences": null
+      },
+      "claim_validation": null,
+      "claim_sources": null,
+      "degraded_reason": "capacity",
+      "rejected_generation": [],
+      "evidence": {
+        "plan_kind": "comparison",
+        "filter_report": {
+          "plan": "comparison",
+          "events": {
+            "kept": 1,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "news": {
+            "kept": 0,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_undated": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "announcements": {
+            "kept": 6,
+            "dropped_stale": 0
+          },
+          "policies": {
+            "kept": 0,
+            "dropped_irrelevant": 0
+          },
+          "premise": {
+            "required": false,
+            "terms": [],
+            "supported": null,
+            "supporting": []
+          }
+        },
+        "events": [
+          {
+            "id": "evt-it-deal-slowdown-2026",
+            "title": "US enterprise IT spending contracts for second consecutive quarter",
+            "summary": "CIO surveys and enterprise software vendors report discretionary IT budget freezes. Indian IT majors with high US revenue exposure face near-term demand headwinds, though management guidance remains cautious.",
+            "date": "2026-07-10T09:30:00",
+            "source": "",
+            "companies": [
+              "TCS",
+              "INFY",
+              "WIPRO"
+            ]
+          }
+        ],
+        "news": [],
+        "announcements": [
+          {
+            "id": "ann_nse-3e08b3c13a",
+            "title": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+            "category": null,
+            "date": "2026-10-01T00:00:00"
+          },
+          {
+            "id": "ann_nse-d5bed2f533",
+            "title": "Tata Consultancy Services Limited has informed the Exchange regarding a press release dated October 01, 2026, titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+            "category": null,
+            "date": "2026-10-01T00:00:00"
+          },
+          {
+            "id": "ann_nse-ffc7721042",
+            "title": "Infosys Limited has informed the Exchange regarding 'Infosys and Columbia University Launch Strategic Collaboration Across Deep Research to Drive Innovation and Unlock Business Value'.",
+            "category": null,
+            "date": "2026-10-01T00:00:00"
+          },
+          {
+            "id": "ann_nse-ca93723168",
+            "title": "Infosys Limited has informed the Exchange regarding 'Investor Conference'.",
+            "category": null,
+            "date": "2026-09-01T00:00:00"
+          },
+          {
+            "id": "ann_nse-600f534235",
+            "title": "Infosys Limited has informed the Exchange regarding Allotment of 175865  Shares.",
+            "category": null,
+            "date": "2026-08-24T00:00:00"
+          },
+          {
+            "id": "ann_nse-6ca57a1d3e",
+            "title": "Infosys Limited has informed the Exchange about change in Management",
+            "category": null,
+            "date": "2026-08-24T00:00:00"
+          }
+        ],
+        "policies": [],
+        "valuation": {},
+        "vix": null,
+        "sector_rows": [],
+        "macro_indices": [],
+        "context_lines": [
+          "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)"
+        ],
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        },
+        "index": [
+          {
+            "id": "E1",
+            "kind": "event",
+            "title": "US enterprise IT spending contracts for second consecutive quarter",
+            "summary": "CIO surveys and enterprise software vendors report discretionary IT budget freezes. Indian IT majors with high US revenue exposure face near-term demand headwinds, though management guidance remains c",
+            "date": "2026-07-10T09:30:00",
+            "source": "",
+            "companies": [
+              "TCS",
+              "INFY",
+              "WIPRO"
+            ],
+            "ref": "event:evt-it-deal-slowdown-2026"
+          },
+          {
+            "id": "A1",
+            "kind": "announcement",
+            "title": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+            "date": "2026-10-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "TCS"
+            ],
+            "ref": "announcement:ann_nse-3e08b3c13a"
+          },
+          {
+            "id": "A2",
+            "kind": "announcement",
+            "title": "Tata Consultancy Services Limited has informed the Exchange regarding a press release dated October 01, 2026, titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+            "date": "2026-10-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "TCS"
+            ],
+            "ref": "announcement:ann_nse-d5bed2f533"
+          },
+          {
+            "id": "A3",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange regarding 'Infosys and Columbia University Launch Strategic Collaboration Across Deep Research to Drive Innovation and Unlock Business Value'.",
+            "date": "2026-10-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ],
+            "ref": "announcement:ann_nse-ffc7721042"
+          },
+          {
+            "id": "A4",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange regarding 'Investor Conference'.",
+            "date": "2026-09-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ],
+            "ref": "announcement:ann_nse-ca93723168"
+          },
+          {
+            "id": "A5",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange regarding Allotment of 175865  Shares.",
+            "date": "2026-08-24T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ],
+            "ref": "announcement:ann_nse-600f534235"
+          },
+          {
+            "id": "A6",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange about change in Management",
+            "date": "2026-08-24T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ],
+            "ref": "announcement:ann_nse-6ca57a1d3e"
+          },
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:1"
+          }
+        ],
+        "historical": []
+      },
+      "outcome": "model_unavailable_or_unparsed"
+    }
+  }
+}
