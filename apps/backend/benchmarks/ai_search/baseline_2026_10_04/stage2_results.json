@@ -1,0 +1,1111 @@
+{
+  "state": {
+    "calls": 6,
+    "consecutive_capacity": 14,
+    "circuit_open": true
+  },
+  "results": [
+    {
+      "id": "CR1",
+      "type": "company_research",
+      "query": "What is the outlook for Kotak Mahindra Bank?",
+      "latency_s": 13.33,
+      "model_calls": [
+        {
+          "kind": "classifier",
+          "ok": true,
+          "ms": 1453,
+          "provider": "groq",
+          "max_tokens": 5
+        },
+        {
+          "kind": "specialist",
+          "ok": false,
+          "ms": 3078,
+          "provider": null,
+          "max_tokens": 6500
+        }
+      ],
+      "model_call_count": 2,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "ui_mode": "direct_company_research",
+      "specialist": "company",
+      "type_field": null,
+      "cached": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "confidence": null,
+      "sources_count": 0,
+      "full_text_excerpt": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\nThere isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\n\n\n\n\n\n",
+      "unsupported_numbers": null,
+      "attribution": {
+        "checked": true,
+        "attribution_ids_not_in_evidence": [],
+        "citations_not_in_news_sources": [],
+        "related_events_shown": 0,
+        "news_shown": 0
+      },
+      "consistency": {
+        "investment_verdict.rating": "Not Applicable",
+        "investment_verdict.direction": "neutral",
+        "engine_verdict.rating": null,
+        "decision_engine_v2.verdict_scale": null,
+        "answer.sentiment": "neutral",
+        "answer.confidence": null,
+        "confidence_data.score": null,
+        "opportunity_score": null,
+        "companies": []
+      },
+      "timing": {
+        "intent_detection_ms": 0.0,
+        "entity_detection_ms": 125.0,
+        "evidence_collection_ms": 8594.0,
+        "reasoning_ms": 3078.0,
+        "validation_ms": 78.0,
+        "assembly_ms": 0.0,
+        "total_ms": 13328.0
+      },
+      "validation": {
+        "repairs": [],
+        "omissions": [],
+        "contradiction_flagged": false
+      },
+      "fabricated_when_degraded": false
+    },
+    {
+      "id": "CR2",
+      "type": "company_research",
+      "query": "How is 3M India doing as a business?",
+      "latency_s": 19.36,
+      "model_calls": [
+        {
+          "kind": "classifier",
+          "ok": false,
+          "ms": 0,
+          "provider": null,
+          "max_tokens": 5
+        },
+        {
+          "kind": "specialist",
+          "ok": false,
+          "ms": 0,
+          "provider": null,
+          "max_tokens": 6500
+        }
+      ],
+      "model_call_count": 2,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "ui_mode": "direct_company_research",
+      "specialist": "company",
+      "type_field": null,
+      "cached": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "confidence": null,
+      "sources_count": 0,
+      "full_text_excerpt": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\nThere isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\n\n\n\n\n\n",
+      "unsupported_numbers": null,
+      "attribution": {
+        "checked": true,
+        "attribution_ids_not_in_evidence": [],
+        "citations_not_in_news_sources": [],
+        "related_events_shown": 0,
+        "news_shown": 0
+      },
+      "consistency": {
+        "investment_verdict.rating": "Not Applicable",
+        "investment_verdict.direction": "neutral",
+        "engine_verdict.rating": null,
+        "decision_engine_v2.verdict_scale": null,
+        "answer.sentiment": "neutral",
+        "answer.confidence": null,
+        "confidence_data.score": null,
+        "opportunity_score": null,
+        "companies": []
+      },
+      "timing": {
+        "intent_detection_ms": 0.0,
+        "entity_detection_ms": 16.0,
+        "evidence_collection_ms": 19281.0,
+        "reasoning_ms": 0.0,
+        "validation_ms": 63.0,
+        "assembly_ms": 0.0,
+        "total_ms": 19360.0
+      },
+      "validation": {
+        "repairs": [],
+        "omissions": [],
+        "contradiction_flagged": false
+      },
+      "fabricated_when_degraded": false
+    },
+    {
+      "id": "CR3",
+      "type": "company_research",
+      "query": "What is happening with TCS lately?",
+      "latency_s": 0.41,
+      "model_calls": [
+        {
+          "kind": "classifier",
+          "ok": false,
+          "ms": 0,
+          "provider": null,
+          "max_tokens": 5
+        },
+        {
+          "kind": "specialist",
+          "ok": false,
+          "ms": 0,
+          "provider": null,
+          "max_tokens": 6500
+        }
+      ],
+      "model_call_count": 2,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "ui_mode": "direct_company_research",
+      "specialist": "company",
+      "type_field": null,
+      "cached": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 1
+      },
+      "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "confidence": null,
+      "sources_count": 1,
+      "full_text_excerpt": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\nThere isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\n\n\n\n\n\n",
+      "unsupported_numbers": null,
+      "attribution": {
+        "checked": true,
+        "attribution_ids_not_in_evidence": [],
+        "citations_not_in_news_sources": [],
+        "related_events_shown": 1,
+        "news_shown": 0
+      },
+      "consistency": {
+        "investment_verdict.rating": "Not Applicable",
+        "investment_verdict.direction": "neutral",
+        "engine_verdict.rating": null,
+        "decision_engine_v2.verdict_scale": null,
+        "answer.sentiment": "neutral",
+        "answer.confidence": null,
+        "confidence_data.score": null,
+        "opportunity_score": null,
+        "companies": []
+      },
+      "timing": {
+        "intent_detection_ms": 0.0,
+        "entity_detection_ms": 15.0,
+        "evidence_collection_ms": 328.0,
+        "reasoning_ms": 0.0,
+        "validation_ms": 63.0,
+        "assembly_ms": 0.0,
+        "total_ms": 406.0
+      },
+      "validation": {
+        "repairs": [],
+        "omissions": [],
+        "contradiction_flagged": false
+      },
+      "fabricated_when_degraded": false
+    },
+    {
+      "id": "EI1",
+      "type": "event_impact",
+      "query": "BEL just won a new defence order, what does this mean for the stock?",
+      "latency_s": 0.33,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": [
+        "classifier",
+        "specialist"
+      ],
+      "cap_hit": false,
+      "ui_mode": "event_impact",
+      "specialist": "company",
+      "type_field": null,
+      "cached": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 1
+      },
+      "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "confidence": null,
+      "sources_count": 1,
+      "full_text_excerpt": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\nThere isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\n\n\n\n\n\n",
+      "unsupported_numbers": null,
+      "attribution": {
+        "checked": true,
+        "attribution_ids_not_in_evidence": [],
+        "citations_not_in_news_sources": [],
+        "related_events_shown": 1,
+        "news_shown": 0
+      },
+      "consistency": {
+        "investment_verdict.rating": "Not Applicable",
+        "investment_verdict.direction": "neutral",
+        "engine_verdict.rating": null,
+        "decision_engine_v2.verdict_scale": null,
+        "answer.sentiment": "neutral",
+        "answer.confidence": null,
+        "confidence_data.score": null,
+        "opportunity_score": null,
+        "companies": []
+      },
+      "timing": {
+        "intent_detection_ms": 0.0,
+        "entity_detection_ms": 16.0,
+        "evidence_collection_ms": 250.0,
+        "reasoning_ms": 0.0,
+        "validation_ms": 62.0,
+        "assembly_ms": 0.0,
+        "total_ms": 328.0
+      },
+      "validation": {
+        "repairs": [],
+        "omissions": [],
+        "contradiction_flagged": false
+      },
+      "fabricated_when_degraded": false
+    },
+    {
+      "id": "EI2",
+      "type": "event_impact",
+      "query": "TCS just announced a new AI research center, what does this mean?",
+      "latency_s": 0.25,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": [
+        "classifier",
+        "specialist"
+      ],
+      "cap_hit": false,
+      "ui_mode": "event_impact",
+      "specialist": "company",
+      "type_field": null,
+      "cached": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 1
+      },
+      "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "confidence": null,
+      "sources_count": 1,
+      "full_text_excerpt": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\nThere isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\n\n\n\n\n\n",
+      "unsupported_numbers": null,
+      "attribution": {
+        "checked": true,
+        "attribution_ids_not_in_evidence": [],
+        "citations_not_in_news_sources": [],
+        "related_events_shown": 1,
+        "news_shown": 0
+      },
+      "consistency": {
+        "investment_verdict.rating": "Not Applicable",
+        "investment_verdict.direction": "neutral",
+        "engine_verdict.rating": null,
+        "decision_engine_v2.verdict_scale": null,
+        "answer.sentiment": "neutral",
+        "answer.confidence": null,
+        "confidence_data.score": null,
+        "opportunity_score": null,
+        "companies": []
+      },
+      "timing": {
+        "intent_detection_ms": 16.0,
+        "entity_detection_ms": 31.0,
+        "evidence_collection_ms": 141.0,
+        "reasoning_ms": 0.0,
+        "validation_ms": 62.0,
+        "assembly_ms": 0.0,
+        "total_ms": 250.0
+      },
+      "validation": {
+        "repairs": [],
+        "omissions": [],
+        "contradiction_flagged": false
+      },
+      "fabricated_when_degraded": false
+    },
+    {
+      "id": "EI3",
+      "type": "event_impact",
+      "query": "Banking sector just reported stronger credit growth, what is the impact?",
+      "latency_s": 0.86,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": [
+        "classifier",
+        "specialist"
+      ],
+      "cap_hit": false,
+      "ui_mode": "event_impact",
+      "specialist": "sector",
+      "type_field": null,
+      "cached": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "confidence": null,
+      "sources_count": 0,
+      "full_text_excerpt": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\nThere isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\n\n\n\n\n\n",
+      "unsupported_numbers": null,
+      "attribution": {
+        "checked": true,
+        "attribution_ids_not_in_evidence": [],
+        "citations_not_in_news_sources": [],
+        "related_events_shown": 0,
+        "news_shown": 0
+      },
+      "consistency": {
+        "investment_verdict.rating": "Not Applicable",
+        "investment_verdict.direction": "neutral",
+        "engine_verdict.rating": null,
+        "decision_engine_v2.verdict_scale": null,
+        "answer.sentiment": "neutral",
+        "answer.confidence": null,
+        "confidence_data.score": null,
+        "opportunity_score": null,
+        "companies": []
+      },
+      "timing": {
+        "intent_detection_ms": 0.0,
+        "entity_detection_ms": 31.0,
+        "evidence_collection_ms": 797.0,
+        "reasoning_ms": 0.0,
+        "validation_ms": 31.0,
+        "assembly_ms": 0.0,
+        "total_ms": 859.0
+      },
+      "validation": {
+        "repairs": [],
+        "omissions": [],
+        "contradiction_flagged": false
+      },
+      "fabricated_when_degraded": false
+    },
+    {
+      "id": "SR1",
+      "type": "sector_research",
+      "query": "How is the banking sector doing right now?",
+      "latency_s": 0.23,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": [
+        "classifier",
+        "specialist"
+      ],
+      "cap_hit": false,
+      "ui_mode": "sector_theme_research",
+      "specialist": "sector",
+      "type_field": null,
+      "cached": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "confidence": null,
+      "sources_count": 0,
+      "full_text_excerpt": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\nThere isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\n\n\n\n\n\n",
+      "unsupported_numbers": null,
+      "attribution": {
+        "checked": true,
+        "attribution_ids_not_in_evidence": [],
+        "citations_not_in_news_sources": [],
+        "related_events_shown": 0,
+        "news_shown": 0
+      },
+      "consistency": {
+        "investment_verdict.rating": "Not Applicable",
+        "investment_verdict.direction": "neutral",
+        "engine_verdict.rating": null,
+        "decision_engine_v2.verdict_scale": null,
+        "answer.sentiment": "neutral",
+        "answer.confidence": null,
+        "confidence_data.score": null,
+        "opportunity_score": null,
+        "companies": []
+      },
+      "timing": {
+        "intent_detection_ms": 0.0,
+        "entity_detection_ms": 32.0,
+        "evidence_collection_ms": 156.0,
+        "reasoning_ms": 0.0,
+        "validation_ms": 47.0,
+        "assembly_ms": 0.0,
+        "total_ms": 235.0
+      },
+      "validation": {
+        "repairs": [],
+        "omissions": [],
+        "contradiction_flagged": false
+      },
+      "fabricated_when_degraded": false
+    },
+    {
+      "id": "SR2",
+      "type": "sector_research",
+      "query": "What is the outlook for the IT services sector?",
+      "latency_s": 0.2,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": [
+        "classifier",
+        "specialist"
+      ],
+      "cap_hit": false,
+      "ui_mode": "sector_theme_research",
+      "specialist": "sector",
+      "type_field": null,
+      "cached": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "confidence": null,
+      "sources_count": 0,
+      "full_text_excerpt": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\nThere isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\n\n\n\n\n\n",
+      "unsupported_numbers": null,
+      "attribution": {
+        "checked": true,
+        "attribution_ids_not_in_evidence": [],
+        "citations_not_in_news_sources": [],
+        "related_events_shown": 0,
+        "news_shown": 0
+      },
+      "consistency": {
+        "investment_verdict.rating": "Not Applicable",
+        "investment_verdict.direction": "neutral",
+        "engine_verdict.rating": null,
+        "decision_engine_v2.verdict_scale": null,
+        "answer.sentiment": "neutral",
+        "answer.confidence": null,
+        "confidence_data.score": null,
+        "opportunity_score": null,
+        "companies": []
+      },
+      "timing": {
+        "intent_detection_ms": 0.0,
+        "entity_detection_ms": 0.0,
+        "evidence_collection_ms": 156.0,
+        "reasoning_ms": 0.0,
+        "validation_ms": 47.0,
+        "assembly_ms": 0.0,
+        "total_ms": 203.0
+      },
+      "validation": {
+        "repairs": [],
+        "omissions": [],
+        "contradiction_flagged": false
+      },
+      "fabricated_when_degraded": false
+    },
+    {
+      "id": "SR3",
+      "type": "sector_research",
+      "query": "Which sectors look weak in the market at the moment?",
+      "latency_s": 0.23,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": [
+        "classifier",
+        "specialist"
+      ],
+      "cap_hit": false,
+      "ui_mode": "direct_company_research",
+      "specialist": "company",
+      "type_field": null,
+      "cached": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "confidence": null,
+      "sources_count": 0,
+      "full_text_excerpt": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\nThere isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\n\n\n\n\n\n",
+      "unsupported_numbers": null,
+      "attribution": {
+        "checked": true,
+        "attribution_ids_not_in_evidence": [],
+        "citations_not_in_news_sources": [],
+        "related_events_shown": 0,
+        "news_shown": 0
+      },
+      "consistency": {
+        "investment_verdict.rating": "Not Applicable",
+        "investment_verdict.direction": "neutral",
+        "engine_verdict.rating": null,
+        "decision_engine_v2.verdict_scale": null,
+        "answer.sentiment": "neutral",
+        "answer.confidence": null,
+        "confidence_data.score": null,
+        "opportunity_score": null,
+        "companies": []
+      },
+      "timing": {
+        "intent_detection_ms": 0.0,
+        "entity_detection_ms": 16.0,
+        "evidence_collection_ms": 187.0,
+        "reasoning_ms": 0.0,
+        "validation_ms": 31.0,
+        "assembly_ms": 0.0,
+        "total_ms": 234.0
+      },
+      "validation": {
+        "repairs": [],
+        "omissions": [],
+        "contradiction_flagged": false
+      },
+      "fabricated_when_degraded": false
+    },
+    {
+      "id": "MP1",
+      "type": "macro_policy",
+      "query": "What happens to Indian banks if the RBI cuts the repo rate?",
+      "latency_s": 0.03,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": [
+        "classifier"
+      ],
+      "cap_hit": false,
+      "ui_mode": null,
+      "specialist": null,
+      "type_field": null,
+      "cached": true,
+      "synthesis_incomplete": true,
+      "degraded_reason": "ambiguous_entity",
+      "answer_availability": {
+        "state": "no_verified_evidence",
+        "evidence_retrieval_completed": false,
+        "evidence_count": 0
+      },
+      "summary": "\"Indian\" names a group with multiple listed companies, not one specific stock — did you mean one of: Indian Railway Finance Corporation (IRFC), Indian Renewable Energy Development Agency (IREDA), Indian Oil Corporation Ltd (IOC), Indian Railway Catering and Tourism (IRCTC), Indian Energy Exchange Ltd (IEX), Indian Bank (INDIANB)? Ask about a specific company by name for a real analysis.",
+      "bottom_line": "\"Indian\" names a group with multiple listed companies, not one specific stock — did you mean one of: Indian Railway Finance Corporation (IRFC), Indian Renewable Energy Development Agency (IREDA), Indian Oil Corporation Ltd (IOC), Indian Railway Catering and Tourism (IRCTC), Indian Energy Exchange Ltd (IEX), Indian Bank (INDIANB)? Ask about a specific company by name for a real analysis.",
+      "confidence": null,
+      "sources_count": 0,
+      "full_text_excerpt": "\"Indian\" names a group with multiple listed companies, not one specific stock — did you mean one of: Indian Railway Finance Corporation (IRFC), Indian Renewable Energy Development Agency (IREDA), Indian Oil Corporation Ltd (IOC), Indian Railway Catering and Tourism (IRCTC), Indian Energy Exchange Ltd (IEX), Indian Bank (INDIANB)? Ask about a specific company by name for a real analysis.\n\"Indian\" names a group with multiple listed companies, not one specific stock — did you mean one of: Indian Railway Finance Corporation (IRFC), Indian Renewable Energy Development Agency (IREDA), Indian Oil Corporation Ltd (IOC), Indian Railway Catering and Tourism (IRCTC), Indian Energy Exchange Ltd (IEX), Indian Bank (INDIANB)? Ask about a specific company by name for a real analysis.\n\n\n\n\n\n",
+      "unsupported_numbers": null,
+      "attribution": {
+        "checked": false
+      },
+      "consistency": {
+        "investment_verdict.rating": "Not Applicable",
+        "investment_verdict.direction": "neutral",
+        "engine_verdict.rating": null,
+        "decision_engine_v2.verdict_scale": null,
+        "answer.sentiment": "neutral",
+        "answer.confidence": null,
+        "confidence_data.score": null,
+        "opportunity_score": null,
+        "companies": []
+      },
+      "timing": null,
+      "validation": null,
+      "fabricated_when_degraded": false
+    },
+    {
+      "id": "MP2",
+      "type": "macro_policy",
+      "query": "How would higher crude oil prices affect Indian markets?",
+      "latency_s": 2.59,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": [
+        "classifier",
+        "specialist"
+      ],
+      "cap_hit": false,
+      "ui_mode": "direct_company_research",
+      "specialist": "company",
+      "type_field": null,
+      "cached": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "confidence": null,
+      "sources_count": 0,
+      "full_text_excerpt": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\nThere isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\n\n\n\n\n\n",
+      "unsupported_numbers": null,
+      "attribution": {
+        "checked": true,
+        "attribution_ids_not_in_evidence": [],
+        "citations_not_in_news_sources": [],
+        "related_events_shown": 0,
+        "news_shown": 0
+      },
+      "consistency": {
+        "investment_verdict.rating": "Not Applicable",
+        "investment_verdict.direction": "neutral",
+        "engine_verdict.rating": null,
+        "decision_engine_v2.verdict_scale": null,
+        "answer.sentiment": "neutral",
+        "answer.confidence": null,
+        "confidence_data.score": null,
+        "opportunity_score": null,
+        "companies": []
+      },
+      "timing": {
+        "intent_detection_ms": 0.0,
+        "entity_detection_ms": 31.0,
+        "evidence_collection_ms": 2515.0,
+        "reasoning_ms": 0.0,
+        "validation_ms": 47.0,
+        "assembly_ms": 0.0,
+        "total_ms": 2593.0
+      },
+      "validation": {
+        "repairs": [],
+        "omissions": [],
+        "contradiction_flagged": false
+      },
+      "fabricated_when_degraded": false
+    },
+    {
+      "id": "MP3",
+      "type": "macro_policy",
+      "query": "How would a weaker rupee affect Indian IT exporters?",
+      "latency_s": 0.02,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": [
+        "classifier"
+      ],
+      "cap_hit": false,
+      "ui_mode": null,
+      "specialist": null,
+      "type_field": null,
+      "cached": true,
+      "synthesis_incomplete": true,
+      "degraded_reason": "ambiguous_entity",
+      "answer_availability": {
+        "state": "no_verified_evidence",
+        "evidence_retrieval_completed": false,
+        "evidence_count": 0
+      },
+      "summary": "\"Indian\" names a group with multiple listed companies, not one specific stock — did you mean one of: Indian Railway Finance Corporation (IRFC), Indian Renewable Energy Development Agency (IREDA), Indian Oil Corporation Ltd (IOC), Indian Railway Catering and Tourism (IRCTC), Indian Energy Exchange Ltd (IEX), Indian Bank (INDIANB)? Ask about a specific company by name for a real analysis.",
+      "bottom_line": "\"Indian\" names a group with multiple listed companies, not one specific stock — did you mean one of: Indian Railway Finance Corporation (IRFC), Indian Renewable Energy Development Agency (IREDA), Indian Oil Corporation Ltd (IOC), Indian Railway Catering and Tourism (IRCTC), Indian Energy Exchange Ltd (IEX), Indian Bank (INDIANB)? Ask about a specific company by name for a real analysis.",
+      "confidence": null,
+      "sources_count": 0,
+      "full_text_excerpt": "\"Indian\" names a group with multiple listed companies, not one specific stock — did you mean one of: Indian Railway Finance Corporation (IRFC), Indian Renewable Energy Development Agency (IREDA), Indian Oil Corporation Ltd (IOC), Indian Railway Catering and Tourism (IRCTC), Indian Energy Exchange Ltd (IEX), Indian Bank (INDIANB)? Ask about a specific company by name for a real analysis.\n\"Indian\" names a group with multiple listed companies, not one specific stock — did you mean one of: Indian Railway Finance Corporation (IRFC), Indian Renewable Energy Development Agency (IREDA), Indian Oil Corporation Ltd (IOC), Indian Railway Catering and Tourism (IRCTC), Indian Energy Exchange Ltd (IEX), Indian Bank (INDIANB)? Ask about a specific company by name for a real analysis.\n\n\n\n\n\n",
+      "unsupported_numbers": null,
+      "attribution": {
+        "checked": false
+      },
+      "consistency": {
+        "investment_verdict.rating": "Not Applicable",
+        "investment_verdict.direction": "neutral",
+        "engine_verdict.rating": null,
+        "decision_engine_v2.verdict_scale": null,
+        "answer.sentiment": "neutral",
+        "answer.confidence": null,
+        "confidence_data.score": null,
+        "opportunity_score": null,
+        "companies": []
+      },
+      "timing": null,
+      "validation": null,
+      "fabricated_when_degraded": false
+    },
+    {
+      "id": "CC1",
+      "type": "company_comparison",
+      "query": "TCS vs Infosys, which is stronger?",
+      "latency_s": 0.27,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": [
+        "classifier",
+        "specialist"
+      ],
+      "cap_hit": false,
+      "ui_mode": "company_comparison",
+      "specialist": "comparison",
+      "type_field": null,
+      "cached": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 1
+      },
+      "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "confidence": null,
+      "sources_count": 1,
+      "full_text_excerpt": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\nThere isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\n\n\n\n\n\n",
+      "unsupported_numbers": null,
+      "attribution": {
+        "checked": true,
+        "attribution_ids_not_in_evidence": [],
+        "citations_not_in_news_sources": [],
+        "related_events_shown": 1,
+        "news_shown": 0
+      },
+      "consistency": {
+        "investment_verdict.rating": "Not Applicable",
+        "investment_verdict.direction": "neutral",
+        "engine_verdict.rating": null,
+        "decision_engine_v2.verdict_scale": null,
+        "answer.sentiment": "neutral",
+        "answer.confidence": null,
+        "confidence_data.score": null,
+        "opportunity_score": null,
+        "companies": []
+      },
+      "timing": {
+        "intent_detection_ms": 0.0,
+        "entity_detection_ms": 15.0,
+        "evidence_collection_ms": 188.0,
+        "reasoning_ms": 0.0,
+        "validation_ms": 47.0,
+        "assembly_ms": 0.0,
+        "total_ms": 250.0
+      },
+      "validation": {
+        "repairs": [],
+        "omissions": [],
+        "contradiction_flagged": false
+      },
+      "fabricated_when_degraded": false
+    },
+    {
+      "id": "CC2",
+      "type": "company_comparison",
+      "query": "Compare HDFC Bank and ICICI Bank.",
+      "latency_s": 0.25,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": [
+        "classifier",
+        "specialist"
+      ],
+      "cap_hit": false,
+      "ui_mode": "company_comparison",
+      "specialist": "comparison",
+      "type_field": null,
+      "cached": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 1
+      },
+      "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "confidence": null,
+      "sources_count": 1,
+      "full_text_excerpt": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\nThere isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\n\n\n\n\n\n",
+      "unsupported_numbers": null,
+      "attribution": {
+        "checked": true,
+        "attribution_ids_not_in_evidence": [],
+        "citations_not_in_news_sources": [],
+        "related_events_shown": 1,
+        "news_shown": 0
+      },
+      "consistency": {
+        "investment_verdict.rating": "Not Applicable",
+        "investment_verdict.direction": "neutral",
+        "engine_verdict.rating": null,
+        "decision_engine_v2.verdict_scale": null,
+        "answer.sentiment": "neutral",
+        "answer.confidence": null,
+        "confidence_data.score": null,
+        "opportunity_score": null,
+        "companies": []
+      },
+      "timing": {
+        "intent_detection_ms": 0.0,
+        "entity_detection_ms": 0.0,
+        "evidence_collection_ms": 188.0,
+        "reasoning_ms": 0.0,
+        "validation_ms": 62.0,
+        "assembly_ms": 0.0,
+        "total_ms": 250.0
+      },
+      "validation": {
+        "repairs": [],
+        "omissions": [],
+        "contradiction_flagged": false
+      },
+      "fabricated_when_degraded": false
+    },
+    {
+      "id": "CC3",
+      "type": "company_comparison",
+      "query": "I hold BEL. Should I switch to HAL?",
+      "latency_s": 0.2,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": [
+        "classifier",
+        "specialist"
+      ],
+      "cap_hit": false,
+      "ui_mode": "switch_analysis",
+      "specialist": "comparison",
+      "type_field": null,
+      "cached": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 1
+      },
+      "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "confidence": null,
+      "sources_count": 1,
+      "full_text_excerpt": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\nThere isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\n\n\n\n\n\n",
+      "unsupported_numbers": null,
+      "attribution": {
+        "checked": true,
+        "attribution_ids_not_in_evidence": [],
+        "citations_not_in_news_sources": [],
+        "related_events_shown": 1,
+        "news_shown": 0
+      },
+      "consistency": {
+        "investment_verdict.rating": "Not Applicable",
+        "investment_verdict.direction": "neutral",
+        "engine_verdict.rating": null,
+        "decision_engine_v2.verdict_scale": null,
+        "answer.sentiment": "neutral",
+        "answer.confidence": null,
+        "confidence_data.score": null,
+        "opportunity_score": null,
+        "companies": []
+      },
+      "timing": {
+        "intent_detection_ms": 0.0,
+        "entity_detection_ms": 0.0,
+        "evidence_collection_ms": 172.0,
+        "reasoning_ms": 0.0,
+        "validation_ms": 31.0,
+        "assembly_ms": 0.0,
+        "total_ms": 203.0
+      },
+      "validation": {
+        "repairs": [],
+        "omissions": [],
+        "contradiction_flagged": false
+      },
+      "fabricated_when_degraded": false
+    },
+    {
+      "id": "GE1",
+      "type": "general_explanation",
+      "query": "What is a P/E ratio and how should I read it?",
+      "latency_s": 0.2,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": [
+        "classifier",
+        "specialist"
+      ],
+      "cap_hit": false,
+      "ui_mode": "direct_company_research",
+      "specialist": "company",
+      "type_field": null,
+      "cached": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      "confidence": null,
+      "sources_count": 0,
+      "full_text_excerpt": "There isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\nThere isn't enough freshly generated analysis to answer this question with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.\n\n\n\n\n\n",
+      "unsupported_numbers": null,
+      "attribution": {
+        "checked": true,
+        "attribution_ids_not_in_evidence": [],
+        "citations_not_in_news_sources": [],
+        "related_events_shown": 0,
+        "news_shown": 0
+      },
+      "consistency": {
+        "investment_verdict.rating": "Not Applicable",
+        "investment_verdict.direction": "neutral",
+        "engine_verdict.rating": null,
+        "decision_engine_v2.verdict_scale": null,
+        "answer.sentiment": "neutral",
+        "answer.confidence": null,
+        "confidence_data.score": null,
+        "opportunity_score": null,
+        "companies": []
+      },
+      "timing": {
+        "intent_detection_ms": 0.0,
+        "entity_detection_ms": 16.0,
+        "evidence_collection_ms": 141.0,
+        "reasoning_ms": 0.0,
+        "validation_ms": 31.0,
+        "assembly_ms": 0.0,
+        "total_ms": 188.0
+      },
+      "validation": {
+        "repairs": [],
+        "omissions": [],
+        "contradiction_flagged": false
+      },
+      "fabricated_when_degraded": false
+    },
+    {
+      "id": "GE2",
+      "type": "general_explanation",
+      "query": "What does FII selling mean for the Indian market?",
+      "latency_s": 0.02,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": [
+        "classifier"
+      ],
+      "cap_hit": false,
+      "ui_mode": null,
+      "specialist": null,
+      "type_field": null,
+      "cached": true,
+      "synthesis_incomplete": true,
+      "degraded_reason": "ambiguous_entity",
+      "answer_availability": {
+        "state": "no_verified_evidence",
+        "evidence_retrieval_completed": false,
+        "evidence_count": 0
+      },
+      "summary": "\"Indian\" names a group with multiple listed companies, not one specific stock — did you mean one of: Indian Railway Finance Corporation (IRFC), Indian Renewable Energy Development Agency (IREDA), Indian Oil Corporation Ltd (IOC), Indian Railway Catering and Tourism (IRCTC), Indian Energy Exchange Ltd (IEX), Indian Bank (INDIANB)? Ask about a specific company by name for a real analysis.",
+      "bottom_line": "\"Indian\" names a group with multiple listed companies, not one specific stock — did you mean one of: Indian Railway Finance Corporation (IRFC), Indian Renewable Energy Development Agency (IREDA), Indian Oil Corporation Ltd (IOC), Indian Railway Catering and Tourism (IRCTC), Indian Energy Exchange Ltd (IEX), Indian Bank (INDIANB)? Ask about a specific company by name for a real analysis.",
+      "confidence": null,
+      "sources_count": 0,
+      "full_text_excerpt": "\"Indian\" names a group with multiple listed companies, not one specific stock — did you mean one of: Indian Railway Finance Corporation (IRFC), Indian Renewable Energy Development Agency (IREDA), Indian Oil Corporation Ltd (IOC), Indian Railway Catering and Tourism (IRCTC), Indian Energy Exchange Ltd (IEX), Indian Bank (INDIANB)? Ask about a specific company by name for a real analysis.\n\"Indian\" names a group with multiple listed companies, not one specific stock — did you mean one of: Indian Railway Finance Corporation (IRFC), Indian Renewable Energy Development Agency (IREDA), Indian Oil Corporation Ltd (IOC), Indian Railway Catering and Tourism (IRCTC), Indian Energy Exchange Ltd (IEX), Indian Bank (INDIANB)? Ask about a specific company by name for a real analysis.\n\n\n\n\n\n",
+      "unsupported_numbers": null,
+      "attribution": {
+        "checked": false
+      },
+      "consistency": {
+        "investment_verdict.rating": "Not Applicable",
+        "investment_verdict.direction": "neutral",
+        "engine_verdict.rating": null,
+        "decision_engine_v2.verdict_scale": null,
+        "answer.sentiment": "neutral",
+        "answer.confidence": null,
+        "confidence_data.score": null,
+        "opportunity_score": null,
+        "companies": []
+      },
+      "timing": null,
+      "validation": null,
+      "fabricated_when_degraded": false
+    },
+    {
+      "id": "GE3",
+      "type": "general_explanation",
+      "query": "How does the MarketRipple Score work?",
+      "latency_s": 0.05,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": [
+        "classifier"
+      ],
+      "cap_hit": false,
+      "ui_mode": null,
+      "specialist": null,
+      "type_field": null,
+      "cached": true,
+      "synthesis_incomplete": true,
+      "degraded_reason": "unsupported_entity",
+      "answer_availability": {
+        "state": "no_verified_evidence",
+        "evidence_retrieval_completed": false,
+        "evidence_count": 0
+      },
+      "summary": "This looks like it's asking about a specific company, but it doesn't match any company currently listed on the NSE/BSE in MarketRipple's database. Double-check the spelling, or ask about a sector or market theme instead. Did you mean: DOMS Industries Ltd (DOMS), Network18 Media & Investments Ltd (NETWORK18), Coforge Ltd (COFORGE)?",
+      "bottom_line": "This looks like it's asking about a specific company, but it doesn't match any company currently listed on the NSE/BSE in MarketRipple's database. Double-check the spelling, or ask about a sector or market theme instead.",
+      "confidence": null,
+      "sources_count": 0,
+      "full_text_excerpt": "This looks like it's asking about a specific company, but it doesn't match any company currently listed on the NSE/BSE in MarketRipple's database. Double-check the spelling, or ask about a sector or market theme instead. Did you mean: DOMS Industries Ltd (DOMS), Network18 Media & Investments Ltd (NETWORK18), Coforge Ltd (COFORGE)?\nThis looks like it's asking about a specific company, but it doesn't match any company currently listed on the NSE/BSE in MarketRipple's database. Double-check the spelling, or ask about a sector or market theme instead.\n\n\n\n\n\n",
+      "unsupported_numbers": null,
+      "attribution": {
+        "checked": false
+      },
+      "consistency": {
+        "investment_verdict.rating": "Not Applicable",
+        "investment_verdict.direction": "neutral",
+        "engine_verdict.rating": null,
+        "decision_engine_v2.verdict_scale": null,
+        "answer.sentiment": "neutral",
+        "answer.confidence": null,
+        "confidence_data.score": null,
+        "opportunity_score": null,
+        "companies": []
+      },
+      "timing": null,
+      "validation": null,
+      "fabricated_when_degraded": false
+    }
+  ]
+}

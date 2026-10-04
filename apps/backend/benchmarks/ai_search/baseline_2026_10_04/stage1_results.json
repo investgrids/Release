@@ -1,0 +1,2347 @@
+[
+  {
+    "id": "CR1",
+    "type": "company_research",
+    "query": "What is the outlook for Kotak Mahindra Bank?",
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "elapsed_s": 10.52,
+    "short_circuit": null,
+    "specialist": "company",
+    "ui_mode": "direct_company_research",
+    "intent": "general",
+    "entities": {
+      "companies": [
+        "KOTAKBANK",
+        "M&M"
+      ],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "RBI to close FCNR(B) swaps a month earlier due to gush",
+          "date": "Aug 15, 2026",
+          "age_days": 49.8,
+          "source": "Economic Times",
+          "impact": 61.6,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "Trading Plan under PIT",
+          "date": "Jul 17, 2026",
+          "age_days": 78.5,
+          "source": "NSE",
+          "impact": 60.0,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "Outcome of Board Meeting",
+          "date": "Jul 17, 2026",
+          "age_days": 78.7,
+          "source": "NSE",
+          "impact": 60.0,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "ICICI Bank Limited has informed the Exchange that under Regulation 30 of the SEBI (Listing Obligations and Dis",
+          "date": "Aug 13, 2026",
+          "age_days": 51.4,
+          "source": "NSE",
+          "impact": 58.2,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "Economic Times",
+          "impact": 57.1,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+          "date": "Aug 14, 2026",
+          "age_days": 50.5,
+          "source": "Economic Times",
+          "impact": 55.3,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "DPSC Limited has informed the Exchange about Corporate Insolvency Resolution Process-Invocation of Bank Guaran",
+          "date": "Aug 16, 2026",
+          "age_days": 48.9,
+          "source": "NSE",
+          "impact": 53.2,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+          "date": "Aug 12, 2026",
+          "age_days": 52.3,
+          "source": "Economic Times",
+          "impact": 51.3,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "Yes Bank Limited has informed the Exchange regarding 'Intimation under the Securities and Exchange Board of In",
+          "date": "Aug 15, 2026",
+          "age_days": 49.7,
+          "source": "NSE",
+          "impact": 47.2,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "Bank Of Baroda has informed the Exchange about Provisional Business Figures Q2 30-09-2026",
+          "date": "Oct 03, 2026",
+          "age_days": 0.5,
+          "source": "NSE",
+          "impact": 46.5,
+          "tagged_symbols": [],
+          "about_query_company": false
+        }
+      ],
+      "news": [
+        {
+          "headline": "RBI Repo Rate May Climb To 6% In FY27 As G-Sec Yields Face Upward Pressure: Report",
+          "published_at_raw": "44m ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "headline": "RBI MPC Meeting October 2026: Repo rate hike will be decided by these 5 factors | Explained",
+          "published_at_raw": "1h ago",
+          "source": "Livemint"
+        },
+        {
+          "headline": "When Will Monsoon End In Mumbai? IMD Withdrawal Date, October Heat And India’s Rainfall Outlook",
+          "published_at_raw": "3h ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "headline": "Stock market prediction for tomorrow, 5 Oct Monday: Sensex, Nifty outlook; Dow Jones, Nasdaq, Kospi, Nikkei, T",
+          "published_at_raw": "3h ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Stock market prediction for tomorrow, 5 Oct Monday: Sensex, Nifty outlook; Dow Jones, Nasdaq, Kospi, Nikkei, T",
+          "published_at_raw": "3h ago",
+          "source": "Livemint"
+        },
+        {
+          "headline": "HDFC Bank gets new MD-CEO; stock is Jefferies India's top pick — 22% upside despite 27% dip in YTD | Target pr",
+          "published_at_raw": "4h ago",
+          "source": "Livemint"
+        },
+        {
+          "headline": "Stock Market Outlook October 2026: Can Sensex, Nifty Recover? What Analysts Are Saying - ETV Bharat",
+          "published_at_raw": "20h ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "TCS, Infosys, Wipro shares ahead of Q2 results: Explained | What Accenture's strong earnings mean for Indian I",
+          "published_at_raw": "20h ago",
+          "source": "Livemint"
+        }
+      ],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 1,
+      "context_chars": 266,
+      "development_count": 17,
+      "source_count": 18
+    }
+  },
+  {
+    "id": "CR2",
+    "type": "company_research",
+    "query": "How is 3M India doing as a business?",
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "elapsed_s": 22.72,
+    "short_circuit": null,
+    "specialist": "company",
+    "ui_mode": "direct_company_research",
+    "intent": "general",
+    "entities": {
+      "companies": [
+        "BANKINDIA"
+      ],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "RBI Remains Cautious On Crypto, Backs Underlying Technology: Governor Sanjay Malhotra",
+          "date": "Oct 03, 2026",
+          "age_days": 0.6,
+          "source": "NDTV Profit",
+          "impact": 68.2,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "Indian Oil Corporation Limited has informed the Exchange regarding 'Investment Approval for Kochi-Kanyakumari-",
+          "date": "Sep 21, 2026",
+          "age_days": 12.7,
+          "source": "NSE",
+          "impact": 66.1,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "FPIs lead the exit as anchor investors after IPO lock-ins end: Sebi study",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "Livemint",
+          "impact": 64.4,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "The Company has informed the stock exchanges about the Newspaper Publication of the Quarterly / Yearly Audited",
+          "date": "Oct 03, 2026",
+          "age_days": 0.6,
+          "source": "NSE",
+          "impact": 64.2,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "FPIs emerge as biggest sellers among anchor investors in IPOs' 30-day window: Sebi study",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "Economic Times",
+          "impact": 64.0,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "GE Vernova T&D India Limited has informed the Exchange regarding 'Business Responsibility and Sustainability R",
+          "date": "Aug 13, 2026",
+          "age_days": 51.4,
+          "source": "NSE",
+          "impact": 64.0,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "Market Strategy: Earnings Cycle Gaining Momentum, Metals Deliver Strongest Beat, Says BofA India",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "NDTV Profit",
+          "impact": 62.6,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+          "date": "Aug 14, 2026",
+          "age_days": 50.8,
+          "source": "Economic Times",
+          "impact": 62.4,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "Markolines Pavement Technologies Limited has informed the Exchange regarding a press release dated August 15, ",
+          "date": "Aug 15, 2026",
+          "age_days": 49.7,
+          "source": "NSE",
+          "impact": 62.3,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "Week Ahead On D-Street: US Fed Minutes, FPI Inflows, Crude Oil Prices, US-Iran Conflict To Drive Sensex, Nifty",
+          "date": "Aug 16, 2026",
+          "age_days": 48.5,
+          "source": "NDTV Profit",
+          "impact": 62.2,
+          "tagged_symbols": [],
+          "about_query_company": false
+        }
+      ],
+      "news": [
+        {
+          "headline": "Foreign investors are short on Indian markets as global risks weigh - Business Standard",
+          "published_at_raw": "11m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Foreign investors are short on Indian markets as global risks weigh",
+          "published_at_raw": "11m ago",
+          "source": "Business Standard"
+        },
+        {
+          "headline": "Bajaj Finance: Why this rare Nifty outperformer is likely to reward investors in a muted market",
+          "published_at_raw": "29m ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "RBI Repo Rate May Climb To 6% In FY27 As G-Sec Yields Face Upward Pressure: Report",
+          "published_at_raw": "44m ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "headline": "What will bring foreign investors back to Indian stock market? 5 things that should go right",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Rate cut cycle near turning point. What lies ahead for Indian bonds?",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "RBI MPC Meeting October 2026: Repo rate hike will be decided by these 5 factors | Explained",
+          "published_at_raw": "1h ago",
+          "source": "Livemint"
+        },
+        {
+          "headline": "Another big development in Tata Boardroom Battle; Noel Tata seeks video recording and minutes of Sept 17 meeti",
+          "published_at_raw": "1h ago",
+          "source": "Livemint"
+        }
+      ],
+      "policies": [
+        {
+          "title": "Federal Reserve announces the leadership and objectives of its task forces to advance the conduct of monetary ",
+          "ministry": "US Federal Reserve",
+          "status": "Active",
+          "impact_score": 75
+        },
+        {
+          "title": "Federal Reserve Board and Federal Open Market Committee release economic projections from the September 15-16 ",
+          "ministry": "US Federal Reserve",
+          "status": "Active",
+          "impact_score": 75
+        }
+      ],
+      "announcements": [
+        {
+          "subject": "Bank Of India has informed the Exchange regarding 'Provisional Business Figures for Q2 FY2",
+          "category": null,
+          "date": "2026-10-03T00:00:00"
+        },
+        {
+          "subject": "Bank Of India has informed the Exchange regarding 'Half Yearly Statement of Outstanding Bo",
+          "category": null,
+          "date": "2026-10-03T00:00:00"
+        },
+        {
+          "subject": "Bank Of India has informed the Exchange about Credit Rating",
+          "category": null,
+          "date": "2026-08-19T00:00:00"
+        }
+      ],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": true,
+      "context_lines": 4,
+      "context_chars": 1213,
+      "development_count": 20,
+      "source_count": 20
+    }
+  },
+  {
+    "id": "CR3",
+    "type": "company_research",
+    "query": "What is happening with TCS lately?",
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "elapsed_s": 2.02,
+    "short_circuit": null,
+    "specialist": "company",
+    "ui_mode": "direct_company_research",
+    "intent": "general",
+    "entities": {
+      "companies": [
+        "TCS"
+      ],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "US enterprise IT spending contracts for second consecutive quarter",
+          "date": "Jul 10, 2026",
+          "age_days": 85.6,
+          "source": "",
+          "impact": 7.4,
+          "tagged_symbols": [
+            "TCS",
+            "INFY",
+            "WIPRO"
+          ],
+          "about_query_company": true
+        }
+      ],
+      "news": [
+        {
+          "headline": "Infosys, TCS, HCL Tech, other IT stocks rally up to 3%. 2 major reasons why",
+          "published_at_raw": "2026-07-17",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "2 reasons why Infosys, TCS and other IT stocks are rising today",
+          "published_at_raw": "2026-07-17",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "M-cap of five of top 10 most valued firms jumps Rs 1.54 lakh cr; TCS biggest winner",
+          "published_at_raw": "2026-07-19",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Sensex Today | Nifty 50 | Stock Market Live Updates: Sensex rises 100 points, Nifty above 24K; TCS rises 3%, B",
+          "published_at_raw": "2026-07-28",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "TCS, Infosys, Coforge, other IT stocks rally up to 10% after Nvidia-led chip rout. Is AI trade ending?",
+          "published_at_raw": "2026-07-28",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Market wrap: TCS, Eternal, HUL, BEL among top gainers and losers on Nifty and Sensex on Tuesday",
+          "published_at_raw": "2026-07-28",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "IT stocks on a roll: TCS, Infosys, Coforge and others rally up to 5% for second straight day. What's driving t",
+          "published_at_raw": "2026-07-29",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Market wrap: TCS, IndiGo, Sun Pharma among top gainers and losers on Nifty and Sensex on Monday",
+          "published_at_raw": "2026-08-03",
+          "source": "Economic Times"
+        }
+      ],
+      "policies": [],
+      "announcements": [
+        {
+          "subject": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+          "category": null,
+          "date": "2026-10-01T00:00:00"
+        },
+        {
+          "subject": "Tata Consultancy Services Limited has informed the Exchange regarding a press release date",
+          "category": null,
+          "date": "2026-10-01T00:00:00"
+        }
+      ],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": true,
+      "context_lines": 4,
+      "context_chars": 1212,
+      "development_count": 10,
+      "source_count": 9
+    }
+  },
+  {
+    "id": "EI1",
+    "type": "event_impact",
+    "query": "BEL just won a new defence order, what does this mean for the stock?",
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "elapsed_s": 1.84,
+    "short_circuit": null,
+    "specialist": "company",
+    "ui_mode": "event_impact",
+    "intent": "news_reaction",
+    "entities": {
+      "companies": [
+        "BEL"
+      ],
+      "sectors": [
+        "defence"
+      ],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "Defence capital expenditure raised by Rs. 45,000 Cr in revised estimates",
+          "date": "Jul 08, 2026",
+          "age_days": 87.6,
+          "source": "",
+          "impact": 9.1,
+          "tagged_symbols": [
+            "BEL",
+            "HAL",
+            "BHARATFORG"
+          ],
+          "about_query_company": true
+        }
+      ],
+      "news": [
+        {
+          "headline": "After Nifty’s longest losing streak in 25 years, what should investors do now?",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Defence supplier sees demand surge after revised budget allocation",
+          "published_at_raw": "2h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Indian Stock Market News, Equity Market and Sensex Today in India - Equitymaster",
+          "published_at_raw": "1h ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Share Market Live News: Indian Stock Market Prediction, Nifty 50 - Liquide Blog",
+          "published_at_raw": "15h ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Sensex, Nifty surged nearly 4% following announcement of ceasefire agreement between Washington and Tehran - N",
+          "published_at_raw": "1d ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "BT Opening Bell |Sensex, Nifty open in green; Trent, Sun Pharma, Bajaj Finserv top gainers - Business Today",
+          "published_at_raw": "26m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Stock Market Today: Sensex Up 63 Points, Nifty Above 24,090 In Early Trade - News18",
+          "published_at_raw": "29m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Sensex Today Trades Lower | Nifty Below 24,050 | Kotak Mahindra & HCL Tech Top Losers - Equitymaster",
+          "published_at_raw": "6m ago",
+          "source": "Google News"
+        }
+      ],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 1,
+      "context_chars": 266,
+      "development_count": 9,
+      "source_count": 9
+    }
+  },
+  {
+    "id": "EI2",
+    "type": "event_impact",
+    "query": "TCS just announced a new AI research center, what does this mean?",
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "elapsed_s": 1.8,
+    "short_circuit": null,
+    "specialist": "company",
+    "ui_mode": "event_impact",
+    "intent": "news_reaction",
+    "entities": {
+      "companies": [
+        "TCS"
+      ],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "US enterprise IT spending contracts for second consecutive quarter",
+          "date": "Jul 10, 2026",
+          "age_days": 85.6,
+          "source": "",
+          "impact": 7.4,
+          "tagged_symbols": [
+            "TCS",
+            "INFY",
+            "WIPRO"
+          ],
+          "about_query_company": true
+        }
+      ],
+      "news": [
+        {
+          "headline": "Foreign investors are short on Indian markets as global risks weigh",
+          "published_at_raw": "11m ago",
+          "source": "Business Standard"
+        },
+        {
+          "headline": "Bajaj Finance: Why this rare Nifty outperformer is likely to reward investors in a muted market",
+          "published_at_raw": "29m ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Rate cut cycle near turning point. What lies ahead for Indian bonds?",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "RBI MPC Meeting October 2026: Repo rate hike will be decided by these 5 factors | Explained",
+          "published_at_raw": "1h ago",
+          "source": "Livemint"
+        },
+        {
+          "headline": "Another big development in Tata Boardroom Battle; Noel Tata seeks video recording and minutes of Sept 17 meeti",
+          "published_at_raw": "1h ago",
+          "source": "Livemint"
+        },
+        {
+          "headline": "After Nifty’s longest losing streak in 25 years, what should investors do now?",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "IPO Buzz: Orient Cables To Shah Investor's — Six Mainboard Listings Next Week, One SME Issue To Open",
+          "published_at_raw": "2h ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "headline": "Jio IPO likely by Oct end at enterprise valuation of above ₹12 trillion",
+          "published_at_raw": "2h ago",
+          "source": "Business Standard"
+        }
+      ],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 1,
+      "context_chars": 266,
+      "development_count": 9,
+      "source_count": 9
+    }
+  },
+  {
+    "id": "EI3",
+    "type": "event_impact",
+    "query": "Banking sector just reported stronger credit growth, what is the impact?",
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "elapsed_s": 1.77,
+    "short_circuit": null,
+    "specialist": "sector",
+    "ui_mode": "event_impact",
+    "intent": "news_reaction",
+    "entities": {
+      "companies": [],
+      "sectors": [
+        "banking"
+      ],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "Market Strategy: Earnings Cycle Gaining Momentum, Metals Deliver Strongest Beat, Says BofA India",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "NDTV Profit",
+          "impact": 62.6,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+          "date": "Aug 14, 2026",
+          "age_days": 50.8,
+          "source": "Economic Times",
+          "impact": 62.4,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Week Ahead On D-Street: US Fed Minutes, FPI Inflows, Crude Oil Prices, US-Iran Conflict To Drive Sensex, Nifty",
+          "date": "Aug 16, 2026",
+          "age_days": 48.5,
+          "source": "NDTV Profit",
+          "impact": 62.2,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "RBI to close FCNR(B) swaps a month earlier due to gush",
+          "date": "Aug 15, 2026",
+          "age_days": 49.8,
+          "source": "Economic Times",
+          "impact": 61.6,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Credit Rating- Others",
+          "date": "Jul 17, 2026",
+          "age_days": 78.6,
+          "source": "NSE",
+          "impact": 60.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Credit Rating- New",
+          "date": "Jul 17, 2026",
+          "age_days": 78.7,
+          "source": "NSE",
+          "impact": 60.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Corporate Insolvency Resolution Process",
+          "date": "Jun 29, 2026",
+          "age_days": 96.6,
+          "source": "NSE",
+          "impact": 60.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Indian Hume Pipe Company Limited has informed the Exchange about Pendency of Litigation(s)/dispute(s) or the o",
+          "date": "Aug 15, 2026",
+          "age_days": 49.6,
+          "source": "NSE",
+          "impact": 58.7,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "ICICI Bank Limited has informed the Exchange that under Regulation 30 of the SEBI (Listing Obligations and Dis",
+          "date": "Aug 13, 2026",
+          "age_days": 51.4,
+          "source": "NSE",
+          "impact": 58.2,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "SEBI Proposes Wider Accredited Investor Pool, Deemed Accredited Status For All FPIs",
+          "date": "Aug 13, 2026",
+          "age_days": 51.4,
+          "source": "NDTV Profit",
+          "impact": 58.2,
+          "tagged_symbols": [],
+          "about_query_company": null
+        }
+      ],
+      "news": [
+        {
+          "headline": "Rate cut cycle near turning point. What lies ahead for Indian bonds?",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "7 midcap stocks with rising EPS for four straight quarters. Are they in your portfolio?",
+          "published_at_raw": "2h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?",
+          "published_at_raw": "3h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Sensex, Nifty Decline: Geopolitical Tensions Impact Markets - Rediff MoneyWiz",
+          "published_at_raw": "20m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Zerodha now wants to enter investment banking space, seeks Sebi nod",
+          "published_at_raw": "12m ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Cement sector faces muted Q1 FY27 as heat, water scarcity hit demand: Ashika's Jyoti Gupta",
+          "published_at_raw": "2026-06-30",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Pankaj Tibrewal sees stronger top-line growth driving India's next earnings cycle",
+          "published_at_raw": "2026-06-30",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "HDFC Bank valuations attractive, banking sector ready for next growth phase: Sandip Sabharwal",
+          "published_at_raw": "2026-06-30",
+          "source": "Economic Times"
+        }
+      ],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [
+        {
+          "name": "IT",
+          "value": "+1.7%"
+        },
+        {
+          "name": "Banking",
+          "value": "-0.4%"
+        },
+        {
+          "name": "Pharma",
+          "value": "-0.1%"
+        },
+        {
+          "name": "Auto",
+          "value": "-3.2%"
+        },
+        {
+          "name": "Energy",
+          "value": "-0.9%"
+        },
+        {
+          "name": "FMCG",
+          "value": "-1.6%"
+        },
+        {
+          "name": "Infra",
+          "value": "-0.9%"
+        },
+        {
+          "name": "Metal",
+          "value": "-2.2%"
+        },
+        {
+          "name": "Realty",
+          "value": "-0.6%"
+        },
+        {
+          "name": "PSU Bank",
+          "value": "-0.7%"
+        },
+        {
+          "name": "Private Bank",
+          "value": "+1.3%"
+        }
+      ],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 2,
+      "context_chars": 363,
+      "development_count": 17,
+      "source_count": 18
+    }
+  },
+  {
+    "id": "SR1",
+    "type": "sector_research",
+    "query": "How is the banking sector doing right now?",
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "elapsed_s": 1.02,
+    "short_circuit": null,
+    "specialist": "sector",
+    "ui_mode": "sector_theme_research",
+    "intent": "general",
+    "entities": {
+      "companies": [],
+      "sectors": [
+        "banking"
+      ],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "Week Ahead On D-Street: US Fed Minutes, FPI Inflows, Crude Oil Prices, US-Iran Conflict To Drive Sensex, Nifty",
+          "date": "Aug 16, 2026",
+          "age_days": 48.5,
+          "source": "NDTV Profit",
+          "impact": 62.2,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "ICICI Bank Limited has informed the Exchange that under Regulation 30 of the SEBI (Listing Obligations and Dis",
+          "date": "Aug 13, 2026",
+          "age_days": 51.4,
+          "source": "NSE",
+          "impact": 58.2,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Enclosed herewith Monitoring Agency Report of Right Issue for Quarter ended June 30,2026",
+          "date": "Aug 14, 2026",
+          "age_days": 50.6,
+          "source": "NSE",
+          "impact": 56.1,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Monitoring Agency Report for Rights issue for the Quarter ended June 30, 2026",
+          "date": "Aug 14, 2026",
+          "age_days": 50.7,
+          "source": "NSE",
+          "impact": 56.1,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+          "date": "Aug 12, 2026",
+          "age_days": 52.3,
+          "source": "Economic Times",
+          "impact": 51.3,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Week Ahead On D-Street: US Fed Minutes, Crude Oil Prices, US-Iran Conflict To Drive Sensex, Nifty",
+          "date": "Aug 16, 2026",
+          "age_days": 48.6,
+          "source": "NDTV Profit",
+          "impact": 49.3,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Brightcom Group Limited has informed the Exchange regarding 'Scrutinizer Report of e Voting of 27th AGM '.",
+          "date": "Oct 04, 2026",
+          "age_days": -0.3,
+          "source": "NSE",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?",
+          "date": "Oct 04, 2026",
+          "age_days": -0.3,
+          "source": "Economic Times",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Brightcom Group Limited has informed the Exchange regarding Outcome of AGM held on October 03, 2026.",
+          "date": "Oct 04, 2026",
+          "age_days": -0.3,
+          "source": "NSE",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "RBI MPC may hike repo rate next week: Experts share the equity-debt strategy investors should consider",
+          "date": "Oct 03, 2026",
+          "age_days": 0.7,
+          "source": "Livemint",
+          "impact": 0.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        }
+      ],
+      "news": [
+        {
+          "headline": "What will bring foreign investors back to Indian stock market? 5 things that should go right",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "After Nifty’s longest losing streak in 25 years, what should investors do now?",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "France Protests: How Paris Suburb Student Blockades Sparked A Countrywide Wave Of School Unrest",
+          "published_at_raw": "2h ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "headline": "Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?",
+          "published_at_raw": "3h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Zerodha now wants to enter investment banking space, seeks Sebi nod",
+          "published_at_raw": "12m ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Cement sector faces muted Q1 FY27 as heat, water scarcity hit demand: Ashika's Jyoti Gupta",
+          "published_at_raw": "2026-06-30",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "HDFC Bank valuations attractive, banking sector ready for next growth phase: Sandip Sabharwal",
+          "published_at_raw": "2026-06-30",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Tech Mahindra shares jump 3% after Q1 earnings beat estimates. What Nomura, Nuvama, other brokerages now expec",
+          "published_at_raw": "2026-07-17",
+          "source": "Economic Times"
+        }
+      ],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [
+        {
+          "name": "IT",
+          "value": "+1.7%"
+        },
+        {
+          "name": "Banking",
+          "value": "-0.4%"
+        },
+        {
+          "name": "Pharma",
+          "value": "-0.1%"
+        },
+        {
+          "name": "Auto",
+          "value": "-3.2%"
+        },
+        {
+          "name": "Energy",
+          "value": "-0.9%"
+        },
+        {
+          "name": "FMCG",
+          "value": "-1.6%"
+        },
+        {
+          "name": "Infra",
+          "value": "-0.9%"
+        },
+        {
+          "name": "Metal",
+          "value": "-2.2%"
+        },
+        {
+          "name": "Realty",
+          "value": "-0.6%"
+        },
+        {
+          "name": "PSU Bank",
+          "value": "-0.7%"
+        },
+        {
+          "name": "Private Bank",
+          "value": "+1.3%"
+        }
+      ],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 2,
+      "context_chars": 363,
+      "development_count": 15,
+      "source_count": 18
+    }
+  },
+  {
+    "id": "SR2",
+    "type": "sector_research",
+    "query": "What is the outlook for the IT services sector?",
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "elapsed_s": 2.72,
+    "short_circuit": null,
+    "specialist": "sector",
+    "ui_mode": "sector_theme_research",
+    "intent": "general",
+    "entities": {
+      "companies": [],
+      "sectors": [
+        "it"
+      ],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "Indian Oil Corporation Limited has informed the Exchange regarding 'Investment Approval for Kochi-Kanyakumari-",
+          "date": "Sep 21, 2026",
+          "age_days": 12.7,
+          "source": "NSE",
+          "impact": 66.1,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "FPIs lead the exit as anchor investors after IPO lock-ins end: Sebi study",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "Livemint",
+          "impact": 64.4,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "The Company has informed the stock exchanges about the Newspaper Publication of the Quarterly / Yearly Audited",
+          "date": "Oct 03, 2026",
+          "age_days": 0.6,
+          "source": "NSE",
+          "impact": 64.2,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "FPIs emerge as biggest sellers among anchor investors in IPOs' 30-day window: Sebi study",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "Economic Times",
+          "impact": 64.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "GE Vernova T&D India Limited has informed the Exchange regarding 'Business Responsibility and Sustainability R",
+          "date": "Aug 13, 2026",
+          "age_days": 51.4,
+          "source": "NSE",
+          "impact": 64.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Market Strategy: Earnings Cycle Gaining Momentum, Metals Deliver Strongest Beat, Says BofA India",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "NDTV Profit",
+          "impact": 62.6,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+          "date": "Aug 14, 2026",
+          "age_days": 50.8,
+          "source": "Economic Times",
+          "impact": 62.4,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Markolines Pavement Technologies Limited has informed the Exchange regarding a press release dated August 15, ",
+          "date": "Aug 15, 2026",
+          "age_days": 49.7,
+          "source": "NSE",
+          "impact": 62.3,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Week Ahead On D-Street: US Fed Minutes, FPI Inflows, Crude Oil Prices, US-Iran Conflict To Drive Sensex, Nifty",
+          "date": "Aug 16, 2026",
+          "age_days": 48.5,
+          "source": "NDTV Profit",
+          "impact": 62.2,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Newspaper Publication for Notice of hearing of Company Scheme Petition pursuant to Hon'ble NCLT order dated 06",
+          "date": "Aug 14, 2026",
+          "age_days": 50.7,
+          "source": "NSE",
+          "impact": 61.9,
+          "tagged_symbols": [],
+          "about_query_company": null
+        }
+      ],
+      "news": [
+        {
+          "headline": "Foreign investors are short on Indian markets as global risks weigh",
+          "published_at_raw": "11m ago",
+          "source": "Business Standard"
+        },
+        {
+          "headline": "Bajaj Finance: Why this rare Nifty outperformer is likely to reward investors in a muted market",
+          "published_at_raw": "29m ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "RBI Repo Rate May Climb To 6% In FY27 As G-Sec Yields Face Upward Pressure: Report",
+          "published_at_raw": "44m ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "headline": "What will bring foreign investors back to Indian stock market? 5 things that should go right",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Rate cut cycle near turning point. What lies ahead for Indian bonds?",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "RBI MPC Meeting October 2026: Repo rate hike will be decided by these 5 factors | Explained",
+          "published_at_raw": "1h ago",
+          "source": "Livemint"
+        },
+        {
+          "headline": "Another big development in Tata Boardroom Battle; Noel Tata seeks video recording and minutes of Sept 17 meeti",
+          "published_at_raw": "1h ago",
+          "source": "Livemint"
+        },
+        {
+          "headline": "After Nifty’s longest losing streak in 25 years, what should investors do now?",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        }
+      ],
+      "policies": [
+        {
+          "title": "Federal Reserve announces the leadership and objectives of its task forces to advance the conduct of monetary ",
+          "ministry": "US Federal Reserve",
+          "status": "Active",
+          "impact_score": 75
+        },
+        {
+          "title": "Minutes of the Federal Open Market Committee, June 16-17, 2026",
+          "ministry": "US Federal Reserve",
+          "status": "Active",
+          "impact_score": 75
+        },
+        {
+          "title": "Minutes of the Federal Open Market Committee, July 28–29, 2026",
+          "ministry": "US Federal Reserve",
+          "status": "Active",
+          "impact_score": 75
+        },
+        {
+          "title": "Federal Reserve Board and Federal Open Market Committee release economic projections from the September 15-16 ",
+          "ministry": "US Federal Reserve",
+          "status": "Active",
+          "impact_score": 75
+        }
+      ],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [
+        {
+          "name": "IT",
+          "value": "+1.7%"
+        },
+        {
+          "name": "Banking",
+          "value": "-0.4%"
+        },
+        {
+          "name": "Pharma",
+          "value": "-0.1%"
+        },
+        {
+          "name": "Auto",
+          "value": "-3.2%"
+        },
+        {
+          "name": "Energy",
+          "value": "-0.9%"
+        },
+        {
+          "name": "FMCG",
+          "value": "-1.6%"
+        },
+        {
+          "name": "Infra",
+          "value": "-0.9%"
+        },
+        {
+          "name": "Metal",
+          "value": "-2.2%"
+        },
+        {
+          "name": "Realty",
+          "value": "-0.6%"
+        },
+        {
+          "name": "PSU Bank",
+          "value": "-0.7%"
+        },
+        {
+          "name": "Private Bank",
+          "value": "+1.3%"
+        }
+      ],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 2,
+      "context_chars": 379,
+      "development_count": 18,
+      "source_count": 22
+    }
+  },
+  {
+    "id": "SR3",
+    "type": "sector_research",
+    "query": "Which sectors look weak in the market at the moment?",
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "elapsed_s": 0.31,
+    "short_circuit": null,
+    "specialist": "company",
+    "ui_mode": "direct_company_research",
+    "intent": "general",
+    "entities": {
+      "companies": [],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "RBI Remains Cautious On Crypto, Backs Underlying Technology: Governor Sanjay Malhotra",
+          "date": "Oct 03, 2026",
+          "age_days": 0.6,
+          "source": "NDTV Profit",
+          "impact": 68.2,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Indian Oil Corporation Limited has informed the Exchange regarding 'Investment Approval for Kochi-Kanyakumari-",
+          "date": "Sep 21, 2026",
+          "age_days": 12.7,
+          "source": "NSE",
+          "impact": 66.1,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "FPIs lead the exit as anchor investors after IPO lock-ins end: Sebi study",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "Livemint",
+          "impact": 64.4,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "The Company has informed the stock exchanges about the Newspaper Publication of the Quarterly / Yearly Audited",
+          "date": "Oct 03, 2026",
+          "age_days": 0.6,
+          "source": "NSE",
+          "impact": 64.2,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "FPIs emerge as biggest sellers among anchor investors in IPOs' 30-day window: Sebi study",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "Economic Times",
+          "impact": 64.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "GE Vernova T&D India Limited has informed the Exchange regarding 'Business Responsibility and Sustainability R",
+          "date": "Aug 13, 2026",
+          "age_days": 51.4,
+          "source": "NSE",
+          "impact": 64.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Market Strategy: Earnings Cycle Gaining Momentum, Metals Deliver Strongest Beat, Says BofA India",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "NDTV Profit",
+          "impact": 62.6,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+          "date": "Aug 14, 2026",
+          "age_days": 50.8,
+          "source": "Economic Times",
+          "impact": 62.4,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Markolines Pavement Technologies Limited has informed the Exchange regarding a press release dated August 15, ",
+          "date": "Aug 15, 2026",
+          "age_days": 49.7,
+          "source": "NSE",
+          "impact": 62.3,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Week Ahead On D-Street: US Fed Minutes, FPI Inflows, Crude Oil Prices, US-Iran Conflict To Drive Sensex, Nifty",
+          "date": "Aug 16, 2026",
+          "age_days": 48.5,
+          "source": "NDTV Profit",
+          "impact": 62.2,
+          "tagged_symbols": [],
+          "about_query_company": null
+        }
+      ],
+      "news": [
+        {
+          "headline": "Foreign investors are short on Indian markets as global risks weigh - Business Standard",
+          "published_at_raw": "11m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Foreign investors are short on Indian markets as global risks weigh",
+          "published_at_raw": "11m ago",
+          "source": "Business Standard"
+        },
+        {
+          "headline": "Bajaj Finance: Why this rare Nifty outperformer is likely to reward investors in a muted market",
+          "published_at_raw": "29m ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "RBI Repo Rate May Climb To 6% In FY27 As G-Sec Yields Face Upward Pressure: Report",
+          "published_at_raw": "44m ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "headline": "What will bring foreign investors back to Indian stock market? 5 things that should go right",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Rate cut cycle near turning point. What lies ahead for Indian bonds?",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "RBI MPC Meeting October 2026: Repo rate hike will be decided by these 5 factors | Explained",
+          "published_at_raw": "1h ago",
+          "source": "Livemint"
+        },
+        {
+          "headline": "SC To Take Suo Moto Note Of Proposed Relocation Of 135-Year-Old Central Secretariat Library",
+          "published_at_raw": "1h ago",
+          "source": "NDTV Profit"
+        }
+      ],
+      "policies": [
+        {
+          "title": "Federal Reserve issues FOMC statement",
+          "ministry": "US Federal Reserve",
+          "status": "Active",
+          "impact_score": 75
+        },
+        {
+          "title": "Minutes of the Board's discount rate meetings on June 8 and June 17, 2026",
+          "ministry": "US Federal Reserve",
+          "status": "Active",
+          "impact_score": 75
+        },
+        {
+          "title": "Minutes of the Federal Open Market Committee, June 16-17, 2026",
+          "ministry": "US Federal Reserve",
+          "status": "Active",
+          "impact_score": 75
+        },
+        {
+          "title": "Minutes of the Federal Open Market Committee, July 28–29, 2026",
+          "ministry": "US Federal Reserve",
+          "status": "Active",
+          "impact_score": 75
+        },
+        {
+          "title": "Minutes of the Board's discount rate meetings on July 20 and July 29, 2026",
+          "ministry": "US Federal Reserve",
+          "status": "Active",
+          "impact_score": 75
+        }
+      ],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 1,
+      "context_chars": 266,
+      "development_count": 17,
+      "source_count": 23
+    }
+  },
+  {
+    "id": "MP1",
+    "type": "macro_policy",
+    "query": "What happens to Indian banks if the RBI cuts the repo rate?",
+    "stages": [
+      "intent",
+      "entities",
+      "finalizing"
+    ],
+    "elapsed_s": 0.02,
+    "short_circuit": "ambiguous_entity",
+    "specialist": null,
+    "ui_mode": null,
+    "intent": null,
+    "entities": {
+      "companies": null,
+      "sectors": null,
+      "policies": null
+    }
+  },
+  {
+    "id": "MP2",
+    "type": "macro_policy",
+    "query": "How would higher crude oil prices affect Indian markets?",
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "elapsed_s": 1.33,
+    "short_circuit": null,
+    "specialist": "company",
+    "ui_mode": "direct_company_research",
+    "intent": "general",
+    "entities": {
+      "companies": [
+        "OIL"
+      ],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "Indian Oil Corporation Limited has informed the Exchange regarding 'Investment Approval for Kochi-Kanyakumari-",
+          "date": "Sep 21, 2026",
+          "age_days": 12.7,
+          "source": "NSE",
+          "impact": 66.1,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "FPIs emerge as biggest sellers among anchor investors in IPOs' 30-day window: Sebi study",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "Economic Times",
+          "impact": 64.0,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "Week Ahead On D-Street: US Fed Minutes, FPI Inflows, Crude Oil Prices, US-Iran Conflict To Drive Sensex, Nifty",
+          "date": "Aug 16, 2026",
+          "age_days": 48.5,
+          "source": "NDTV Profit",
+          "impact": 62.2,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "Indian Hume Pipe Company Limited has informed the Exchange about Pendency of Litigation(s)/dispute(s) or the o",
+          "date": "Aug 15, 2026",
+          "age_days": 49.6,
+          "source": "NSE",
+          "impact": 58.7,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "Economic Times",
+          "impact": 57.1,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+          "date": "Aug 14, 2026",
+          "age_days": 50.5,
+          "source": "Economic Times",
+          "impact": 55.3,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+          "date": "Aug 12, 2026",
+          "age_days": 52.3,
+          "source": "Economic Times",
+          "impact": 51.3,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "Week Ahead On D-Street: US Fed Minutes, Crude Oil Prices, US-Iran Conflict To Drive Sensex, Nifty",
+          "date": "Aug 16, 2026",
+          "age_days": 48.6,
+          "source": "NDTV Profit",
+          "impact": 49.3,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "Big Bull's magic: How Rakesh Jhunjhunwala turned Rs 1 crore into Rs 20 crore overnight after the 1989 budget",
+          "date": "Aug 16, 2026",
+          "age_days": 48.6,
+          "source": "Economic Times",
+          "impact": 49.3,
+          "tagged_symbols": [],
+          "about_query_company": false
+        },
+        {
+          "title": "From Petronet LNG, Apollo Hospitals To Max Financials — Check HDFC Securities Latest Ratings, Target Prices Af",
+          "date": "Aug 14, 2026",
+          "age_days": 50.7,
+          "source": "NDTV Profit",
+          "impact": 48.6,
+          "tagged_symbols": [],
+          "about_query_company": false
+        }
+      ],
+      "news": [
+        {
+          "headline": "Foreign investors are short on Indian markets as global risks weigh - Business Standard",
+          "published_at_raw": "11m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Foreign investors are short on Indian markets as global risks weigh",
+          "published_at_raw": "11m ago",
+          "source": "Business Standard"
+        },
+        {
+          "headline": "What will bring foreign investors back to Indian stock market? 5 things that should go right",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Rate cut cycle near turning point. What lies ahead for Indian bonds?",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Indian Stock Market News, Equity Market and Sensex Today in India - Equitymaster",
+          "published_at_raw": "1h ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Share Market Live News: Indian Stock Market Prediction, Nifty 50 - Liquide Blog",
+          "published_at_raw": "15h ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Indian stock market ends holiday-shortened week higher as Nifty holds above 24,000 - Telangana Today",
+          "published_at_raw": "16h ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Indian stock market: How are Sensex and Nifty 50 likely to perform next week amid US-Iran war? - Mint",
+          "published_at_raw": "19h ago",
+          "source": "Google News"
+        }
+      ],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [
+        {
+          "title": "",
+          "similarity": 30.0
+        }
+      ],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [
+        "NIFTY 50",
+        "SENSEX",
+        "BANK NIFTY",
+        "INDIA VIX"
+      ],
+      "company_story": true,
+      "context_lines": 5,
+      "context_chars": 1403,
+      "development_count": 16,
+      "source_count": 18
+    }
+  },
+  {
+    "id": "MP3",
+    "type": "macro_policy",
+    "query": "How would a weaker rupee affect Indian IT exporters?",
+    "stages": [
+      "intent",
+      "entities",
+      "finalizing"
+    ],
+    "elapsed_s": 0.66,
+    "short_circuit": "ambiguous_entity",
+    "specialist": null,
+    "ui_mode": null,
+    "intent": null,
+    "entities": {
+      "companies": null,
+      "sectors": null,
+      "policies": null
+    }
+  },
+  {
+    "id": "CC1",
+    "type": "company_comparison",
+    "query": "TCS vs Infosys, which is stronger?",
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "elapsed_s": 0.36,
+    "short_circuit": null,
+    "specialist": "comparison",
+    "ui_mode": "company_comparison",
+    "intent": "compare",
+    "entities": {
+      "companies": [
+        "TCS",
+        "INFY"
+      ],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "US enterprise IT spending contracts for second consecutive quarter",
+          "date": "Jul 10, 2026",
+          "age_days": 85.6,
+          "source": "",
+          "impact": 7.4,
+          "tagged_symbols": [
+            "TCS",
+            "INFY",
+            "WIPRO"
+          ],
+          "about_query_company": true
+        }
+      ],
+      "news": [
+        {
+          "headline": "Rate cut cycle near turning point. What lies ahead for Indian bonds?",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Weekly Market Wrap: NIFTY50, SENSEX end lower as metal, IT indices fall 4%; Infosys leads losses - Upstox",
+          "published_at_raw": "1d ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Pankaj Tibrewal sees stronger top-line growth driving India's next earnings cycle",
+          "published_at_raw": "2026-06-30",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Infosys, TCS, HCL Tech, other IT stocks rally up to 3%. 2 major reasons why",
+          "published_at_raw": "2026-07-17",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "2 reasons why Infosys, TCS and other IT stocks are rising today",
+          "published_at_raw": "2026-07-17",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Rupee closes at 96.28 vs USD; logs sharpest weekly drop since May as oil price jump stings",
+          "published_at_raw": "2026-07-17",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Q1 earnings this week: Infosys, Eternal, Bajaj Auto among 256 companies set to announce June quarter results",
+          "published_at_raw": "2026-07-19",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "M-cap of five of top 10 most valued firms jumps Rs 1.54 lakh cr; TCS biggest winner",
+          "published_at_raw": "2026-07-19",
+          "source": "Economic Times"
+        }
+      ],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 1,
+      "context_chars": 266,
+      "development_count": 8,
+      "source_count": 9
+    }
+  },
+  {
+    "id": "CC2",
+    "type": "company_comparison",
+    "query": "Compare HDFC Bank and ICICI Bank.",
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "elapsed_s": 0.16,
+    "short_circuit": null,
+    "specialist": "comparison",
+    "ui_mode": "company_comparison",
+    "intent": "compare",
+    "entities": {
+      "companies": [
+        "HDFCBANK",
+        "ICICIBANK"
+      ],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "RBI holds repo rate at 6.5% for seventh consecutive meeting",
+          "date": "Jun 18, 2026",
+          "age_days": 107.6,
+          "source": "",
+          "impact": 8.7,
+          "tagged_symbols": [
+            "HDFCBANK",
+            "ICICIBANK",
+            "SBIN"
+          ],
+          "about_query_company": true
+        }
+      ],
+      "news": [
+        {
+          "headline": "RBI Repo Rate May Climb To 6% In FY27 As G-Sec Yields Face Upward Pressure: Report",
+          "published_at_raw": "44m ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "headline": "RBI MPC Meeting October 2026: Repo rate hike will be decided by these 5 factors | Explained",
+          "published_at_raw": "1h ago",
+          "source": "Livemint"
+        },
+        {
+          "headline": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch - Business Today",
+          "published_at_raw": "11m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses - BusinessLine",
+          "published_at_raw": "46m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Zerodha now wants to enter investment banking space, seeks Sebi nod",
+          "published_at_raw": "12m ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most activ",
+          "published_at_raw": "7m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Kotak Mahindra Bank, HDFC Bank, DCX Systems, among buzzing stocks as SENSEX falls over 350 pts, NIFTY below 24",
+          "published_at_raw": "1h ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "HDFC Bank valuations attractive, banking sector ready for next growth phase: Sandip Sabharwal",
+          "published_at_raw": "2026-06-30",
+          "source": "Economic Times"
+        }
+      ],
+      "policies": [],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 1,
+      "context_chars": 266,
+      "development_count": 9,
+      "source_count": 9
+    }
+  },
+  {
+    "id": "CC3",
+    "type": "company_comparison",
+    "query": "I hold BEL. Should I switch to HAL?",
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "elapsed_s": 0.16,
+    "short_circuit": null,
+    "specialist": "comparison",
+    "ui_mode": "switch_analysis",
+    "intent": "switch",
+    "entities": {
+      "companies": [
+        "HAL",
+        "BEL"
+      ],
+      "sectors": [],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "Defence capital expenditure raised by Rs. 45,000 Cr in revised estimates",
+          "date": "Jul 08, 2026",
+          "age_days": 87.6,
+          "source": "",
+          "impact": 9.1,
+          "tagged_symbols": [
+            "BEL",
+            "HAL",
+            "BHARATFORG"
+          ],
+          "about_query_company": true
+        }
+      ],
+      "news": [
+        {
+          "headline": "Foreign investors are short on Indian markets as global risks weigh - Business Standard",
+          "published_at_raw": "11m ago",
+          "source": "Google News"
+        },
+        {
+          "headline": "Foreign investors are short on Indian markets as global risks weigh",
+          "published_at_raw": "11m ago",
+          "source": "Business Standard"
+        },
+        {
+          "headline": "Bajaj Finance: Why this rare Nifty outperformer is likely to reward investors in a muted market",
+          "published_at_raw": "29m ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "RBI Repo Rate May Climb To 6% In FY27 As G-Sec Yields Face Upward Pressure: Report",
+          "published_at_raw": "44m ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "headline": "What will bring foreign investors back to Indian stock market? 5 things that should go right",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Rate cut cycle near turning point. What lies ahead for Indian bonds?",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "RBI MPC Meeting October 2026: Repo rate hike will be decided by these 5 factors | Explained",
+          "published_at_raw": "1h ago",
+          "source": "Livemint"
+        },
+        {
+          "headline": "SC To Take Suo Moto Note Of Proposed Relocation Of 135-Year-Old Central Secretariat Library",
+          "published_at_raw": "1h ago",
+          "source": "NDTV Profit"
+        }
+      ],
+      "policies": [
+        {
+          "title": "Federal Reserve announces the leadership and objectives of its task forces to advance the conduct of monetary ",
+          "ministry": "US Federal Reserve",
+          "status": "Active",
+          "impact_score": 75
+        }
+      ],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 1,
+      "context_chars": 266,
+      "development_count": 8,
+      "source_count": 10
+    }
+  },
+  {
+    "id": "GE1",
+    "type": "general_explanation",
+    "query": "What is a P/E ratio and how should I read it?",
+    "stages": [
+      "intent",
+      "entities",
+      "evidence",
+      "reasoning",
+      "finalizing",
+      "done"
+    ],
+    "elapsed_s": 0.09,
+    "short_circuit": null,
+    "specialist": "company",
+    "ui_mode": "direct_company_research",
+    "intent": "decision",
+    "entities": {
+      "companies": [],
+      "sectors": [
+        "it"
+      ],
+      "policies": []
+    },
+    "evidence": {
+      "events": [
+        {
+          "title": "Indian Oil Corporation Limited has informed the Exchange regarding 'Investment Approval for Kochi-Kanyakumari-",
+          "date": "Sep 21, 2026",
+          "age_days": 12.7,
+          "source": "NSE",
+          "impact": 66.1,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "FPIs lead the exit as anchor investors after IPO lock-ins end: Sebi study",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "Livemint",
+          "impact": 64.4,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "The Company has informed the stock exchanges about the Newspaper Publication of the Quarterly / Yearly Audited",
+          "date": "Oct 03, 2026",
+          "age_days": 0.6,
+          "source": "NSE",
+          "impact": 64.2,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "FPIs emerge as biggest sellers among anchor investors in IPOs' 30-day window: Sebi study",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "Economic Times",
+          "impact": 64.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "GE Vernova T&D India Limited has informed the Exchange regarding 'Business Responsibility and Sustainability R",
+          "date": "Aug 13, 2026",
+          "age_days": 51.4,
+          "source": "NSE",
+          "impact": 64.0,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Market Strategy: Earnings Cycle Gaining Momentum, Metals Deliver Strongest Beat, Says BofA India",
+          "date": "Aug 14, 2026",
+          "age_days": 50.9,
+          "source": "NDTV Profit",
+          "impact": 62.6,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+          "date": "Aug 14, 2026",
+          "age_days": 50.8,
+          "source": "Economic Times",
+          "impact": 62.4,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Markolines Pavement Technologies Limited has informed the Exchange regarding a press release dated August 15, ",
+          "date": "Aug 15, 2026",
+          "age_days": 49.7,
+          "source": "NSE",
+          "impact": 62.3,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Newspaper Publication for Notice of hearing of Company Scheme Petition pursuant to Hon'ble NCLT order dated 06",
+          "date": "Aug 14, 2026",
+          "age_days": 50.7,
+          "source": "NSE",
+          "impact": 61.9,
+          "tagged_symbols": [],
+          "about_query_company": null
+        },
+        {
+          "title": "Confidence Petroleum India Limited has informed the Exchange about statement of deviation(s) or variation(s) u",
+          "date": "Aug 11, 2026",
+          "age_days": 53.4,
+          "source": "NSE",
+          "impact": 61.9,
+          "tagged_symbols": [],
+          "about_query_company": null
+        }
+      ],
+      "news": [
+        {
+          "headline": "Foreign investors are short on Indian markets as global risks weigh",
+          "published_at_raw": "11m ago",
+          "source": "Business Standard"
+        },
+        {
+          "headline": "Bajaj Finance: Why this rare Nifty outperformer is likely to reward investors in a muted market",
+          "published_at_raw": "29m ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "RBI Repo Rate May Climb To 6% In FY27 As G-Sec Yields Face Upward Pressure: Report",
+          "published_at_raw": "44m ago",
+          "source": "NDTV Profit"
+        },
+        {
+          "headline": "What will bring foreign investors back to Indian stock market? 5 things that should go right",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "Rate cut cycle near turning point. What lies ahead for Indian bonds?",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        },
+        {
+          "headline": "RBI MPC Meeting October 2026: Repo rate hike will be decided by these 5 factors | Explained",
+          "published_at_raw": "1h ago",
+          "source": "Livemint"
+        },
+        {
+          "headline": "Another big development in Tata Boardroom Battle; Noel Tata seeks video recording and minutes of Sept 17 meeti",
+          "published_at_raw": "1h ago",
+          "source": "Livemint"
+        },
+        {
+          "headline": "After Nifty’s longest losing streak in 25 years, what should investors do now?",
+          "published_at_raw": "1h ago",
+          "source": "Economic Times"
+        }
+      ],
+      "policies": [
+        {
+          "title": "Federal Reserve announces the leadership and objectives of its task forces to advance the conduct of monetary ",
+          "ministry": "US Federal Reserve",
+          "status": "Active",
+          "impact_score": 75
+        },
+        {
+          "title": "Minutes of the Federal Open Market Committee, June 16-17, 2026",
+          "ministry": "US Federal Reserve",
+          "status": "Active",
+          "impact_score": 75
+        },
+        {
+          "title": "Minutes of the Federal Open Market Committee, July 28–29, 2026",
+          "ministry": "US Federal Reserve",
+          "status": "Active",
+          "impact_score": 75
+        },
+        {
+          "title": "Federal Reserve Board and Federal Open Market Committee release economic projections from the September 15-16 ",
+          "ministry": "US Federal Reserve",
+          "status": "Active",
+          "impact_score": 75
+        }
+      ],
+      "announcements": [],
+      "results_announcements": 0,
+      "historical": [],
+      "sector_rows": [],
+      "valuation_symbols": [],
+      "valuation": {},
+      "vix_level": 14.45,
+      "macro_indices": [],
+      "company_story": false,
+      "context_lines": 1,
+      "context_chars": 266,
+      "development_count": 18,
+      "source_count": 22
+    }
+  },
+  {
+    "id": "GE2",
+    "type": "general_explanation",
+    "query": "What does FII selling mean for the Indian market?",
+    "stages": [
+      "intent",
+      "entities",
+      "finalizing"
+    ],
+    "elapsed_s": 0.02,
+    "short_circuit": "ambiguous_entity",
+    "specialist": null,
+    "ui_mode": null,
+    "intent": null,
+    "entities": {
+      "companies": null,
+      "sectors": null,
+      "policies": null
+    }
+  },
+  {
+    "id": "GE3",
+    "type": "general_explanation",
+    "query": "How does the MarketRipple Score work?",
+    "stages": [
+      "intent",
+      "entities",
+      "finalizing"
+    ],
+    "elapsed_s": 0.05,
+    "short_circuit": "unsupported_entity",
+    "specialist": null,
+    "ui_mode": null,
+    "intent": null,
+    "entities": {
+      "companies": null,
+      "sectors": null,
+      "policies": null
+    }
+  }
+]
