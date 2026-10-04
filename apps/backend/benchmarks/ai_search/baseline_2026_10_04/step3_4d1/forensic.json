@@ -1,0 +1,615 @@
+{
+  "query": "TCS vs Infosys, which is stronger?",
+  "gate_b_saved": {
+    "applicable": true,
+    "authorized": false,
+    "reasons": [
+      "claim_not_in_answer",
+      "uncovered_factual_sentences"
+    ],
+    "unsupported_figure_count": 0,
+    "factual_sentences": 12
+  },
+  "usage": {
+    "prompt_tokens": 3361,
+    "completion_tokens": 6379,
+    "total_tokens": 9740
+  },
+  "reasoning_tokens": 1561,
+  "finish_reason": "stop",
+  "output_chars": 22248,
+  "latency_ms": 55235,
+  "validator": {
+    "status": "problems",
+    "summary": {
+      "claims": 6,
+      "ok": 5,
+      "problems": 1,
+      "uncovered_factual_sentences": 8
+    },
+    "claims": [
+      {
+        "claim": "TCS is at P/E 15.1 and P/B 6.85, versus Infosys at P/E 13.3 and P/B 4.54.",
+        "sources": [
+          "C1",
+          "C2"
+        ],
+        "scope": "company",
+        "company": "TCS",
+        "status": "ok",
+        "problems": [],
+        "ineligible": []
+      },
+      {
+        "claim": "TCS's 52-week range is 1976.8-3350.0; Infosys's 52-week range is 980.4-1728.0.",
+        "sources": [
+          "C1",
+          "C2"
+        ],
+        "scope": "company",
+        "company": "TCS",
+        "status": "ok",
+        "problems": [],
+        "ineligible": []
+      },
+      {
+        "claim": "TCS disclosed a press release dated 2026-10-01 titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+        "sources": [
+          "A2"
+        ],
+        "scope": "company",
+        "company": "TCS",
+        "status": "ok",
+        "problems": [],
+        "ineligible": []
+      },
+      {
+        "claim": "Infosys announced a strategic collaboration with Columbia University on 2026-10-01.",
+        "sources": [
+          "A3"
+        ],
+        "scope": "company",
+        "company": "INFY",
+        "status": "ok",
+        "problems": [],
+        "ineligible": []
+      },
+      {
+        "claim": "The supplied market news says RBI MPC policy, oil prices, and bond yields may drive the market this week.",
+        "sources": [
+          "N1"
+        ],
+        "scope": "market",
+        "company": null,
+        "status": "problem",
+        "problems": [
+          "claim_not_in_answer"
+        ],
+        "ineligible": []
+      },
+      {
+        "claim": "The supplied related event says US enterprise IT spending contracts for a second consecutive quarter.",
+        "sources": [
+          "E1"
+        ],
+        "scope": "market",
+        "company": null,
+        "status": "ok",
+        "problems": [],
+        "ineligible": []
+      }
+    ],
+    "uncovered": [
+      "On the evidence available, Infosys is the stronger valuation-led choice for a medium-term comparison: its P/E is 13.3 versus TCS at 15.1, and its P/B is 4.54 versus 6.85.",
+      "Infosys is stronger on the available valuation evidence, with a P/E of 13.3 and P/B of 4.54 versus TCS at 15.1 and 6.85.",
+      "The direct comparison favors Infosys on both supplied valuation measures; the Best Buy and Columbia University announcements are company developments, but their financial impact is not available.",
+      "US enterprise IT spending is reported to have contracted for a second consecutive quarter, but the company-specific impact is not quantified.",
+      "The TCS Best Buy transition announcement and Infosys-Columbia University collaboration are disclosed developments whose financial contribution can be assessed when company-specific evidence becomes av",
+      "Lower supplied multiples Infosys's P/E of 13.3 and P/B of 4.54 are below TCS's 15.1 and 6.85, giving Infosys the evidence-based relative valuation edge.",
+      "TCS is the higher-multiple comparator at P/E 15.1 and P/B 6.85; its Best Buy-related announcement is specific, but the financial effect is not available.",
+      "Infosys has the lower supplied P/E at 13.3 and P/B at 4.54, supporting a relative valuation advantage rather than a conclusion about superior operating performance."
+    ]
+  },
+  "factual_sentences": [
+    "On the evidence available, Infosys is the stronger valuation-led choice for a medium-term comparison: its P/E is 13.3 versus TCS at 15.1, and its P/B is 4.54 versus 6.85.",
+    "Infosys is stronger on the available valuation evidence, with a P/E of 13.3 and P/B of 4.54 versus TCS at 15.1 and 6.85.",
+    "TCS is at P/E 15.1 and P/B 6.85, versus Infosys at P/E 13.3 and P/B 4.54.",
+    "TCS's 52-week range is 1976.8-3350.0; Infosys's 52-week range is 980.4-1728.0.",
+    "TCS disclosed a press release dated 2026-10-01 titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+    "Infosys announced a strategic collaboration with Columbia University on 2026-10-01.",
+    "The direct comparison favors Infosys on both supplied valuation measures; the Best Buy and Columbia University announcements are company developments, but their financial impact is not available.",
+    "US enterprise IT spending is reported to have contracted for a second consecutive quarter, but the company-specific impact is not quantified.",
+    "The TCS Best Buy transition announcement and Infosys-Columbia University collaboration are disclosed developments whose financial contribution can be assessed when company-specific evidence becomes available.",
+    "Lower supplied multiples Infosys's P/E of 13.3 and P/B of 4.54 are below TCS's 15.1 and 6.85, giving Infosys the evidence-based relative valuation edge.",
+    "TCS is the higher-multiple comparator at P/E 15.1 and P/B 6.85; its Best Buy-related announcement is specific, but the financial effect is not available.",
+    "Infosys has the lower supplied P/E at 13.3 and P/B at 4.54, supporting a relative valuation advantage rather than a conclusion about superior operating performance."
+  ],
+  "answer_pieces": [
+    {
+      "piece": "On the evidence available, Infosys is the stronger valuation-led choice for a medium-term comparison: its P/E is 13.3 versus TCS at 15.1, and its P/B is 4.54 versus 6.85. This does not establish stronger earnings, margins, or business quality; those measures are unavailable, and the conclusion is limited to relative valuation.",
+      "sentences": [
+        "On the evidence available, Infosys is the stronger valuation-led choice for a medium-term comparison: its P/E is 13.3 versus TCS at 15.1, and its P/B is 4.54 versus 6.85.",
+        "This does not establish stronger earnings, margins, or business quality; those measures are unavailable, and the conclusion is limited to relative valuation."
+      ]
+    },
+    {
+      "piece": "Infosys is stronger on the available valuation evidence, with a P/E of 13.3 and P/B of 4.54 versus TCS at 15.1 and 6.85. That is a relative-price advantage, not proof of superior growth or business strength: the supplied evidence does not provide comparable growth, margin, cash-flow, or order-book data.",
+      "sentences": [
+        "Infosys is stronger on the available valuation evidence, with a P/E of 13.3 and P/B of 4.54 versus TCS at 15.1 and 6.85.",
+        "That is a relative-price advantage, not proof of superior growth or business strength: the supplied evidence does not provide comparable growth, margin, cash-flow, or order-book data."
+      ]
+    },
+    {
+      "piece": "TCS is at P/E 15.1 and P/B 6.85, versus Infosys at P/E 13.3 and P/B 4.54. TCS's 52-week range is 1976.8-3350.0; Infosys's 52-week range is 980.4-1728.0. TCS disclosed a press release dated 2026-10-01 titled \"Best Buy s Global Capability Center in India to transition to TCS\". Infosys announced a strategic collaboration with Columbia University on 2026-10-01.",
+      "sentences": [
+        "TCS is at P/E 15.1 and P/B 6.85, versus Infosys at P/E 13.3 and P/B 4.54.",
+        "TCS's 52-week range is 1976.8-3350.0; Infosys's 52-week range is 980.4-1728.0.",
+        "TCS disclosed a press release dated 2026-10-01 titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+        "Infosys announced a strategic collaboration with Columbia University on 2026-10-01."
+      ]
+    },
+    {
+      "piece": "The supplied evidence does not establish why the valuation multiples differ, or whether the gap reflects expected growth, risk, or other company-specific factors.",
+      "sentences": [
+        "The supplied evidence does not establish why the valuation multiples differ, or whether the gap reflects expected growth, risk, or other company-specific factors."
+      ]
+    },
+    {
+      "piece": "The direct comparison favors Infosys on both supplied valuation measures; the Best Buy and Columbia University announcements are company developments, but their financial impact is not available.",
+      "sentences": [
+        "The direct comparison favors Infosys on both supplied valuation measures; the Best Buy and Columbia University announcements are company developments, but their financial impact is not available."
+      ]
+    },
+    {
+      "piece": "US enterprise IT spending contracts for a second consecutive quarter. That is a sector-demand risk for this comparison, but the supplied evidence does not quantify the impact on either company.",
+      "sentences": [
+        "US enterprise IT spending contracts for a second consecutive quarter.",
+        "That is a sector-demand risk for this comparison, but the supplied evidence does not quantify the impact on either company."
+      ]
+    },
+    {
+      "piece": "A durable ranking requires comparable growth, margins, cash flow, and order-book evidence, none of which is available here.",
+      "sentences": [
+        "A durable ranking requires comparable growth, margins, cash flow, and order-book evidence, none of which is available here."
+      ]
+    },
+    {
+      "piece": "The lower supplied P/E and P/B for Infosys indicate a relative valuation discount to TCS, but the evidence cannot establish how much of the spending contraction or company-specific outlook is reflected in either share price.",
+      "sentences": [
+        "The lower supplied P/E and P/B for Infosys indicate a relative valuation discount to TCS, but the evidence cannot establish how much of the spending contraction or company-specific outlook is reflected in either share price."
+      ]
+    },
+    {
+      "piece": "US enterprise IT spending is reported to have contracted for a second consecutive quarter, but the company-specific impact is not quantified.",
+      "sentences": [
+        "US enterprise IT spending is reported to have contracted for a second consecutive quarter, but the company-specific impact is not quantified."
+      ]
+    },
+    {
+      "piece": "The supplied evidence lacks comparable growth, margin, cash-flow, and order-book data, limiting confidence in an overall strength ranking.",
+      "sentences": [
+        "The supplied evidence lacks comparable growth, margin, cash-flow, and order-book data, limiting confidence in an overall strength ranking."
+      ]
+    },
+    {
+      "piece": "RBI MPC policy, oil prices, and bond yields are identified as market drivers this week, but their effects on these two companies are not established.",
+      "sentences": [
+        "RBI MPC policy, oil prices, and bond yields are identified as market drivers this week, but their effects on these two companies are not established."
+      ]
+    },
+    {
+      "piece": "Infosys's lower supplied P/E and P/B may offer a relative valuation advantage if its operating performance is not weaker.",
+      "sentences": [
+        "Infosys's lower supplied P/E and P/B may offer a relative valuation advantage if its operating performance is not weaker."
+      ]
+    },
+    {
+      "piece": "The TCS Best Buy transition announcement and Infosys-Columbia University collaboration are disclosed developments whose financial contribution can be assessed when company-specific evidence becomes available.",
+      "sentences": [
+        "The TCS Best Buy transition announcement and Infosys-Columbia University collaboration are disclosed developments whose financial contribution can be assessed when company-specific evidence becomes available."
+      ]
+    },
+    {
+      "piece": "Lower supplied multiples Infosys's P/E of 13.3 and P/B of 4.54 are below TCS's 15.1 and 6.85, giving Infosys the evidence-based relative valuation edge.",
+      "sentences": [
+        "Lower supplied multiples Infosys's P/E of 13.3 and P/B of 4.54 are below TCS's 15.1 and 6.85, giving Infosys the evidence-based relative valuation edge."
+      ]
+    },
+    {
+      "piece": "Demand uncertainty The supplied report of a second consecutive quarter of US enterprise IT spending contraction creates a shared demand risk that cannot be differentiated with the available company data.",
+      "sentences": [
+        "Demand uncertainty The supplied report of a second consecutive quarter of US enterprise IT spending contraction creates a shared demand risk that cannot be differentiated with the available company data."
+      ]
+    },
+    {
+      "piece": "TCS is the higher-multiple comparator at P/E 15.1 and P/B 6.85; its Best Buy-related announcement is specific, but the financial effect is not available.",
+      "sentences": [
+        "TCS is the higher-multiple comparator at P/E 15.1 and P/B 6.85; its Best Buy-related announcement is specific, but the financial effect is not available."
+      ]
+    },
+    {
+      "piece": "Infosys has the lower supplied P/E at 13.3 and P/B at 4.54, supporting a relative valuation advantage rather than a conclusion about superior operating performance.",
+      "sentences": [
+        "Infosys has the lower supplied P/E at 13.3 and P/B at 4.54, supporting a relative valuation advantage rather than a conclusion about superior operating performance."
+      ]
+    },
+    {
+      "piece": "Infosys has lower supplied P/E and P/B multiples, while the evidence does not establish a fundamental-performance advantage for either company. The relative valuation case is therefore positive but limited, particularly with US enterprise IT spending contracting for a second consecutive quarter.",
+      "sentences": [
+        "Infosys has lower supplied P/E and P/B multiples, while the evidence does not establish a fundamental-performance advantage for either company.",
+        "The relative valuation case is therefore positive but limited, particularly with US enterprise IT spending contracting for a second consecutive quarter."
+      ]
+    }
+  ],
+  "sentence_reconciliation": [
+    {
+      "sentence": "On the evidence available, Infosys is the stronger valuation-led choice for a medium-term comparison: its P/E is 13.3 versus TCS at 15.1, and its P/B is 4.54 versus 6.85.",
+      "committed_similar_match": [],
+      "exact_substring_match": [],
+      "best_jaccard": 0.48,
+      "best_claim_index": 0
+    },
+    {
+      "sentence": "Infosys is stronger on the available valuation evidence, with a P/E of 13.3 and P/B of 4.54 versus TCS at 15.1 and 6.85.",
+      "committed_similar_match": [],
+      "exact_substring_match": [],
+      "best_jaccard": 0.59,
+      "best_claim_index": 0
+    },
+    {
+      "sentence": "TCS is at P/E 15.1 and P/B 6.85, versus Infosys at P/E 13.3 and P/B 4.54.",
+      "committed_similar_match": [
+        0
+      ],
+      "exact_substring_match": [
+        0
+      ],
+      "best_jaccard": 1.0,
+      "best_claim_index": 0
+    },
+    {
+      "sentence": "TCS's 52-week range is 1976.8-3350.0; Infosys's 52-week range is 980.4-1728.0.",
+      "committed_similar_match": [
+        1
+      ],
+      "exact_substring_match": [
+        1
+      ],
+      "best_jaccard": 1.0,
+      "best_claim_index": 1
+    },
+    {
+      "sentence": "TCS disclosed a press release dated 2026-10-01 titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+      "committed_similar_match": [
+        2
+      ],
+      "exact_substring_match": [
+        2
+      ],
+      "best_jaccard": 1.0,
+      "best_claim_index": 2
+    },
+    {
+      "sentence": "Infosys announced a strategic collaboration with Columbia University on 2026-10-01.",
+      "committed_similar_match": [
+        3
+      ],
+      "exact_substring_match": [
+        3
+      ],
+      "best_jaccard": 1.0,
+      "best_claim_index": 3
+    },
+    {
+      "sentence": "The direct comparison favors Infosys on both supplied valuation measures; the Best Buy and Columbia University announcements are company developments, but their financial impact is not available.",
+      "committed_similar_match": [],
+      "exact_substring_match": [],
+      "best_jaccard": 0.12,
+      "best_claim_index": 3
+    },
+    {
+      "sentence": "US enterprise IT spending is reported to have contracted for a second consecutive quarter, but the company-specific impact is not quantified.",
+      "committed_similar_match": [],
+      "exact_substring_match": [],
+      "best_jaccard": 0.38,
+      "best_claim_index": 5
+    },
+    {
+      "sentence": "The TCS Best Buy transition announcement and Infosys-Columbia University collaboration are disclosed developments whose financial contribution can be assessed when company-specific evidence becomes available.",
+      "committed_similar_match": [],
+      "exact_substring_match": [],
+      "best_jaccard": 0.12,
+      "best_claim_index": 3
+    },
+    {
+      "sentence": "Lower supplied multiples Infosys's P/E of 13.3 and P/B of 4.54 are below TCS's 15.1 and 6.85, giving Infosys the evidence-based relative valuation edge.",
+      "committed_similar_match": [],
+      "exact_substring_match": [],
+      "best_jaccard": 0.37,
+      "best_claim_index": 0
+    },
+    {
+      "sentence": "TCS is the higher-multiple comparator at P/E 15.1 and P/B 6.85; its Best Buy-related announcement is specific, but the financial effect is not available.",
+      "committed_similar_match": [],
+      "exact_substring_match": [],
+      "best_jaccard": 0.32,
+      "best_claim_index": 0
+    },
+    {
+      "sentence": "Infosys has the lower supplied P/E at 13.3 and P/B at 4.54, supporting a relative valuation advantage rather than a conclusion about superior operating performance.",
+      "committed_similar_match": [],
+      "exact_substring_match": [],
+      "best_jaccard": 0.28,
+      "best_claim_index": 0
+    }
+  ],
+  "claim_reconciliation": [
+    {
+      "index": 0,
+      "claim": "TCS is at P/E 15.1 and P/B 6.85, versus Infosys at P/E 13.3 and P/B 4.54.",
+      "sources": [
+        {
+          "id": "C1",
+          "found": true,
+          "kind": "context",
+          "text": "TCS: P/E 15.1, P/B 6.85, 52W 1976.8-3350.0"
+        },
+        {
+          "id": "C2",
+          "found": true,
+          "kind": "context",
+          "text": "INFY: P/E 13.3, P/B 4.54, 52W 980.4-1728.0"
+        }
+      ],
+      "verbatim_in_answer": true,
+      "committed_similar_in_answer": true
+    },
+    {
+      "index": 1,
+      "claim": "TCS's 52-week range is 1976.8-3350.0; Infosys's 52-week range is 980.4-1728.0.",
+      "sources": [
+        {
+          "id": "C1",
+          "found": true,
+          "kind": "context",
+          "text": "TCS: P/E 15.1, P/B 6.85, 52W 1976.8-3350.0"
+        },
+        {
+          "id": "C2",
+          "found": true,
+          "kind": "context",
+          "text": "INFY: P/E 13.3, P/B 4.54, 52W 980.4-1728.0"
+        }
+      ],
+      "verbatim_in_answer": true,
+      "committed_similar_in_answer": true
+    },
+    {
+      "index": 2,
+      "claim": "TCS disclosed a press release dated 2026-10-01 titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+      "sources": [
+        {
+          "id": "A2",
+          "found": true,
+          "kind": "announcement",
+          "text": "Tata Consultancy Services Limited has informed the Exchange regarding a press release dated October 01, 2026, titled \"Best Buy s Global Capability Center in India to transition to TCS\"."
+        }
+      ],
+      "verbatim_in_answer": true,
+      "committed_similar_in_answer": true
+    },
+    {
+      "index": 3,
+      "claim": "Infosys announced a strategic collaboration with Columbia University on 2026-10-01.",
+      "sources": [
+        {
+          "id": "A3",
+          "found": true,
+          "kind": "announcement",
+          "text": "Infosys Limited has informed the Exchange regarding 'Infosys and Columbia University Launch Strategic Collaboration Across Deep Research to Drive Innovation and Unlock Business Value'."
+        }
+      ],
+      "verbatim_in_answer": true,
+      "committed_similar_in_answer": true
+    },
+    {
+      "index": 4,
+      "claim": "The supplied market news says RBI MPC policy, oil prices, and bond yields may drive the market this week.",
+      "sources": [
+        {
+          "id": "N1",
+          "found": true,
+          "kind": "news",
+          "text": "RBI MPC policy, oil prices, bond yields may drive market this week"
+        }
+      ],
+      "verbatim_in_answer": false,
+      "committed_similar_in_answer": false
+    },
+    {
+      "index": 5,
+      "claim": "The supplied related event says US enterprise IT spending contracts for a second consecutive quarter.",
+      "sources": [
+        {
+          "id": "E1",
+          "found": true,
+          "kind": "event",
+          "text": "US enterprise IT spending contracts for second consecutive quarter"
+        }
+      ],
+      "verbatim_in_answer": false,
+      "committed_similar_in_answer": true
+    }
+  ],
+  "figures_unsupported_vs_saved_index_and_valuation": [],
+  "payload_chars": {
+    "summary": 330,
+    "bottom_line": 306,
+    "confidence": 2,
+    "confidence_self_rating": 1,
+    "sentiment": 9,
+    "what_happened": 363,
+    "why_it_happened": 164,
+    "immediate_impact": 197,
+    "medium_term": 195,
+    "long_term": 125,
+    "what_priced_in": 226,
+    "key_drivers": 494,
+    "risks": 440,
+    "opportunities": 337,
+    "companies": 547,
+    "sectors": 284,
+    "investment_verdict": 752,
+    "follow_up_questions": 251,
+    "claim_sources": 780,
+    "timeline": 481,
+    "insights": 333,
+    "scenarios": 893,
+    "monitoring": 1657,
+    "decision_engine_v2": 1341,
+    "timeline_intelligence": 722,
+    "opportunity_risk_matrix": 710,
+    "ai_conclusion": 791,
+    "decision_intelligence": 6953
+  },
+  "payload_chars_total_parsed": 19684,
+  "raw_output_chars": 22248,
+  "evidence_index": [
+    {
+      "id": "E1",
+      "kind": "event",
+      "title": "US enterprise IT spending contracts for second consecutive quarter",
+      "summary": "CIO surveys and enterprise software vendors report discretionary IT budget freezes. Indian IT majors with high US revenue exposure face near-term demand headwinds, though management guidance remains c",
+      "date": "2026-07-10T09:30:00",
+      "source": "",
+      "companies": [
+        "TCS",
+        "INFY",
+        "WIPRO"
+      ],
+      "ref": "event:evt-it-deal-slowdown-2026"
+    },
+    {
+      "id": "N1",
+      "kind": "news",
+      "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+      "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+      "date": "6h ago",
+      "source": "Business Standard",
+      "companies": [],
+      "ref": "news:live-0159572fe8cc"
+    },
+    {
+      "id": "A1",
+      "kind": "announcement",
+      "title": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+      "date": "2026-10-01T00:00:00",
+      "source": "NSE",
+      "companies": [
+        "TCS"
+      ],
+      "ref": "announcement:ann_nse-3e08b3c13a"
+    },
+    {
+      "id": "A2",
+      "kind": "announcement",
+      "title": "Tata Consultancy Services Limited has informed the Exchange regarding a press release dated October 01, 2026, titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+      "date": "2026-10-01T00:00:00",
+      "source": "NSE",
+      "companies": [
+        "TCS"
+      ],
+      "ref": "announcement:ann_nse-d5bed2f533"
+    },
+    {
+      "id": "A3",
+      "kind": "announcement",
+      "title": "Infosys Limited has informed the Exchange regarding 'Infosys and Columbia University Launch Strategic Collaboration Across Deep Research to Drive Innovation and Unlock Business Value'.",
+      "date": "2026-10-01T00:00:00",
+      "source": "NSE",
+      "companies": [
+        "INFY"
+      ],
+      "ref": "announcement:ann_nse-ffc7721042"
+    },
+    {
+      "id": "A4",
+      "kind": "announcement",
+      "title": "Infosys Limited has informed the Exchange regarding 'Investor Conference'.",
+      "date": "2026-09-01T00:00:00",
+      "source": "NSE",
+      "companies": [
+        "INFY"
+      ],
+      "ref": "announcement:ann_nse-ca93723168"
+    },
+    {
+      "id": "A5",
+      "kind": "announcement",
+      "title": "Infosys Limited has informed the Exchange regarding Allotment of 175865  Shares.",
+      "date": "2026-08-24T00:00:00",
+      "source": "NSE",
+      "companies": [
+        "INFY"
+      ],
+      "ref": "announcement:ann_nse-600f534235"
+    },
+    {
+      "id": "A6",
+      "kind": "announcement",
+      "title": "Infosys Limited has informed the Exchange about change in Management",
+      "date": "2026-08-24T00:00:00",
+      "source": "NSE",
+      "companies": [
+        "INFY"
+      ],
+      "ref": "announcement:ann_nse-6ca57a1d3e"
+    },
+    {
+      "id": "C1",
+      "kind": "context",
+      "title": "TCS: P/E 15.1, P/B 6.85, 52W 1976.8-3350.0",
+      "date": null,
+      "source": "MarketRipple data",
+      "companies": [],
+      "ref": "context:1"
+    },
+    {
+      "id": "C2",
+      "kind": "context",
+      "title": "INFY: P/E 13.3, P/B 4.54, 52W 980.4-1728.0",
+      "date": null,
+      "source": "MarketRipple data",
+      "companies": [],
+      "ref": "context:2"
+    },
+    {
+      "id": "C3",
+      "kind": "context",
+      "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+      "date": null,
+      "source": "MarketRipple data",
+      "companies": [],
+      "ref": "context:3"
+    }
+  ],
+  "evidence_valuation": {
+    "TCS": {
+      "pe": 15.1,
+      "pb": 6.85,
+      "52w_high": 3350.0,
+      "52w_low": 1976.8
+    },
+    "INFY": {
+      "pe": 13.3,
+      "pb": 4.54,
+      "52w_high": 1728.0,
+      "52w_low": 980.4
+    }
+  },
+  "evidence_context_lines": [
+    "TCS: P/E 15.1, P/B 6.85, 52W 1976.8-3350.0",
+    "INFY: P/E 13.3, P/B 4.54, 52W 980.4-1728.0",
+    "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)"
+  ]
+}
