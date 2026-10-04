@@ -100,6 +100,26 @@ async def record_snapshot(
     await db.commit()
 
 
+_GENERIC_NAME_WORDS = {"tata", "adani", "bajaj", "birla", "india", "indian", "bank", "limited", "ltd", "industries", "corporation", "finance", "power", "steel", "global", "energy", "services", "technologies", "systems", "motors", "life", "general", "hindustan", "state", "national", "united"}
+
+
+def names_other_company(text: str | None, own_symbol: str, own_name: str | None, universe: list[dict]) -> bool:
+    """True when the free text names a different listed company (by its distinctive first name word, e.g. "Infosys"). A stored AI answer to a single-company
+    search can be a comparison; its reasoning belongs to the comparison, not to the one company the snapshot is filed under."""
+    if not text:
+        return False
+    import re
+    words = set(re.findall(r"[a-z]+", text.lower()))
+    own_words = {w for w in (own_name or "").lower().replace(".", " ").split()} | {own_symbol.lower()}
+    for co in universe:
+        if co.get("symbol") == own_symbol:
+            continue
+        word = (co.get("name") or "").lower().replace(".", " ").split()[:1]
+        if word and len(word[0]) >= 5 and word[0] not in _GENERIC_NAME_WORDS and word[0] not in own_words and word[0] in words:
+            return True
+    return False
+
+
 def _age_days(snapshot_date: str | None) -> int | None:
     """Whole days since the verdict snapshot (None if the date does not parse); drives the page's "this view may be out of date" note."""
     try:
@@ -256,6 +276,11 @@ async def get_watch(db: AsyncSession, subject_key: str, subject_label_hint: str 
             "from_date": snapshots[1].snapshot_date, "to_date": current.snapshot_date,
             "why": current.why,
         }
+        if subject_key.startswith("company:"):
+            from app.api.companies import _NSE_UNIVERSE as _U
+            sym = subject_key.split(":", 1)[-1]
+            if names_other_company(current.why, sym, next((c["name"] for c in _U if c["symbol"] == sym), None), _U):
+                last_change["why"] = None
 
     subject_type = "company" if subject_key.startswith("company:") else "sector"
     company_name = None

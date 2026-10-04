@@ -39,3 +39,11 @@ def test_verdict_age_in_whole_days_and_none_for_a_bad_date():
     today = datetime.now(timezone.utc).date()
     assert iw._age_days((today - timedelta(days=46)).isoformat()) == 46
     assert iw._age_days(today.isoformat()) == 0 and iw._age_days("not a date") is None and iw._age_days(None) is None
+
+
+def test_names_other_company_flags_comparison_text():
+    from app.services.ai_search.investment_watch import names_other_company
+    uni = [{"symbol": "TCS", "name": "Tata Consultancy Services Ltd"}, {"symbol": "INFY", "name": "Infosys Limited"}]
+    assert names_other_company("Infosys's deal pipeline is thinning while TCS wins deals.", "TCS", uni[0]["name"], uni)
+    assert not names_other_company("TCS continues to win AI and cloud deals.", "TCS", uni[0]["name"], uni)
+    assert not names_other_company(None, "TCS", uni[0]["name"], uni)
