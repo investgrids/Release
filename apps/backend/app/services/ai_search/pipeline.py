@@ -19,7 +19,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.ai_search import cache as cache_mod
 from app.services.ai_search import answer_authorization as auth_mod
 from app.services.ai_search import claim_sources as claim_sources_mod
+from app.services.ai_search import conclusion_scope as scope_mod
 from app.services.ai_search import evidence_sufficiency as suff_mod
+from app.services.ai_search import structured_authorization as struct_mod
 from app.services.ai_search.company_matching import filter_events_to_companies
 from app.services.ai_search.degraded_shape import build_degraded_shape
 from app.services.ai_search import entities as entities_mod
@@ -385,6 +387,11 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
     auth = {"applicable": False, "authorized": True, "reasons": []}
     if not was_degraded:
         auth = auth_mod.authorize(validated, evidence, entities, _UNIV, query)
+        # Step 3.4D-2: the conclusion must not be broader than the evidence supports (valuation-only evidence never authorizes an overall company-strength conclusion).
+        cscope = scope_mod.assess(query, intent_data, entities, evidence, _UNIV)
+        overreach = scope_mod.overreach(validated, cscope)
+        if overreach:
+            auth = {**auth, "authorized": False, "reasons": [*auth["reasons"], "conclusion_scope_exceeded"], "conclusion_overreach_count": len(overreach)}
         if not auth["authorized"]:
             yield "finalizing", STAGE_LABELS["finalizing"], None
             response = _build_rejected_response(query, validated, evidence, entities, intent_data, specialist_kind, auth)
@@ -394,12 +401,25 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
             yield "done", STAGE_LABELS["finalizing"], response
             return
 
+    # Step 3.4D-2: LLM-generated structured analytical claims (rating, direction, sentiment, confidence, probabilities, scores, winner/preference blocks) are never public by themselves. They are replaced
+    # by an explicit unavailable state before assembly; deterministic producers (confidence breakdown, engine verdict, pairwise decision engine) still run in code.
+    cscope = scope_mod.assess(query, intent_data, entities, evidence, _UNIV)
+    public_ai, withheld_structured = (validated, []) if was_degraded else struct_mod.sanitize(validated)
     response = await _assemble_response(
-        query, validated, evidence, specialist_kind, was_degraded, validation_report,
+        query, public_ai, evidence, specialist_kind, was_degraded, validation_report,
         db, entities, dropped_companies=dropped_companies,
-        intent_data=intent_data, is_multi_compare=is_multi_compare,
+        intent_data=intent_data, is_multi_compare=is_multi_compare, conclusion_scope=cscope,
     )
     _checkpoint("assembly_ms", _t_stage)
+    if not was_degraded:
+        response["conclusion_scope"] = scope_mod.public_summary(cscope)
+        response["structured_authorization"] = struct_mod.public_summary(withheld_structured)
+        for s in response.get("sectors") or []:      # a status derived from a withheld LLM outlook would itself be an unauthorized conclusion
+            s.pop("status", None)
+            s.pop("time_horizon", None)
+        note = scope_mod.partial_note(cscope, {m.get("symbol"): m.get("name") for m in (entities.get("company_matches") or []) if m.get("symbol")})
+        if note:
+            response.setdefault("confidence_data", {}).setdefault("caveats", []).append(note)
     response["evidence_sufficiency"] = _public_sufficiency(suff)
     response["answer_authorization"] = auth_mod.public_summary(auth)
     response["timing"] = {**stage_ms, "total_ms": round((time.monotonic() - _t0) * 1000, 1)}
@@ -575,6 +595,7 @@ async def _assemble_response(
     dropped_companies: list[str] | None = None,
     intent_data: dict | None = None,
     is_multi_compare: bool = False,
+    conclusion_scope: dict | None = None,
 ) -> dict:
     """Builds the final response dict — a strict superset of V2's shape
     (see schema.py) plus Phase 1's new fields. Reuses V2's own enrichment/
@@ -923,6 +944,7 @@ async def _assemble_response(
     if (
         specialist_kind == "comparison" and not is_multi_compare
         and isinstance(response.get("decision_intelligence"), dict)
+        and (conclusion_scope or {}).get("partial") is not True      # Step 3.4D-2: a winner/preference needs the conclusion to be authorized, valuation-only evidence does not
     ):
         try:
             from app.services.decision_engine import compute_decision

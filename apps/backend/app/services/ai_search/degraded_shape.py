@@ -138,4 +138,5 @@ def build_degraded_shape(
         "market_impact_horizons": {}, "what_to_monitor": [], "ai_reasoning_methods": [],
         # Step 3.4A: why no analysis is shown (pre-model sufficiency / post-model authorization), a short public title for it, and the premise check. None on every other path.
         "evidence_sufficiency": evidence_sufficiency, "premise_check": premise_check, "answer_authorization": answer_authorization, "public_title": public_title,
+        "conclusion_scope": None, "structured_authorization": None,
     }
