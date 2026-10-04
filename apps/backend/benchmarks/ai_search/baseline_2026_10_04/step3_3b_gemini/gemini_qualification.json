@@ -1,0 +1,1486 @@
+{
+  "model": "gemini-3.6-flash",
+  "cap": 3,
+  "specialist_requests_made": 3,
+  "results": {
+    "CR2": {
+      "id": "CR2",
+      "query": "How is 3M India doing as a business?",
+      "entities": {
+        "companies": [
+          "3MINDIA"
+        ],
+        "sectors": [],
+        "policies": []
+      },
+      "wall_s": 42.33,
+      "calls": [
+        {
+          "provider": "gemini",
+          "model": "gemini-3.6-flash",
+          "max_tokens": 6500,
+          "prompt_chars": 9259,
+          "approx_input_tokens": 2315,
+          "latency_ms": 21469,
+          "status": 200,
+          "limit_headers": {},
+          "finish_reason": "stop",
+          "output_chars": 10129,
+          "usage": {
+            "completion_tokens": 2405,
+            "prompt_tokens": 2566,
+            "total_tokens": 5951
+          },
+          "would_exceed_30s": false,
+          "raw_output": "{\n  \"investment\": {\n    \"summary\": \"3M India continues to demonstrate strong operational performance driven by momentum across its Safety & Industrial and Healthcare segments. The company maintains a zero-debt balance sheet with superior return capital metrics, supported by parent R&D and expanding domestic manufacturing capacity. Premium valuation multiples reflect this quality, requiring sustained volume growth to drive further market re-rating.\",\n    \"bottom_line\": \"3M India operates as a high-quality, debt-free multi-industry technology player leveraging parent innovation to capitalize on India's industrial manufacturing and healthcare expansion. Operating performance remains solid with healthy margins supported by industrial tapes, automotive adhesives, and medical solutions. Premium valuations relative to industrial peers like Honeywell Automation India and Siemens leave limited room for execution slippage, but robust return ratios and capital discipline support a positive long-term compounding thesis for 3MINDIA.\",\n    \"confidence\": 78,\n    \"confidence_self_rating\": 7,\n    \"sentiment\": \"bullish\",\n    \"rating\": \"Constructive\",\n    \"direction\": \"bullish\",\n    \"horizon\": \"12-18 months\",\n    \"verdict_scale\": \"Positive\",\n    \"why\": \"Consistent earnings delivery, high return ratios, and debt-free operations across high-growth industrial and healthcare verticals support sustained compounding.\"\n  },\n  \"decision\": {\n    \"what_changes_the_view\": [\n      \"Sustained volume growth acceleration exceeding 15% year-on-year across industrial segments\",\n      \"Material reduction in parent technology license royalty rates\"\n    ],\n    \"what_invalidates_the_thesis\": [\n      \"Sharp margin compression from unrecovered raw material input costs\",\n      \"Significant slowdown in Indian automotive and infrastructure capex cycles\"\n    ],\n    \"current_view\": \"Positive\",\n    \"reason\": \"Steady operational compounding and strong domestic demand offset premium valuation constraints.\",\n    \"biggest_opportunity\": \"Localization of high-value industrial and healthcare manufacturing to boost operating margins.\",\n    \"biggest_risk\": \"Margin pressure due to global supply chain volatility and fluctuations in import costs.\",\n    \"investor_action_note\": \"Track Q2 FY27 segment revenue growth and margin resilience ahead of broader capital expenditure updates.\"\n  },\n  \"claim_sources\": [],\n  \"evidence\": {\n    \"what_happened\": \"3M India maintains steady operational growth driven by strong demand in healthcare and industrial applications.\",\n    \"why_it_happened\": \"Domestic manufacturing growth and infrastructure investments increased consumption of high-grade adhesives, safety products, and auto solutions.\",\n    \"immediate_impact\": \"Stock trades in a stable consolidation pattern alongside broader industrial capital goods sector trends.\",\n    \"medium_term\": \"Margin expansion relies on operational leverage and favorable product mix shifts toward healthcare solutions.\",\n    \"long_term\": \"Deep integration into India's electronics and automotive supply chains supports multi-year market share gains.\",\n    \"what_priced_in\": \"The market has largely priced in high return ratios and zero-debt status, leaving future stock performance pegged directly to top-line volume growth.\",\n    \"key_drivers\": [\n      {\n        \"icon\": \"demand\",\n        \"title\": \"Industrial & Auto Capex\",\n        \"explanation\": \"Expanding domestic auto and electronics production directly expands demand for premium adhesives and tapes.\",\n        \"confidence\": 85\n      },\n      {\n        \"icon\": \"earnings\",\n        \"title\": \"Healthcare Expansion\",\n        \"explanation\": \"Increased hospital bed capacity nationwide boosts consumption of medical consumables and infection prevention products.\",\n        \"confidence\": 82\n      }\n    ]\n  },\n  \"companies\": [\n    {\n      \"symbol\": \"3MINDIA\",\n      \"name\": \"3M India Limited\",\n      \"impact_type\": \"beneficiary\",\n      \"impact_score\": 90,\n      \"confidence\": 85,\n      \"reason\": \"Primary subject benefiting from domestic manufacturing expansion and medical segment demand.\"\n    },\n    {\n      \"symbol\": \"HONAUT\",\n      \"name\": \"Honeywell Automation India Limited\",\n      \"impact_type\": \"beneficiary\",\n      \"impact_score\": 75,\n      \"confidence\": 78,\n      \"reason\": \"Peer MNC benefiting from industrial automation and capex tailwinds in the domestic market.\"\n    },\n    {\n      \"symbol\": \"SIEMENS\",\n      \"name\": \"Siemens Limited\",\n      \"impact_type\": \"neutral\",\n      \"impact_score\": 65,\n      \"confidence\": 75,\n      \"reason\": \"Broader capital goods benchmark reflecting overall domestic manufacturing expenditure trends.\"\n    }\n  ],\n  \"sectors\": [\n    {\n      \"name\": \"Capital Goods & Industrials\",\n      \"score\": 85,\n      \"confidence\": 80,\n      \"outlook\": \"Strong Growth\",\n      \"positive\": true,\n      \"explanation\": \"Sustained government and private capex spending continues to benefit specialized industrial component suppliers.\"\n    },\n    {\n      \"name\": \"Healthcare Equipment & Supplies\",\n      \"score\": 78,\n      \"confidence\": 75,\n      \"outlook\": \"Positive\",\n      \"positive\": true,\n      \"explanation\": \"Rising healthcare spending and hospital expansion drive volume for specialized medical consumables.\"\n    }\n  ],\n  \"timeline\": {\n    \"milestones\": [\n      {\n        \"date\": \"2026-11-10\",\n        \"title\": \"Q2 FY27 Earnings Release\",\n        \"description\": \"3M India reports financial performance for the quarter ending September 2026.\"\n      },\n      {\n        \"date\": \"2027-02-12\",\n        \"title\": \"Q3 FY27 Earnings Release\",\n        \"description\": \"Quarterly operational tracking across Safety & Industrial and Consumer segments.\"\n      }\n    ],\n    \"immediate\": \"3MINDIA stock tracks rangebound market sentiment as institutional investors wait for Q2 earnings prints.\",\n    \"one_week\": \"Analyst consensus reviews auto sales channel checks to gauge secondary demand for industrial adhesives.\",\n    \"one_to_three_months\": \"Q2 FY27 corporate earnings season provides clear visibility on input cost pressure and operating margins.\",\n    \"six_to_twelve_months\": \"Capacity expansions at local manufacturing facilities start contributing to gross margin improvements.\",\n    \"one_to_three_years\": \"Long-term localization strategy reduces royalty friction and boosts overall return on invested capital.\"\n  },\n  \"risks\": {\n    \"risks\": [\n      \"Volatile raw material import pricing impacting operating profit margins\",\n      \"Fluctuations in foreign exchange rates affecting royalty payments and raw material landed costs\",\n      \"Slowdown in domestic commercial vehicle and passenger vehicle production volumes\"\n    ],\n    \"opportunities\": [\n      \"Accelerated local sourcing to optimize supply chain costs and enhance gross margins\",\n      \"Expansion of specialized healthcare solutions into tier-2 and tier-3 hospital networks\"\n    ],\n    \"opportunity_matrix\": {\n      \"high\": [\n        \"Healthcare segment volume growth\"\n      ],\n      \"medium\": [\n        \"Electronics manufacturing supply chain integration\"\n      ],\n      \"low\": [\n        \"Consumer retail brand expansion\"\n      ]\n    },\n    \"risk_matrix\": {\n      \"high\": [\n        \"Raw material price inflation\"\n      ],\n      \"medium\": [\n        \"Automotive sector cyclical slowdown\"\n      ],\n      \"low\": [\n        \"Parent company royalty fee revisions\"\n      ]\n    }\n  },\n  \"extras\": {\n    \"insights\": [\n      {\n        \"icon\": \"🏭\",\n        \"title\": \"Industrial Demand Anchor\",\n        \"summary\": \"3MINDIA leverages strong automotive and general manufacturing tailwinds to drive industrial adhesive volumes.\"\n      },\n      {\n        \"icon\": \"🏥\",\n        \"title\": \"Healthcare Margin Booster\",\n        \"summary\": \"High-margin medical consumables offer structural protection against industrial cyclicality.\"\n      }\n    ],\n    \"scenarios\": {\n      \"bull\": {\n        \"probability\": 30,\n        \"outcome\": \"Volume growth exceeds 18% YoY with gross margin expansion above 200 bps.\",\n        \"key_drivers\": [\n          \"Rapid auto sector growth\",\n          \"Accelerated localized manufacturing\"\n        ],\n        \"confidence\": 70\n      },\n      \"base\": {\n        \"probability\": 50,\n        \"outcome\": \"Steady 10-12% top-line compounding with stable operating margins.\",\n        \"key_drivers\": [\n          \"Stable industrial capex\",\n          \"Consistent healthcare demand\"\n        ],\n        \"confidence\": 78\n      },\n      \"bear\": {\n        \"probability\": 20,\n        \"outcome\": \"Top-line growth slows below 5% amid raw material cost spikes.\",\n        \"key_drivers\": [\n          \"Automotive slowdown\",\n          \"Rupee depreciation pressure\"\n        ],\n        \"confidence\": 65\n      }\n    },\n    \"monitoring\": {\n      \"items\": [\n        {\n          \"label\": \"Quarterly Financial Results\",\n          \"importance\": \"critical\",\n          \"why_it_matters\": \"Reveals volume growth rates across core business segments.\",\n          \"frequency\": \"Every 3 months\"\n        },\n        {\n          \"label\": \"Raw Material Index\",\n          \"importance\": \"high\",\n          \"why_it_matters\": \"Directly impacts gross profit margin trajectory.\",\n          \"frequency\": \"Monthly\"\n        },\n        {\n          \"label\": \"Auto Production Data\",\n          \"importance\": \"high\",\n          \"why_it_matters\": \"Key demand signal for industrial tapes and OEM solutions.\",\n          \"frequency\": \"Monthly\"\n        },\n        {\n          \"label\": \"Royalty & License Payments\",\n          \"importance\": \"medium\",\n          \"why_it_matters\": \"Determines net margin expansion limits.\",\n          \"frequency\": \"Annual\"\n        },\n        {\n          \"label\": \"FII / DII Shareholding Changes\",\n          \"importance\": \"medium\",\n          \"why_it_matters\": \"Tracks institutional support in high-valuation MNC stocks.\",\n          \"frequency\": \"Quarterly\"\n        }\n      ]\n    },\n    \"follow_up_questions\": [\n      \"What is 3M India's current segment revenue split between Industrial, Healthcare, and Consumer businesses?\",\n      \"How does 3M India's valuation compare historically to Honeywell Automation India?\"\n    ],\n    \"top_picks\": [\n      \"3MINDIA\"\n    ]\n  }\n}"
+        }
+      ],
+      "request_ok": true,
+      "response": {
+        "query": "How is 3M India doing as a business?",
+        "response_id": "e27b6ab3-7c03-42b9-9393-61451c521dcc",
+        "schema_version": "v3.0",
+        "specialist": "company",
+        "intent": "general",
+        "ui_mode": "direct_company_research",
+        "switch_holding": null,
+        "switch_target": null,
+        "degraded_reason": null,
+        "synthesis_incomplete": false,
+        "answer": {
+          "summary": "3M India continues to demonstrate strong operational performance driven by momentum across its Safety & Industrial and Healthcare segments. The company maintains a zero-debt balance sheet with superior return capital metrics, supported by parent R&D and expanding domestic manufacturing capacity. Premium valuation multiples reflect this quality, requiring sustained volume growth to drive further market re-rating.",
+          "bottom_line": "3M India operates as a high-quality, debt-free multi-industry technology player leveraging parent innovation to capitalize on India's industrial manufacturing and healthcare expansion. Operating performance remains solid with healthy margins supported by industrial tapes, automotive adhesives, and medical solutions. Premium valuations relative to industrial peers like Honeywell Automation India and Siemens leave limited room for execution slippage, but robust return ratios and capital discipline support a positive long-term compounding thesis for 3MINDIA.",
+          "what_happened": "3M India maintains steady operational growth driven by strong demand in healthcare and industrial applications.",
+          "why_it_happened": "Domestic manufacturing growth and infrastructure investments increased consumption of high-grade adhesives, safety products, and auto solutions.",
+          "immediate_impact": "Stock trades in a stable consolidation pattern alongside broader industrial capital goods sector trends.",
+          "medium_term": "Margin expansion relies on operational leverage and favorable product mix shifts toward healthcare solutions.",
+          "long_term": "Deep integration into India's electronics and automotive supply chains supports multi-year market share gains.",
+          "what_priced_in": "The market has largely priced in high return ratios and zero-debt status, leaving future stock performance pegged directly to top-line volume growth.",
+          "risks": [
+            "Volatile raw material import pricing impacting operating profit margins",
+            "Fluctuations in foreign exchange rates affecting royalty payments and raw material landed costs",
+            "Slowdown in domestic commercial vehicle and passenger vehicle production volumes"
+          ],
+          "opportunities": [
+            "Accelerated local sourcing to optimize supply chain costs and enhance gross margins",
+            "Expansion of specialized healthcare solutions into tier-2 and tier-3 hospital networks"
+          ],
+          "confidence": 21.3,
+          "confidence_level": "Low",
+          "sentiment": "bullish",
+          "sources_count": 0
+        },
+        "key_drivers": [
+          {
+            "icon": "demand",
+            "title": "Industrial & Auto Capex",
+            "explanation": "Expanding domestic auto and electronics production directly expands demand for premium adhesives and tapes.",
+            "confidence": 85
+          },
+          {
+            "icon": "earnings",
+            "title": "Healthcare Expansion",
+            "explanation": "Increased hospital bed capacity nationwide boosts consumption of medical consumables and infection prevention products.",
+            "confidence": 82
+          }
+        ],
+        "insights": [
+          {
+            "icon": "🏭",
+            "title": "Industrial Demand Anchor",
+            "summary": "3MINDIA leverages strong automotive and general manufacturing tailwinds to drive industrial adhesive volumes."
+          },
+          {
+            "icon": "🏥",
+            "title": "Healthcare Margin Booster",
+            "summary": "High-margin medical consumables offer structural protection against industrial cyclicality."
+          }
+        ],
+        "companies": [
+          {
+            "symbol": "3MINDIA",
+            "name": "3M India Limited",
+            "impact_type": "beneficiary",
+            "impact_score": 90,
+            "confidence": 85,
+            "reason": "Primary subject benefiting from domestic manufacturing expansion and medical segment demand.",
+            "price": "30,900.00",
+            "change": "-3.92%",
+            "positive": false,
+            "price_fetched_at": "2026-10-04T13:39:34.951986+00:00",
+            "chart": [
+              33415.0,
+              31890.0,
+              32160.0,
+              30795.0
+            ],
+            "ripple_position": "Primary Beneficiary",
+            "why_it_matters": "Primary subject benefiting from domestic manufacturing expansion and medical segment demand."
+          },
+          {
+            "symbol": "HONAUT",
+            "name": "Honeywell Automation India Limited",
+            "impact_type": "beneficiary",
+            "impact_score": 75,
+            "confidence": 78,
+            "reason": "Peer MNC benefiting from industrial automation and capex tailwinds in the domestic market.",
+            "price": "33,400.00",
+            "change": "-0.18%",
+            "positive": false,
+            "price_fetched_at": "2026-10-04T13:39:35.810364+00:00",
+            "chart": [
+              33855.0,
+              33980.0,
+              33460.0,
+              33470.0
+            ],
+            "ripple_position": "Primary Beneficiary",
+            "why_it_matters": "Peer MNC benefiting from industrial automation and capex tailwinds in the domestic market."
+          },
+          {
+            "symbol": "SIEMENS",
+            "name": "Siemens Limited",
+            "impact_type": "neutral",
+            "impact_score": 65,
+            "confidence": 75,
+            "reason": "Broader capital goods benchmark reflecting overall domestic manufacturing expenditure trends.",
+            "price": "3,804.00",
+            "change": "+2.10%",
+            "positive": true,
+            "price_fetched_at": "2026-10-04T13:39:36.385183+00:00",
+            "chart": [
+              3785.5,
+              3710.0,
+              3725.6,
+              3804.0
+            ],
+            "ripple_position": "Indirect Exposure",
+            "why_it_matters": "Broader capital goods benchmark reflecting overall domestic manufacturing expenditure trends."
+          }
+        ],
+        "sectors": [
+          {
+            "name": "Capital Goods & Industrials",
+            "score": 85,
+            "confidence": 80,
+            "outlook": "Strong Growth",
+            "positive": true,
+            "explanation": "Sustained government and private capex spending continues to benefit specialized industrial component suppliers.",
+            "status": "Structural Tailwind",
+            "time_horizon": "3-5 Years"
+          },
+          {
+            "name": "Healthcare Equipment & Supplies",
+            "score": 78,
+            "confidence": 75,
+            "outlook": "Positive",
+            "positive": true,
+            "explanation": "Rising healthcare spending and hospital expansion drive volume for specialized medical consumables.",
+            "status": "Beneficiary",
+            "time_horizon": "2-3 Years"
+          }
+        ],
+        "related_events": [],
+        "news": [],
+        "policies": [],
+        "timeline": [
+          {
+            "date": "2026-11-10",
+            "title": "Q2 FY27 Earnings Release",
+            "description": "3M India reports financial performance for the quarter ending September 2026."
+          },
+          {
+            "date": "2027-02-12",
+            "title": "Q3 FY27 Earnings Release",
+            "description": "Quarterly operational tracking across Safety & Industrial and Consumer segments."
+          }
+        ],
+        "historical_comparison": [],
+        "ripple_chain": [
+          {
+            "depth": 0,
+            "nodes": [
+              {
+                "id": "development:a1f936cc-58d4-4d39-85ea-659aafe26469",
+                "label": "MANOMAY TEX INDIA LIMITED has informed the Exchange about Board Meeting to be held on 31-Aug-2026 to consider Other business.",
+                "type": "development",
+                "direction": "positive",
+                "weight": 1.0,
+                "parent_id": null
+              }
+            ]
+          },
+          {
+            "depth": 1,
+            "nodes": [
+              {
+                "id": "company:manomay",
+                "label": "MANOMAY",
+                "type": "company",
+                "direction": "uncertain",
+                "weight": 0.56,
+                "parent_id": "development:a1f936cc-58d4-4d39-85ea-659aafe26469"
+              }
+            ]
+          }
+        ],
+        "scenarios": {
+          "bull": {
+            "probability": 30,
+            "outcome": "Volume growth exceeds 18% YoY with gross margin expansion above 200 bps.",
+            "key_drivers": [
+              "Rapid auto sector growth",
+              "Accelerated localized manufacturing"
+            ],
+            "confidence": 70
+          },
+          "base": {
+            "probability": 50,
+            "outcome": "Steady 10-12% top-line compounding with stable operating margins.",
+            "key_drivers": [
+              "Stable industrial capex",
+              "Consistent healthcare demand"
+            ],
+            "confidence": 78
+          },
+          "bear": {
+            "probability": 20,
+            "outcome": "Top-line growth slows below 5% amid raw material cost spikes.",
+            "key_drivers": [
+              "Automotive slowdown",
+              "Rupee depreciation pressure"
+            ],
+            "confidence": 65
+          }
+        },
+        "monitoring": {
+          "items": [
+            {
+              "label": "Quarterly Financial Results",
+              "importance": "critical",
+              "why_it_matters": "Reveals volume growth rates across core business segments.",
+              "frequency": "Every 3 months"
+            },
+            {
+              "label": "Raw Material Index",
+              "importance": "high",
+              "why_it_matters": "Directly impacts gross profit margin trajectory.",
+              "frequency": "Monthly"
+            },
+            {
+              "label": "Auto Production Data",
+              "importance": "high",
+              "why_it_matters": "Key demand signal for industrial tapes and OEM solutions.",
+              "frequency": "Monthly"
+            },
+            {
+              "label": "Royalty & License Payments",
+              "importance": "medium",
+              "why_it_matters": "Determines net margin expansion limits.",
+              "frequency": "Annual"
+            },
+            {
+              "label": "FII / DII Shareholding Changes",
+              "importance": "medium",
+              "why_it_matters": "Tracks institutional support in high-valuation MNC stocks.",
+              "frequency": "Quarterly"
+            }
+          ]
+        },
+        "follow_up_questions": [
+          "What is 3M India's current segment revenue split between Industrial, Healthcare, and Consumer businesses?",
+          "How does 3M India's valuation compare historically to Honeywell Automation India?"
+        ],
+        "investment_verdict": {
+          "rating": "Constructive",
+          "direction": "bullish",
+          "confidence": 21.3,
+          "horizon": "12-18 months",
+          "top_picks": [
+            "3MINDIA"
+          ],
+          "risks": [
+            "Volatile raw material import pricing impacting operating profit margins",
+            "Fluctuations in foreign exchange rates affecting royalty payments and raw material landed costs"
+          ],
+          "catalysts": [
+            "Sustained volume growth acceleration exceeding 15% year-on-year across industrial segments",
+            "Material reduction in parent technology license royalty rates"
+          ],
+          "opportunity_score": null,
+          "engine_verdict": {
+            "rating": "Cautious",
+            "tier": 5,
+            "direction": "sideways",
+            "confidence_used": 21,
+            "opportunity_score_used": null,
+            "vix_level_used": 14.45,
+            "basis": "computed_no_opportunity_match"
+          }
+        },
+        "market_chart": {
+          "labels": [],
+          "series": []
+        },
+        "graph": {
+          "nodes": [
+            {
+              "id": "q",
+              "label": "How is 3M India doing as a b…",
+              "type": "query",
+              "x": 0,
+              "y": 0
+            },
+            {
+              "id": "mig-development:a1f936cc-58d4-4d39-85ea-659aafe26469",
+              "label": "MANOMAY TEX INDIA LIMITED has informed the Exchange about Board Meeting to be held on 31-Aug-2026 to consider Other business.",
+              "type": "development",
+              "x": 0,
+              "y": 130,
+              "direction": "positive"
+            },
+            {
+              "id": "mig-company:manomay",
+              "label": "MANOMAY",
+              "type": "company",
+              "x": 0,
+              "y": 260,
+              "direction": "uncertain"
+            },
+            {
+              "id": "co-3MINDIA",
+              "label": "3MINDIA",
+              "type": "company",
+              "x": 0,
+              "y": 390,
+              "impact_score": 90
+            },
+            {
+              "id": "co-HONAUT",
+              "label": "HONAUT",
+              "type": "company",
+              "x": 170,
+              "y": 390,
+              "impact_score": 75
+            },
+            {
+              "id": "co-SIEMENS",
+              "label": "SIEMENS",
+              "type": "company",
+              "x": 340,
+              "y": 390,
+              "impact_score": 65
+            },
+            {
+              "id": "comp-ADANIENT",
+              "label": "ADANIENT",
+              "type": "competitor",
+              "x": 0,
+              "y": 520
+            },
+            {
+              "id": "comp-CGPOWER",
+              "label": "CGPOWER",
+              "type": "competitor",
+              "x": 170,
+              "y": 520
+            },
+            {
+              "id": "risk-0",
+              "label": "Volatile raw material import pricing imp…",
+              "type": "risk",
+              "x": 0,
+              "y": 650
+            },
+            {
+              "id": "risk-1",
+              "label": "Fluctuations in foreign exchange rates a…",
+              "type": "risk",
+              "x": 170,
+              "y": 650
+            },
+            {
+              "id": "opp-0",
+              "label": "Accelerated local sourcing to optimize s…",
+              "type": "opportunity",
+              "x": 340,
+              "y": 650
+            },
+            {
+              "id": "opp-1",
+              "label": "Expansion of specialized healthcare solu…",
+              "type": "opportunity",
+              "x": 510,
+              "y": 650
+            }
+          ],
+          "edges": [
+            {
+              "id": "q->mig-development:a1f936cc-58d4-4d39-85ea-659aafe26469",
+              "source": "q",
+              "target": "mig-development:a1f936cc-58d4-4d39-85ea-659aafe26469",
+              "label": "impacts"
+            },
+            {
+              "id": "mig-development:a1f936cc-58d4-4d39-85ea-659aafe26469->mig-company:manomay",
+              "source": "mig-development:a1f936cc-58d4-4d39-85ea-659aafe26469",
+              "target": "mig-company:manomay",
+              "label": "impacts"
+            },
+            {
+              "id": "q->co-3MINDIA",
+              "source": "q",
+              "target": "co-3MINDIA",
+              "label": "involves"
+            },
+            {
+              "id": "q->co-HONAUT",
+              "source": "q",
+              "target": "co-HONAUT",
+              "label": "involves"
+            },
+            {
+              "id": "q->co-SIEMENS",
+              "source": "q",
+              "target": "co-SIEMENS",
+              "label": "involves"
+            },
+            {
+              "id": "co-3MINDIA->comp-ADANIENT",
+              "source": "co-3MINDIA",
+              "target": "comp-ADANIENT",
+              "label": "competes_with"
+            },
+            {
+              "id": "co-SIEMENS->comp-CGPOWER",
+              "source": "co-SIEMENS",
+              "target": "comp-CGPOWER",
+              "label": "competes_with"
+            },
+            {
+              "id": "co-3MINDIA->risk-0",
+              "source": "co-3MINDIA",
+              "target": "risk-0",
+              "label": "threatens"
+            },
+            {
+              "id": "co-3MINDIA->risk-1",
+              "source": "co-3MINDIA",
+              "target": "risk-1",
+              "label": "threatens"
+            },
+            {
+              "id": "co-3MINDIA->opp-0",
+              "source": "co-3MINDIA",
+              "target": "opp-0",
+              "label": "enables"
+            },
+            {
+              "id": "co-3MINDIA->opp-1",
+              "source": "co-3MINDIA",
+              "target": "opp-1",
+              "label": "enables"
+            }
+          ]
+        },
+        "citations": [],
+        "decision_intelligence": null,
+        "confidence_data": {
+          "level": "Low",
+          "score": 21.3,
+          "reasons": [
+            "Score 13/100 based on available signals",
+            "Calibrated from 102 verified predictions (57% historical accuracy)"
+          ],
+          "breakdown": {
+            "evidence_quality": 15.0,
+            "market_confirmation": 0.0,
+            "historical_similarity": 0.0,
+            "data_freshness": 50.0,
+            "reasoning_confidence": 70.0
+          },
+          "caveats": []
+        },
+        "decision_engine_v2": {
+          "verdict_scale": "Positive",
+          "why": "Consistent earnings delivery, high return ratios, and debt-free operations across high-growth industrial and healthcare verticals support sustained compounding.",
+          "what_changes_the_view": [
+            "Sustained volume growth acceleration exceeding 15% year-on-year across industrial segments",
+            "Material reduction in parent technology license royalty rates"
+          ],
+          "what_invalidates_the_thesis": [
+            "Sharp margin compression from unrecovered raw material input costs",
+            "Significant slowdown in Indian automotive and infrastructure capex cycles"
+          ],
+          "explain_why_not": null
+        },
+        "timeline_intelligence": {
+          "immediate": "3MINDIA stock tracks rangebound market sentiment as institutional investors wait for Q2 earnings prints.",
+          "one_week": "Analyst consensus reviews auto sales channel checks to gauge secondary demand for industrial adhesives.",
+          "one_to_three_months": "Q2 FY27 corporate earnings season provides clear visibility on input cost pressure and operating margins.",
+          "six_to_twelve_months": "Capacity expansions at local manufacturing facilities start contributing to gross margin improvements.",
+          "one_to_three_years": "Long-term localization strategy reduces royalty friction and boosts overall return on invested capital."
+        },
+        "opportunity_risk_matrix": {
+          "opportunity": {
+            "high": [
+              "Healthcare segment volume growth"
+            ],
+            "medium": [
+              "Electronics manufacturing supply chain integration"
+            ],
+            "low": [
+              "Consumer retail brand expansion"
+            ]
+          },
+          "risk": {
+            "high": [
+              "Raw material price inflation"
+            ],
+            "medium": [
+              "Automotive sector cyclical slowdown"
+            ],
+            "low": [
+              "Parent company royalty fee revisions"
+            ]
+          }
+        },
+        "ai_conclusion": {
+          "current_view": "Positive",
+          "reason": "Steady operational compounding and strong domestic demand offset premium valuation constraints.",
+          "biggest_opportunity": "Localization of high-value industrial and healthcare manufacturing to boost operating margins.",
+          "biggest_risk": "Margin pressure due to global supply chain volatility and fluctuations in import costs.",
+          "investor_action_note": "Track Q2 FY27 segment revenue growth and margin resilience ahead of broader capital expenditure updates."
+        },
+        "evidence_score": {
+          "stars": 1,
+          "checklist": {
+            "real_time_price_data": true,
+            "government_data": false,
+            "historical_precedent": false,
+            "company_filings": false,
+            "live_market_events": false
+          },
+          "source_count": 0,
+          "development_count": 0,
+          "corroborating_source_count": 0
+        },
+        "confidence_breakdown": {
+          "evidence_quality": 15.0,
+          "market_confirmation": 0.0,
+          "historical_similarity": 0.0,
+          "data_freshness": 50.0,
+          "reasoning_confidence": 70.0,
+          "final_confidence": 21.3,
+          "level": "Low",
+          "reasons": [
+            "Score 13/100 based on available signals",
+            "Calibrated from 102 verified predictions (57% historical accuracy)"
+          ]
+        },
+        "confidence": {
+          "status": "scored",
+          "score": 12.8,
+          "components": {
+            "evidence_quality": 15.0,
+            "market_confirmation": 0.0,
+            "historical_similarity": 0.0,
+            "data_freshness": 50.0
+          }
+        },
+        "source_attribution": [],
+        "evidence_index": [
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": []
+          },
+          {
+            "id": "C2",
+            "kind": "context",
+            "title": "Company context for 3MINDIA (real, from Intelligence Graph): The Nifty 50 and Bank Nifty are slightly down, with the market trading in a tight range as investor",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": []
+          }
+        ],
+        "claim_sources": [],
+        "claim_validation": {
+          "status": "not_provided",
+          "summary": {
+            "claims": 0,
+            "ok": 0,
+            "problems": 0,
+            "uncovered_factual_sentences": null
+          },
+          "uncovered": []
+        },
+        "premise_check": {
+          "status": "not_applicable",
+          "terms": []
+        },
+        "validation": {
+          "repairs": [],
+          "omissions": [],
+          "contradiction_flagged": false
+        },
+        "market_impact_horizons": {},
+        "what_to_monitor": [],
+        "ai_reasoning_methods": [],
+        "follow_up_groups": [
+          {
+            "key": "risks",
+            "label": "Risks",
+            "icon": "risk",
+            "items": [
+              {
+                "text": "What could invalidate this thesis?",
+                "query": "What could invalidate the investment thesis for 3M India Limited?",
+                "difficulty": "advanced"
+              }
+            ]
+          },
+          {
+            "key": "compare",
+            "label": "Compare Further",
+            "icon": "compare",
+            "items": [
+              {
+                "text": "Compare 3MINDIA vs ADANIENT",
+                "query": "Compare 3M India Limited vs Adani Enterprises Ltd",
+                "difficulty": "intermediate"
+              }
+            ]
+          },
+          {
+            "key": "portfolio",
+            "label": "Portfolio Decisions",
+            "icon": "portfolio",
+            "items": [
+              {
+                "text": "Should I add 3MINDIA to my portfolio?",
+                "query": "Should I add 3M India Limited to my portfolio?",
+                "difficulty": "beginner"
+              }
+            ]
+          },
+          {
+            "key": "deeper",
+            "label": "Go Deeper",
+            "icon": "deeper",
+            "items": [
+              {
+                "text": "Show quarterly earnings trend",
+                "query": "Show 3M India Limited's quarterly earnings trend",
+                "difficulty": "intermediate"
+              }
+            ]
+          },
+          {
+            "key": "macro",
+            "label": "Macro Impact",
+            "icon": "macro",
+            "items": [
+              {
+                "text": "What if RBI cuts rates again?",
+                "query": "What if RBI cuts rates again — how would that affect 3M India Limited?",
+                "difficulty": "advanced"
+              }
+            ]
+          },
+          {
+            "key": "horizon",
+            "label": "Different Horizons",
+            "icon": "horizon",
+            "items": [
+              {
+                "text": "3MINDIA for 1 Month",
+                "query": "3M India Limited for 1 month",
+                "difficulty": "beginner"
+              }
+            ]
+          }
+        ],
+        "timing": {
+          "intent_detection_ms": 0.0,
+          "entity_detection_ms": 0.0,
+          "evidence_collection_ms": 15734.0,
+          "reasoning_ms": 21469.0,
+          "validation_ms": 188.0,
+          "assembly_ms": 4906.0,
+          "total_ms": 42297.0
+        },
+        "context_used": {
+          "companies": [],
+          "sectors": []
+        },
+        "watch_subject": {
+          "subject_key": "company:3MINDIA",
+          "subject_type": "company",
+          "subject_label": "3MINDIA",
+          "company_name": "3M India Limited"
+        },
+        "answer_availability": {
+          "state": "available",
+          "evidence_retrieval_completed": true,
+          "evidence_count": 0
+        }
+      },
+      "evidence": {
+        "plan_kind": "company",
+        "filter_report": {
+          "plan": "company",
+          "events": {
+            "kept": 0,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "news": {
+            "kept": 0,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_undated": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "announcements": {
+            "kept": 0,
+            "dropped_stale": 0
+          },
+          "policies": {
+            "kept": 0,
+            "dropped_irrelevant": 0
+          },
+          "premise": {
+            "required": false,
+            "terms": [],
+            "supported": null,
+            "supporting": []
+          }
+        },
+        "events": [],
+        "news": [],
+        "announcements": [],
+        "policies": [],
+        "valuation": {},
+        "vix": 14.45,
+        "sector_rows": [],
+        "macro_indices": [],
+        "context_lines": [
+          "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?",
+          "Company context for 3MINDIA (real, from Intelligence Graph): The Nifty 50 and Bank Nifty are slightly down, with the market trading in a tight range as investors await the RBI’s upcoming repo rate decision. The lack of sectoral movement suggests a cautious stance amid concerns ove · Mood: Cautious Bull"
+        ],
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        },
+        "index": [
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:1"
+          },
+          {
+            "id": "C2",
+            "kind": "context",
+            "title": "Company context for 3MINDIA (real, from Intelligence Graph): The Nifty 50 and Bank Nifty are slightly down, with the market trading in a tight range as investor",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:2"
+          }
+        ],
+        "historical": []
+      },
+      "structured_parse_ok": true,
+      "full_specialist_success": true
+    },
+    "EI1": {
+      "id": "EI1",
+      "query": "BEL just won a new defence order, what does this mean for the stock?",
+      "entities": {
+        "companies": [
+          "BEL"
+        ],
+        "sectors": [
+          "defence"
+        ],
+        "policies": []
+      },
+      "wall_s": 1.94,
+      "calls": [
+        {
+          "provider": "gemini",
+          "model": "gemini-3.6-flash",
+          "max_tokens": 6500,
+          "prompt_chars": 9776,
+          "approx_input_tokens": 2444,
+          "latency_ms": 1172,
+          "status": 429,
+          "limit_headers": {},
+          "error": {
+            "status": "RESOURCE_EXHAUSTED",
+            "code": "429",
+            "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: <redacted>/<redacted>, limit: 20, model: gemini-3.6-flash\nPlease retry in 10h20m10.856353816s."
+          }
+        }
+      ],
+      "request_ok": false,
+      "response": {
+        "query": "BEL just won a new defence order, what does this mean for the stock?",
+        "response_id": "c04e855d-e5de-4e5c-bfdb-3f1c355dd8e7",
+        "schema_version": "v3.0",
+        "specialist": "company",
+        "degraded_reason": "capacity",
+        "intent": "news_reaction",
+        "ui_mode": "event_impact",
+        "switch_holding": null,
+        "switch_target": null,
+        "synthesis_incomplete": true,
+        "answer": {
+          "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the synthesis step didn't complete. Try rephrasing the question or checking back shortly. No supporting evidence is shown for this question.",
+          "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the synthesis step didn't complete. Try rephrasing the question or checking back shortly. No supporting evidence is shown for this question.",
+          "what_happened": "",
+          "why_it_happened": "",
+          "immediate_impact": "",
+          "medium_term": "",
+          "long_term": "",
+          "what_priced_in": "",
+          "risks": [],
+          "opportunities": [],
+          "confidence": null,
+          "confidence_level": "unscored",
+          "sentiment": "neutral",
+          "sources_count": 0
+        },
+        "key_drivers": [],
+        "insights": [],
+        "companies": [],
+        "sectors": [],
+        "related_events": [],
+        "news": [],
+        "policies": [],
+        "timeline": [],
+        "historical_comparison": [],
+        "ripple_chain": [],
+        "scenarios": {},
+        "monitoring": {
+          "items": []
+        },
+        "follow_up_questions": [],
+        "follow_up_groups": [],
+        "investment_verdict": {
+          "rating": "Not Applicable",
+          "direction": "neutral",
+          "confidence": null,
+          "horizon": null,
+          "top_picks": [],
+          "risks": [],
+          "catalysts": [],
+          "opportunity_score": null,
+          "risk_level": "",
+          "suitable_for": "",
+          "engine_verdict": null
+        },
+        "market_chart": {
+          "labels": [],
+          "series": []
+        },
+        "graph": {
+          "nodes": [],
+          "edges": []
+        },
+        "citations": [],
+        "decision_intelligence": null,
+        "confidence_data": {
+          "level": "unscored",
+          "score": null,
+          "reasons": [],
+          "breakdown": {},
+          "caveats": []
+        },
+        "decision_engine_v2": {},
+        "timeline_intelligence": {},
+        "opportunity_risk_matrix": {},
+        "ai_conclusion": {},
+        "evidence_score": {
+          "stars": null,
+          "checklist": {},
+          "source_count": 0,
+          "development_count": 0,
+          "corroborating_source_count": 0
+        },
+        "confidence_breakdown": {
+          "final_confidence": null,
+          "level": "unscored"
+        },
+        "confidence": {
+          "status": "unscored",
+          "score": null,
+          "components": {
+            "evidence_quality": null,
+            "market_confirmation": null,
+            "historical_similarity": null,
+            "data_freshness": null
+          }
+        },
+        "source_attribution": [],
+        "validation": {
+          "repairs": [],
+          "omissions": [],
+          "contradiction_flagged": false
+        },
+        "market_impact_horizons": {},
+        "what_to_monitor": [],
+        "ai_reasoning_methods": [],
+        "timing": {
+          "intent_detection_ms": 0.0,
+          "entity_detection_ms": 125.0,
+          "evidence_collection_ms": 437.0,
+          "reasoning_ms": 1172.0,
+          "validation_ms": 203.0,
+          "assembly_ms": 0.0,
+          "total_ms": 1937.0
+        },
+        "context_used": {
+          "companies": [],
+          "sectors": []
+        },
+        "watch_subject": {
+          "subject_key": "company:BEL",
+          "subject_type": "company",
+          "subject_label": "BEL",
+          "company_name": "BEL"
+        },
+        "answer_availability": {
+          "state": "temporarily_unavailable",
+          "evidence_retrieval_completed": true,
+          "evidence_count": 0
+        }
+      },
+      "evidence": {
+        "plan_kind": "company",
+        "filter_report": {
+          "plan": "company",
+          "events": {
+            "kept": 0,
+            "dropped_stale": 1,
+            "dropped_irrelevant": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "news": {
+            "kept": 0,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_undated": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "announcements": {
+            "kept": 0,
+            "dropped_stale": 2
+          },
+          "policies": {
+            "kept": 0,
+            "dropped_irrelevant": 0
+          },
+          "premise": {
+            "required": true,
+            "terms": [
+              "order"
+            ],
+            "supported": false,
+            "supporting": []
+          }
+        },
+        "events": [],
+        "news": [],
+        "announcements": [],
+        "policies": [],
+        "valuation": {},
+        "vix": 14.45,
+        "sector_rows": [],
+        "macro_indices": [],
+        "context_lines": [
+          "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?"
+        ],
+        "premise": {
+          "required": true,
+          "terms": [
+            "order"
+          ],
+          "supported": false,
+          "supporting": []
+        },
+        "index": [
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:1"
+          }
+        ],
+        "historical": []
+      },
+      "structured_parse_ok": false,
+      "full_specialist_success": false
+    },
+    "CC1": {
+      "id": "CC1",
+      "query": "TCS vs Infosys, which is stronger?",
+      "entities": {
+        "companies": [
+          "TCS",
+          "INFY"
+        ],
+        "sectors": [],
+        "policies": []
+      },
+      "wall_s": 2.86,
+      "calls": [
+        {
+          "provider": "gemini",
+          "model": "gemini-3.6-flash",
+          "max_tokens": 7000,
+          "prompt_chars": 12254,
+          "approx_input_tokens": 3064,
+          "latency_ms": 1219,
+          "status": 429,
+          "limit_headers": {},
+          "error": {
+            "status": "RESOURCE_EXHAUSTED",
+            "code": "429",
+            "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: <redacted>/<redacted>, limit: 20, model: gemini-3.6-flash\nPlease retry in 10h20m0.061806904s."
+          }
+        }
+      ],
+      "request_ok": false,
+      "response": {
+        "query": "TCS vs Infosys, which is stronger?",
+        "response_id": "c4827c70-c854-4c87-b9d4-f4f93b921937",
+        "schema_version": "v3.0",
+        "specialist": "comparison",
+        "degraded_reason": "capacity",
+        "intent": "compare",
+        "ui_mode": "company_comparison",
+        "switch_holding": null,
+        "switch_target": null,
+        "synthesis_incomplete": true,
+        "answer": {
+          "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the synthesis step didn't complete. Try rephrasing the question or checking back shortly. 1 related event found for this question is listed below.",
+          "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the synthesis step didn't complete. Try rephrasing the question or checking back shortly. 1 related event found for this question is listed below.",
+          "what_happened": "",
+          "why_it_happened": "",
+          "immediate_impact": "",
+          "medium_term": "",
+          "long_term": "",
+          "what_priced_in": "",
+          "risks": [],
+          "opportunities": [],
+          "confidence": null,
+          "confidence_level": "unscored",
+          "sentiment": "neutral",
+          "sources_count": 1
+        },
+        "key_drivers": [],
+        "insights": [],
+        "companies": [],
+        "sectors": [],
+        "related_events": [
+          {
+            "id": "evt-it-deal-slowdown-2026",
+            "slug": "us-enterprise-it-spending-contracts-for-second-consecutive-quarter-evt-it-d",
+            "title": "US enterprise IT spending contracts for second consecutive quarter",
+            "summary": "CIO surveys and enterprise software vendors report discretionary IT budget freezes. Indian IT majors with high US revenue exposure face near-term demand headwinds, though management guidance remains cautious.",
+            "category": "Global",
+            "impact_score": 7.4,
+            "confidence": 0.8,
+            "sectors": [
+              "IT",
+              "Technology"
+            ],
+            "companies": [
+              {
+                "symbol": "TCS",
+                "name": "Tata Consultancy Services",
+                "impact": "Negative"
+              },
+              {
+                "symbol": "INFY",
+                "name": "Infosys",
+                "impact": "Negative"
+              },
+              {
+                "symbol": "WIPRO",
+                "name": "Wipro",
+                "impact": "Negative"
+              }
+            ],
+            "date": "Jul 10, 2026",
+            "source": "",
+            "event_date": null,
+            "published_at": "2026-07-10T09:30:00"
+          }
+        ],
+        "news": [],
+        "policies": [],
+        "timeline": [],
+        "historical_comparison": [],
+        "ripple_chain": [],
+        "scenarios": {},
+        "monitoring": {
+          "items": []
+        },
+        "follow_up_questions": [],
+        "follow_up_groups": [],
+        "investment_verdict": {
+          "rating": "Not Applicable",
+          "direction": "neutral",
+          "confidence": null,
+          "horizon": null,
+          "top_picks": [],
+          "risks": [],
+          "catalysts": [],
+          "opportunity_score": null,
+          "risk_level": "",
+          "suitable_for": "",
+          "engine_verdict": null
+        },
+        "market_chart": {
+          "labels": [],
+          "series": []
+        },
+        "graph": {
+          "nodes": [],
+          "edges": []
+        },
+        "citations": [],
+        "decision_intelligence": null,
+        "confidence_data": {
+          "level": "unscored",
+          "score": null,
+          "reasons": [],
+          "breakdown": {},
+          "caveats": []
+        },
+        "decision_engine_v2": {},
+        "timeline_intelligence": {},
+        "opportunity_risk_matrix": {},
+        "ai_conclusion": {},
+        "evidence_score": {
+          "stars": null,
+          "checklist": {},
+          "source_count": 1,
+          "development_count": 1,
+          "corroborating_source_count": 1
+        },
+        "confidence_breakdown": {
+          "final_confidence": null,
+          "level": "unscored"
+        },
+        "confidence": {
+          "status": "unscored",
+          "score": null,
+          "components": {
+            "evidence_quality": null,
+            "market_confirmation": null,
+            "historical_similarity": null,
+            "data_freshness": null
+          }
+        },
+        "source_attribution": [
+          "event:evt-it-deal-slowdown-2026"
+        ],
+        "validation": {
+          "repairs": [],
+          "omissions": [],
+          "contradiction_flagged": false
+        },
+        "market_impact_horizons": {},
+        "what_to_monitor": [],
+        "ai_reasoning_methods": [],
+        "timing": {
+          "intent_detection_ms": 0.0,
+          "entity_detection_ms": 31.0,
+          "evidence_collection_ms": 1359.0,
+          "reasoning_ms": 1219.0,
+          "validation_ms": 234.0,
+          "assembly_ms": 0.0,
+          "total_ms": 2843.0
+        },
+        "context_used": {
+          "companies": [],
+          "sectors": []
+        },
+        "watch_subject": null,
+        "answer_availability": {
+          "state": "temporarily_unavailable",
+          "evidence_retrieval_completed": true,
+          "evidence_count": 1
+        }
+      },
+      "evidence": {
+        "plan_kind": "comparison",
+        "filter_report": {
+          "plan": "comparison",
+          "events": {
+            "kept": 1,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "news": {
+            "kept": 1,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_undated": 0,
+            "dropped_tips": 1,
+            "dropped_single_company_filing": 0
+          },
+          "announcements": {
+            "kept": 6,
+            "dropped_stale": 0
+          },
+          "policies": {
+            "kept": 0,
+            "dropped_irrelevant": 0
+          },
+          "premise": {
+            "required": false,
+            "terms": [],
+            "supported": null,
+            "supporting": []
+          }
+        },
+        "events": [
+          {
+            "id": "evt-it-deal-slowdown-2026",
+            "title": "US enterprise IT spending contracts for second consecutive quarter",
+            "summary": "CIO surveys and enterprise software vendors report discretionary IT budget freezes. Indian IT majors with high US revenue exposure face near-term demand headwinds, though management guidance remains cautious.",
+            "date": "2026-07-10T09:30:00",
+            "source": "",
+            "companies": [
+              "TCS",
+              "INFY",
+              "WIPRO"
+            ]
+          }
+        ],
+        "news": [
+          {
+            "id": "live-0159572fe8cc",
+            "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+            "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+            "date": "3h ago",
+            "source": "Business Standard"
+          }
+        ],
+        "announcements": [
+          {
+            "id": "ann_nse-3e08b3c13a",
+            "title": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+            "category": null,
+            "date": "2026-10-01T00:00:00"
+          },
+          {
+            "id": "ann_nse-d5bed2f533",
+            "title": "Tata Consultancy Services Limited has informed the Exchange regarding a press release dated October 01, 2026, titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+            "category": null,
+            "date": "2026-10-01T00:00:00"
+          },
+          {
+            "id": "ann_nse-ffc7721042",
+            "title": "Infosys Limited has informed the Exchange regarding 'Infosys and Columbia University Launch Strategic Collaboration Across Deep Research to Drive Innovation and Unlock Business Value'.",
+            "category": null,
+            "date": "2026-10-01T00:00:00"
+          },
+          {
+            "id": "ann_nse-ca93723168",
+            "title": "Infosys Limited has informed the Exchange regarding 'Investor Conference'.",
+            "category": null,
+            "date": "2026-09-01T00:00:00"
+          },
+          {
+            "id": "ann_nse-600f534235",
+            "title": "Infosys Limited has informed the Exchange regarding Allotment of 175865  Shares.",
+            "category": null,
+            "date": "2026-08-24T00:00:00"
+          },
+          {
+            "id": "ann_nse-6ca57a1d3e",
+            "title": "Infosys Limited has informed the Exchange about change in Management",
+            "category": null,
+            "date": "2026-08-24T00:00:00"
+          }
+        ],
+        "policies": [],
+        "valuation": {
+          "TCS": {
+            "pe": 15.1,
+            "pb": 6.85,
+            "52w_high": 3350.0,
+            "52w_low": 1976.8
+          },
+          "INFY": {
+            "pe": 13.3,
+            "pb": 4.54,
+            "52w_high": 1728.0,
+            "52w_low": 980.4
+          }
+        },
+        "vix": 14.45,
+        "sector_rows": [],
+        "macro_indices": [],
+        "context_lines": [
+          "TCS: P/E 15.1, P/B 6.85, 52W 1976.8-3350.0",
+          "INFY: P/E 13.3, P/B 4.54, 52W 980.4-1728.0",
+          "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?"
+        ],
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        },
+        "index": [
+          {
+            "id": "E1",
+            "kind": "event",
+            "title": "US enterprise IT spending contracts for second consecutive quarter",
+            "summary": "CIO surveys and enterprise software vendors report discretionary IT budget freezes. Indian IT majors with high US revenue exposure face near-term demand headwinds, though management guidance remains c",
+            "date": "2026-07-10T09:30:00",
+            "source": "",
+            "companies": [
+              "TCS",
+              "INFY",
+              "WIPRO"
+            ],
+            "ref": "event:evt-it-deal-slowdown-2026"
+          },
+          {
+            "id": "N1",
+            "kind": "news",
+            "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+            "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+            "date": "3h ago",
+            "source": "Business Standard",
+            "companies": [],
+            "ref": "news:live-0159572fe8cc"
+          },
+          {
+            "id": "A1",
+            "kind": "announcement",
+            "title": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+            "date": "2026-10-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "TCS"
+            ],
+            "ref": "announcement:ann_nse-3e08b3c13a"
+          },
+          {
+            "id": "A2",
+            "kind": "announcement",
+            "title": "Tata Consultancy Services Limited has informed the Exchange regarding a press release dated October 01, 2026, titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+            "date": "2026-10-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "TCS"
+            ],
+            "ref": "announcement:ann_nse-d5bed2f533"
+          },
+          {
+            "id": "A3",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange regarding 'Infosys and Columbia University Launch Strategic Collaboration Across Deep Research to Drive Innovation and Unlock Business Value'.",
+            "date": "2026-10-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ],
+            "ref": "announcement:ann_nse-ffc7721042"
+          },
+          {
+            "id": "A4",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange regarding 'Investor Conference'.",
+            "date": "2026-09-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ],
+            "ref": "announcement:ann_nse-ca93723168"
+          },
+          {
+            "id": "A5",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange regarding Allotment of 175865  Shares.",
+            "date": "2026-08-24T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ],
+            "ref": "announcement:ann_nse-600f534235"
+          },
+          {
+            "id": "A6",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange about change in Management",
+            "date": "2026-08-24T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ],
+            "ref": "announcement:ann_nse-6ca57a1d3e"
+          },
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "TCS: P/E 15.1, P/B 6.85, 52W 1976.8-3350.0",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:1"
+          },
+          {
+            "id": "C2",
+            "kind": "context",
+            "title": "INFY: P/E 13.3, P/B 4.54, 52W 980.4-1728.0",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:2"
+          },
+          {
+            "id": "C3",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:3"
+          }
+        ],
+        "historical": []
+      },
+      "structured_parse_ok": false,
+      "full_specialist_success": false
+    }
+  }
+}
