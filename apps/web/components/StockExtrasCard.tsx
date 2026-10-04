@@ -11,8 +11,25 @@ export interface StockExtras {
   dividends?: { yield: string | null; rate: string | null; history: { date: string; amount: string }[] };
 }
 
-const CARD = "rounded-[28px] border border-surface-border/7 bg-text-primary/[0.02] p-5 md:p-6";
-const H = "mb-2 text-[10px] font-semibold uppercase tracking-wider text-text-muted";
+// Same shell, heading and row typography as the other company cards (CARD / SectionCard / KvRow in CompanyPageClient).
+const CARD = "rounded-2xl border border-surface-border/10 bg-surface-card shadow-[0_1px_2px_rgb(15_23_42/0.04)] p-6";
+const SUBHEAD = "mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-muted";
+const ROW = "flex items-center justify-between gap-2 py-2 border-b border-surface-border/4 last:border-0";
+const LABEL = "text-[12px] text-text-muted shrink-0";
+const VALUE = "text-[13px] font-medium tabular-nums text-right";
+const UP = "text-emerald-600 dark:text-emerald-400";
+const DOWN = "text-rose-600 dark:text-rose-400";
+const GROWTH_LABELS = new Set(["Revenue growth (YoY)", "Earnings growth (YoY)"]);
+
+const toNum = (v?: string | null): number | null => {
+  const n = parseFloat(String(v ?? "").replace(/[^0-9.+\-−]/g, "").replace("−", "-"));
+  return Number.isFinite(n) ? n : null;
+};
+/** Colour and arrow for a signed figure: rising green ▲, falling red ▼, zero or unknown stays neutral. */
+export function trend(n: number | null): { tone: string; arrow: string } {
+  if (n === null || n === 0) return { tone: "text-text-primary", arrow: "" };
+  return n > 0 ? { tone: UP, arrow: "▲ " } : { tone: DOWN, arrow: "▼ " };
+}
 
 export function formatDay(iso: string): string {
   const d = new Date(`${iso}T00:00:00Z`);
@@ -32,78 +49,69 @@ export function StockExtrasCard({ symbol }: { symbol: string }) {
     return () => { cancelled = true; };
   }, [symbol]);
 
-  if (data === null) return <div className="h-[220px] animate-pulse rounded-[28px] bg-text-primary/[0.04]" aria-busy="true" aria-label="Loading more details" />;
+  if (data === null) return <div className="h-[220px] animate-pulse rounded-2xl bg-text-primary/[0.04]" aria-busy="true" aria-label="Loading more details" />;
   const e = data.earnings, gv = data.growth_valuation ?? [], dv = data.dividends;
   const hasEarnings = !!e && (!!e.next_date || e.history.length > 0);
   const hasDiv = !!dv && (!!dv.yield || dv.history.length > 0);
   if (!hasEarnings && gv.length === 0 && !hasDiv) return null;
 
   return (
-    <section className={CARD} aria-label="More details from Yahoo Finance">
-      <div className="mb-4 flex items-baseline justify-between gap-3">
-        <h3 className="text-[15px] font-semibold text-text-primary">More details</h3>
-        <span className="text-[10.5px] text-text-muted">Source: Yahoo Finance. Not part of the MarketRipple Score.</span>
+    <section className={CARD} aria-label="More details">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-text-primary">More details</h2>
       </div>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-x-8 gap-y-6 lg:grid-cols-3 lg:divide-x lg:divide-surface-border/4">
         {hasEarnings && e && (
           <div>
-            <p className={H}>Results and estimates</p>
+            <p className={SUBHEAD}>Results and estimates</p>
             {e.next_date && (
-              <p className="mb-3 text-[12.5px] text-text-secondary">
-                Next results: <span className="font-semibold text-text-primary">{formatDay(e.next_date)}</span>
-                {e.next_eps_estimate && <> · EPS estimate <span className="font-semibold text-text-primary">{e.next_eps_estimate}</span></>}
-              </p>
+              <div className={ROW}>
+                <span className={LABEL}>Next results</span>
+                <span className={`${VALUE} text-text-primary`}>{formatDay(e.next_date)}{e.next_eps_estimate ? ` · est. ${e.next_eps_estimate}` : ""}</span>
+              </div>
             )}
-            {e.history.length > 0 && (
-              <table className="w-full text-[12px]">
-                <thead><tr className="text-[10px] uppercase tracking-wider text-text-muted">
-                  <th className="pb-1.5 text-left font-medium">Quarter</th><th className="pb-1.5 text-right font-medium">Estimate</th><th className="pb-1.5 text-right font-medium">Actual</th><th className="pb-1.5 text-right font-medium">Surprise</th>
-                </tr></thead>
-                <tbody className="divide-y divide-surface-border/5">
-                  {e.history.map(r => (
-                    <tr key={r.date}>
-                      <td className="py-1.5 text-text-secondary">{formatDay(r.date)}</td>
-                      <td className="py-1.5 text-right tabular-nums text-text-secondary">{r.estimate ?? "—"}</td>
-                      <td className="py-1.5 text-right tabular-nums font-medium text-text-primary">{r.actual ?? "—"}</td>
-                      <td className={`py-1.5 text-right tabular-nums ${r.surprise_pct?.startsWith("-") ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>{r.surprise_pct ?? "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            {e.history.map(r => {
+              const beat = toNum(r.actual) !== null && toNum(r.estimate) !== null ? (toNum(r.actual) as number) - (toNum(r.estimate) as number) : null;
+              const t = trend(toNum(r.surprise_pct) ?? beat);
+              return (
+                <div key={r.date} className={ROW}>
+                  <span className={LABEL}>{formatDay(r.date)}</span>
+                  <span className="text-right">
+                    <span className={`${VALUE} ${t.tone}`}>{r.actual ?? "—"}</span>
+                    <span className="ml-2 text-[11px] tabular-nums text-text-muted">est. {r.estimate ?? "—"}</span>
+                    {r.surprise_pct && <span className={`ml-2 text-[11px] font-medium tabular-nums ${t.tone}`}>{t.arrow}{r.surprise_pct.replace(/^[+-]/, "")}</span>}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
         {gv.length > 0 && (
-          <div>
-            <p className={H}>Growth and valuation</p>
-            <dl className="divide-y divide-surface-border/5 text-[12px]">
-              {gv.map(r => (
-                <div key={r.label} className="flex items-center justify-between py-1.5">
-                  <dt className="text-text-secondary">{r.label}</dt><dd className="tabular-nums font-medium text-text-primary">{r.value}</dd>
+          <div className="lg:pl-8">
+            <p className={SUBHEAD}>Growth and valuation</p>
+            {gv.map(r => {
+              const t = GROWTH_LABELS.has(r.label) ? trend(toNum(r.value)) : { tone: "text-text-primary", arrow: "" };
+              return (
+                <div key={r.label} className={ROW}>
+                  <span className={LABEL}>{r.label}</span>
+                  <span className={`${VALUE} ${t.tone}`}>{t.arrow}{GROWTH_LABELS.has(r.label) ? r.value.replace(/^-/, "") : r.value}</span>
                 </div>
-              ))}
-            </dl>
+              );
+            })}
           </div>
         )}
         {hasDiv && dv && (
-          <div>
-            <p className={H}>Dividends</p>
-            {(dv.yield || dv.rate) && (
-              <p className="mb-3 text-[12.5px] text-text-secondary">
-                {dv.yield && <>Yield <span className="font-semibold text-text-primary">{dv.yield}</span></>}
-                {dv.yield && dv.rate && " · "}
-                {dv.rate && <>Annual rate <span className="font-semibold text-text-primary">{dv.rate}</span> per share</>}
-              </p>
-            )}
-            {dv.history.length > 0 && (
-              <ul className="divide-y divide-surface-border/5 text-[12px]">
-                {dv.history.map(h => (
-                  <li key={h.date} className="flex items-center justify-between py-1.5">
-                    <span className="text-text-secondary">{formatDay(h.date)}</span><span className="tabular-nums font-medium text-text-primary">{h.amount}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
+          <div className="lg:pl-8">
+            <p className={SUBHEAD}>Dividends</p>
+            {dv.yield && <div className={ROW}><span className={LABEL}>Yield</span><span className={`${VALUE} text-text-primary`}>{dv.yield}</span></div>}
+            {dv.rate && <div className={ROW}><span className={LABEL}>Annual rate (per share)</span><span className={`${VALUE} text-text-primary`}>{dv.rate}</span></div>}
+            {/* Payouts are neutral: interim, final and special dividends differ in size by design, so one smaller than the last is not a cut. */}
+            {dv.history.map(h => (
+              <div key={h.date} className={ROW}>
+                <span className={LABEL}>{formatDay(h.date)}</span>
+                <span className={`${VALUE} text-text-primary`}>{h.amount}</span>
+              </div>
+            ))}
           </div>
         )}
       </div>

@@ -14,9 +14,10 @@ describe("StockExtrasCard", () => {
     });
     render(<StockExtrasCard symbol="TCS" />);
     await waitFor(() => expect(screen.getByText("EV / EBITDA")).toBeInTheDocument());
-    expect(screen.getByText(/Source: Yahoo Finance/)).toBeInTheDocument();
-    expect(screen.getByText("8 Oct 2026")).toBeInTheDocument();
-    expect(screen.getByText("+2.5%")).toBeInTheDocument();
+    expect(screen.queryByText(/Source: Yahoo/)).toBeNull();
+    expect(screen.getByText(/8 Oct 2026 · est\. ₹38\.17/)).toBeInTheDocument();
+    expect(screen.getByText(/▲ 2\.5%/)).toBeInTheDocument();
+    expect(screen.getByText("₹38.28").className).toMatch(/emerald/);
     expect(screen.getByText("3.13%")).toBeInTheDocument();
   });
 
