@@ -131,9 +131,9 @@ export function HistoricalPerformanceBarChart({ data, activeMetric, currencyPref
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data} margin={{ top: 4, right: 4, bottom: 4, left: 0 }}>
         <XAxis dataKey="year" tick={{ fill: "rgb(var(--text-muted))", fontSize: 10 }} tickLine={false} axisLine={false}/>
-        <YAxis tick={{ fill: "rgb(var(--text-muted))", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}K`} width={40}/>
+        <YAxis tick={{ fill: "rgb(var(--text-muted))", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={v => (Math.abs(v) >= 1000 ? `${+(v / 1000).toFixed(1)}K` : String(v))} width={40}/>
         <RTooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.12)", borderRadius: 10, fontSize: 11 }} formatter={(v: number) => [`${prefix}${v.toLocaleString()} ${unit}`.trim(), activeMetric === "revenue" ? "Revenue" : "Net Profit"]}/>
-        <Bar dataKey={activeMetric === "revenue" ? "revenue" : "net_income"} radius={[6, 6, 0, 0]}
+        <Bar dataKey={activeMetric === "revenue" ? "revenue" : "net_income"} radius={[4, 4, 0, 0]} maxBarSize={26}
           fill={activeMetric === "revenue" ? "#38bdf8" : "#22c55e"} fillOpacity={0.8}/>
       </BarChart>
     </ResponsiveContainer>

@@ -1184,22 +1184,36 @@ function CompareWithSection({ stock }: { stock: StockDetail }) {
 
 // ── Section 18: Historical Performance ───────────────────────────────────────
 function HistoricalPerformance({ stock }: { stock: StockDetail }) {
-  const [activeMetric, setActiveMetric] = useState<"revenue"|"profit">("revenue");
   const data = stock.annual_financials;
   if (!data.length) return null;
+  // Revenue and net profit sit on different scales (profit is a fraction of revenue), so each gets its own chart rather than sharing one axis or a toggle.
+  const panels: { key: "revenue" | "profit"; label: string; field: "revenue" | "net_income"; tone: string }[] = [
+    { key: "revenue", label: "Revenue", field: "revenue", tone: "text-sky-600 dark:text-sky-300" },
+    { key: "profit", label: "Net profit", field: "net_income", tone: "text-emerald-600 dark:text-emerald-400" },
+  ];
   return (
     <SectionCard title="Historical performance">
-      <div className="mt-4 flex gap-2 mb-4">
-        {[["revenue", "Revenue"], ["profit", "Net Profit"]].map(([k, l]) => (
-          <button key={k} onClick={() => setActiveMetric(k as any)}
-            className={`rounded-lg px-3 py-1.5 text-[12px] font-medium transition ${activeMetric === k ? "bg-sky-500/20 text-sky-600 dark:text-sky-300" : "text-text-muted hover:text-text-secondary"}`}>
-            {l}
-          </button>
-        ))}
-      </div>
-      <div className="h-[180px]">
-        <HistoricalPerformanceBarChart data={data} activeMetric={activeMetric}
-          currencyPrefix={stock.statement_currency_prefix} currencyUnit={stock.statement_currency_unit} />
+      <div className="mt-4 grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
+        {panels.map(pn => {
+          const last = data[data.length - 1] as any, prev = data[data.length - 2] as any;
+          const change = yoyPct(last?.[pn.field], prev?.[pn.field]);
+          return (
+            <div key={pn.key}>
+              <div className="mb-2 flex items-baseline justify-between gap-2">
+                <span className="text-[12px] text-text-muted">{pn.label}</span>
+                {change !== null && (
+                  <span className={`text-[12px] font-medium tabular-nums ${change >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                    {change >= 0 ? "▲" : "▼"} {Math.abs(change).toFixed(1)}% YoY
+                  </span>
+                )}
+              </div>
+              <div className="h-[150px]">
+                <HistoricalPerformanceBarChart data={data} activeMetric={pn.key}
+                  currencyPrefix={stock.statement_currency_prefix} currencyUnit={stock.statement_currency_unit} />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </SectionCard>
   );
