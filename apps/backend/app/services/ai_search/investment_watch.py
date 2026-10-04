@@ -100,6 +100,14 @@ async def record_snapshot(
     await db.commit()
 
 
+def _age_days(snapshot_date: str | None) -> int | None:
+    """Whole days since the verdict snapshot (None if the date does not parse); drives the page's "this view may be out of date" note."""
+    try:
+        return max((datetime.now(timezone.utc).date() - datetime.strptime(str(snapshot_date)[:10], "%Y-%m-%d").date()).days, 0)
+    except (ValueError, TypeError):
+        return None
+
+
 def _parse_calendar_date(raw: str) -> datetime | None:
     try:
         return datetime.strptime(raw.strip(), "%b %d, %Y").replace(tzinfo=timezone.utc)
@@ -138,40 +146,91 @@ def _keyword_match(row: dict, subject: dict) -> bool:
     return label in text
 
 
-async def _macro_triggers() -> list[dict]:
-    """Universal, always-real macro indicators — live Brent crude + FII/DII
-    flow, reusing api/market.py's own cached fetchers directly rather than
-    re-implementing or re-fetching (same 6h/on-demand cache they already
-    use, so this costs nothing extra)."""
+# What is watched for a company depends on its sector: crude oil is an input cost for an airline or a paint maker and irrelevant to an IT services firm, while the
+# rupee and US tech spending matter to IT exporters. Each indicator is a live Yahoo quote (cached 15 minutes) shown only when the quote is real; "why" is the
+# standard economic link, stated in one plain sentence. FII flows are market-wide and always shown when available.
+_CRUDE = ("Crude oil (Brent)", "BZ=F", "usd", "an input cost: higher crude tends to squeeze margins")
+_USDINR = ("US dollar / rupee", "INR=X", "inr", "export earnings are in dollars: a weaker rupee tends to lift margins")
+_NIFTY = ("Nifty 50", "^NSEI", "index", "the broad market the stock trades against")
+_SECTOR_WATCH: dict[str, list[tuple]] = {
+    "technology": [_USDINR, ("Nasdaq", "^IXIC", "index", "US tech spending and sentiment drive IT services demand"), ("Nifty IT", "^CNXIT", "index", "the sector index this stock is part of")],
+    "pharmaceuticals": [_USDINR, ("Nifty Pharma", "^CNXPHARMA", "index", "the sector index this stock is part of")],
+    "healthcare": [("Nifty Pharma", "^CNXPHARMA", "index", "the healthcare and pharma index"), _NIFTY],
+    "banking": [("Nifty Bank", "^NSEBANK", "index", "the sector index this stock is part of"), _NIFTY],
+    "finance": [("Nifty Bank", "^NSEBANK", "index", "the lending sector's index"), _NIFTY],
+    "automotive": [_CRUDE, ("Nifty Auto", "^CNXAUTO", "index", "the sector index this stock is part of")],
+    "fmcg": [_CRUDE, ("Nifty FMCG", "^CNXFMCG", "index", "the sector index this stock is part of")],
+    "consumer": [_CRUDE, _NIFTY],
+    "metals": [("Nifty Metal", "^CNXMETAL", "index", "the sector index this stock is part of"), _USDINR],
+    "energy": [_CRUDE, ("Nifty Energy", "^CNXENERGY", "index", "the sector index this stock is part of")],
+    "chemicals": [_CRUDE, _USDINR],
+    "power": [("Nifty Energy", "^CNXENERGY", "index", "the sector index this stock is part of"), _NIFTY],
+}
+_DEFAULT_WATCH = [_NIFTY, _CRUDE]
+
+
+def watch_specs(sector: str | None) -> list[tuple]:
+    """The indicators to watch for a sector (case-insensitive); the broad market and crude when the sector has no specific list."""
+    return list(_SECTOR_WATCH.get((sector or "").strip().lower(), _DEFAULT_WATCH))
+
+
+def quote_trigger(spec: tuple, quote: dict | None) -> dict | None:
+    """One watch row from a live quote, or None when there is no real quote. Flat means a move under 0.05%."""
+    if not quote:
+        return None
+    label, _ticker, kind, why = spec
+    pct = quote["pct"]
+    status = "flat" if abs(pct) < 0.05 else ("rising" if pct > 0 else "falling")
+    value = {"usd": f"${quote['price']:.2f}/bbl", "inr": f"₹{quote['price']:.2f} per US$", "index": f"{quote['price']:,.0f}"}.get(kind, f"{quote['price']:.2f}")
+    move = "0.0%" if status == "flat" else f"{pct:+.1f}%"   # never "-0.0%"
+    return {"label": label, "status": status, "detail": f"{value} ({move})", "why": why[0].upper() + why[1:] + ".", "scope": "sector"}
+
+
+async def _macro_triggers(sector: str | None = None) -> list[dict]:
+    """Sector-relevant live indicators plus FII/DII flow, reusing api/market.py's cached fetchers (same cache they already use, so this costs little)."""
     import asyncio
     from app.api.market import _yf_quote, _fetch_fii_dii, _cached_sync
 
     loop = asyncio.get_running_loop()
-    try:
-        crude = await loop.run_in_executor(None, lambda: _cached_sync("iw_brent", 900, lambda: _yf_quote("BZ=F")))
-    except Exception:
-        crude = None
-    try:
-        fii_dii = await loop.run_in_executor(None, lambda: _cached_sync("fii_dii", 21600, _fetch_fii_dii))
-    except Exception:
-        fii_dii = {"available": False}
+    specs = watch_specs(sector)
 
-    triggers = []
-    if crude:
-        trend = "rising" if crude["positive"] else "easing"
-        triggers.append({
-            "label": "Crude Oil (Brent)",
-            "status": trend,
-            "detail": f"${crude['price']:.2f}/bbl ({'+' if crude['positive'] else ''}{crude['pct']:.1f}%)",
-        })
+    async def one(spec):
+        try:
+            return quote_trigger(spec, await loop.run_in_executor(None, lambda: _cached_sync(f"iw_{spec[1]}", 900, lambda: _yf_quote(spec[1]))))
+        except Exception:
+            return None
+
+    async def flows():
+        try:
+            return await loop.run_in_executor(None, lambda: _cached_sync("fii_dii", 21600, _fetch_fii_dii))
+        except Exception:
+            return {"available": False}
+
+    results = await asyncio.gather(*[one(sp) for sp in specs], flows())
+    triggers = [t for t in results[:-1] if t]
+    fii_dii = results[-1]
     if fii_dii.get("available") and fii_dii.get("fii_net") is not None:
         selling = fii_dii["fii_net"] < 0
         triggers.append({
-            "label": "FII Flows",
+            "label": "Foreign investor (FII) flows",
             "status": "selling" if selling else "buying",
-            "detail": f"{'-' if selling else '+'}₹{abs(fii_dii['fii_net']):,.0f}Cr previous session",
+            "detail": f"{'-' if selling else '+'}₹{abs(fii_dii['fii_net']):,.0f} Cr, previous session",
+            "why": "Heavy foreign selling tends to weigh on large, widely held stocks.", "scope": "market",
         })
     return triggers
+
+
+def pick_next_trigger(subject_rows: list[dict], calendar_rows: list[dict]) -> dict | None:
+    """The next dated event for THIS subject if there is one; otherwise the next market-wide event (RBI, macro, government, global). Another company's
+    results date is never offered as this company's trigger."""
+    if subject_rows:
+        n, scope = subject_rows[0], "company"
+    else:
+        market = [r for r in calendar_rows if r.get("category") != "Results"]
+        if not market:
+            return None
+        n, scope = market[0], "market"
+    return {"label": n["title"], "category": n["category"], "date": n["date"], "days_until": n["days_until"], "description": n["description"], "scope": scope}
 
 
 async def get_watch(db: AsyncSession, subject_key: str, subject_label_hint: str | None = None) -> dict | None:
@@ -215,30 +274,28 @@ async def get_watch(db: AsyncSession, subject_key: str, subject_label_hint: str 
     calendar_rows = await _relevant_calendar_rows(db)
     subject_rows = [r for r in calendar_rows if _keyword_match(r, subject)]
 
-    watching = await _macro_triggers()
+    if subject_type == "company":
+        from app.api.companies import _NSE_UNIVERSE
+        sector_name = next((co.get("sector") for co in _NSE_UNIVERSE if co["symbol"] == subject_key.split(":", 1)[-1]), None)
+    else:
+        sector_name = subject["subject_label"]
+    watching = await _macro_triggers(sector_name)
     if subject_rows:
         nearest = subject_rows[0]
-        watching.append({
+        watching.insert(0, {
             "label": nearest["category"],
             "status": f"in {nearest['days_until']}d" if nearest["days_until"] > 0 else "today",
-            "detail": nearest["title"],
+            "detail": nearest["title"], "why": nearest["description"] or "", "scope": "company",
         })
 
-    next_trigger = None
-    pool = subject_rows or calendar_rows
-    if pool:
-        n = pool[0]
-        next_trigger = {
-            "label": n["title"], "category": n["category"], "date": n["date"],
-            "days_until": n["days_until"], "description": n["description"],
-        }
+    next_trigger = pick_next_trigger(subject_rows, calendar_rows)
 
     return {
         "subject_key": subject_key,
         "subject_label": subject["subject_label"],
         "current_verdict": {
             "verdict_scale": current.verdict_scale, "confidence": current.confidence,
-            "as_of": current.snapshot_date,
+            "as_of": current.snapshot_date, "age_days": _age_days(current.snapshot_date),
         },
         "last_change": last_change,
         "watching": watching,

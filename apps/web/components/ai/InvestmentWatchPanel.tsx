@@ -16,15 +16,17 @@ interface WatchTrigger {
   label: string;
   status: string;
   detail: string;
+  why?: string;                       // one plain sentence on why this indicator matters for the subject
+  scope?: "company" | "sector" | "market";
 }
 
 export interface WatchResponse {
   available: boolean;
   subject_label?: string;
-  current_verdict?: { verdict_scale: string | null; confidence: number; as_of: string };
+  current_verdict?: { verdict_scale: string | null; confidence: number; as_of: string; age_days?: number | null };
   last_change?: { from: string; to: string; from_date: string; to_date: string; why: string | null } | null;
   watching?: WatchTrigger[];
-  next_trigger?: { label: string; category: string; date: string; days_until: number; description: string } | null;
+  next_trigger?: { label: string; category: string; date: string; days_until: number; description: string; scope?: "company" | "market" } | null;
 }
 
 const VERDICT_TONE: Record<string, string> = {
@@ -36,15 +38,10 @@ const VERDICT_TONE: Record<string, string> = {
   "Strong Negative": "text-rose-400",
 };
 
-const STATUS_TONE: Record<string, string> = {
-  rising: "text-rose-400", easing: "text-emerald-400",
-  selling: "text-rose-400", buying: "text-emerald-400",
-};
-
-function statusTone(status: string): string {
-  if (STATUS_TONE[status]) return STATUS_TONE[status];
-  return "text-sky-400"; // "in Nd" / "today" calendar statuses
-}
+// Direction only: whether an indicator rising is good or bad depends on the company, so the arrow is neutral and the "why" line carries the meaning.
+const STATUS_ARROW: Record<string, string> = { rising: "▲", falling: "▼", flat: "▬", selling: "▼", buying: "▲" };
+const SCOPE_TAG: Record<string, string> = { company: "This company", sector: "Sector", market: "Market-wide" };
+const STALE_AFTER_DAYS = 14;
 
 function verdictDelta(from: string, to: string) {
   const order = ["Strong Negative", "Negative", "Cautious", "Neutral", "Positive", "Strong Positive"];
@@ -116,6 +113,12 @@ export function InvestmentWatchPanel({ subject, initialData }: { subject: WatchS
         </div>
       </div>
 
+      {typeof current_verdict.age_days === "number" && current_verdict.age_days > STALE_AFTER_DAYS && (
+        <p className="mb-4 rounded-lg border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2 text-[11px] leading-snug text-amber-800 dark:text-amber-300">
+          This verdict is {current_verdict.age_days} days old and may be out of date. It refreshes when a new AI analysis of {label} is run.
+        </p>
+      )}
+
       {/* Last change */}
       {last_change && (
         <div className="mb-4 rounded-[12px] border border-surface-border/6 bg-text-primary/[0.02] p-3">
@@ -137,16 +140,20 @@ export function InvestmentWatchPanel({ subject, initialData }: { subject: WatchS
       {/* Watching */}
       {watching && watching.length > 0 && (
         <div className="mb-4">
-          <p className="mb-1.5 text-[9px] uppercase tracking-wider text-text-muted">Watching</p>
-          <div className="space-y-1.5">
+          <p className="mb-2 text-[9px] uppercase tracking-wider text-text-muted">What we are watching</p>
+          <ul className="space-y-2.5">
             {watching.map((w, i) => (
-              <div key={i} className="flex items-center gap-2 text-[11px]">
-                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusTone(w.status).replace("text-", "bg-")}`} />
-                <span className="text-text-secondary shrink-0">{w.label}</span>
-                <span className="ml-auto truncate text-text-muted">{w.detail}</span>
-              </div>
+              <li key={i} className="text-[12px]">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 shrink-0 text-center text-[9px] text-sky-500" aria-hidden>{STATUS_ARROW[w.status] ?? "●"}</span>
+                  <span className="font-medium text-text-primary">{w.label}</span>
+                  {w.scope && <span className="rounded bg-text-primary/[0.06] px-1.5 py-px text-[9px] font-medium text-text-muted">{SCOPE_TAG[w.scope]}</span>}
+                  <span className="ml-auto text-right tabular-nums text-text-secondary">{w.detail}</span>
+                </div>
+                {w.why && <p className="mt-0.5 pl-5 text-[11px] leading-snug text-text-muted">{w.why}</p>}
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       )}
 
@@ -154,7 +161,7 @@ export function InvestmentWatchPanel({ subject, initialData }: { subject: WatchS
       {next_trigger && (
         <div className="rounded-[12px] border border-violet-500/15 bg-violet-500/[0.05] p-3">
           <p className="mb-1 flex items-center gap-1.5 text-[9px] uppercase tracking-wider text-violet-600 dark:text-violet-300">
-            <CalendarClock className="h-3 w-3" /> Next possible trigger
+            <CalendarClock className="h-3 w-3" /> {next_trigger.scope === "market" ? "Next market-wide event" : "Next event for " + label}
           </p>
           <p className="text-[12px] font-medium text-text-primary">{next_trigger.label}</p>
           <p className="mt-0.5 text-[10px] text-text-muted">

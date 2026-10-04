@@ -2790,7 +2790,8 @@ function StockPageInner({ params, initialStock, initialRelated, faqs }: PageProp
                 concepts nor competes with the primary score — moved under
                 MoreAnalysisDisclosure's progressive disclosure. */}
             {activeTab === "intelligence" && <>
-              <CompanyIntelligenceSection symbol={symbol} govScore={stock.gov_score} pricePositive={stock.pct_change >= 0}/>
+              <CompanyIntelligenceSection symbol={symbol} govScore={stock.gov_score} pricePositive={stock.pct_change >= 0}
+                self={{ name: stock.name, price: stock.price, pct_change: stock.pct_change, market_cap: stock.market_cap, pe: stock.pe, roe: stock.roe }}/>
               <CompanyScoreContributors stock={stock}/>
               <WhatToWatchCard points={intelligence?.monitoring_points ?? []}/>
               <AISentiment stock={stock}/>

@@ -6,6 +6,7 @@ import { Zap, GitBranch, History, ArrowRight } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { InvestmentWatchPanel, type WatchResponse, type WatchSubject } from "@/components/ai/InvestmentWatchPanel";
 import { distinctHeadlines } from "@/lib/intelligenceView";
+import { peerSentences } from "@/lib/peerCompare";
 
 interface ActiveEvent { id: string; slug?: string; headline: string; urgency: number; sentiment: string; lifecycle: string; active_score: number; direct: boolean; }
 interface RipplePosition { upstream: string[]; company: string; downstream: string[]; }
@@ -24,6 +25,65 @@ const LIFECYCLE_DOT: Record<string, string> = {
   LIVE: "bg-rose-400", Developing: "bg-amber-400", Active: "bg-sky-400", Historical: "bg-slate-500",
 };
 const LIFECYCLE_LABEL: Record<string, string> = { LIVE: "Live", Developing: "Developing", Active: "Active", Historical: "Past" };
+
+export interface SelfFigures { name?: string; price?: string; pct_change?: number; market_cap?: string; pe?: string; roe?: string }
+interface PeerRow { symbol: string; name?: string; price?: string; pct_change?: number; pe?: string; roe?: string }
+
+function PeerTable({ symbol, self, sector, peers }: { symbol: string; self?: SelfFigures; sector: string[]; peers: string[] }) {
+  const [rows, setRows] = useState<Record<string, PeerRow | null> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setRows(null);
+    Promise.all(peers.slice(0, 4).map(p => fetch(`${API}/api/stocks/${p}`).then(r => (r.ok ? r.json() : null)).catch(() => null)))
+      .then(res => { if (!cancelled) setRows(Object.fromEntries(peers.slice(0, 4).map((p, i) => [p, res[i]]))); });
+    return () => { cancelled = true; };
+  }, [symbol, peers.join(",")]);
+
+  const loading = rows === null;
+  const peerRows: PeerRow[] = peers.slice(0, 4).map(p => ({ symbol: p, ...(rows?.[p] ?? {}) }));
+  const sentences = rows ? peerSentences({ symbol, pe: self?.pe, roe: self?.roe }, peerRows) : [];
+  const pct = (v?: number) => (typeof v === "number" && Number.isFinite(v) ? <span className={v >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{v >= 0 ? "+" : ""}{v.toFixed(2)}%</span> : "—");
+  const cell = "py-2.5 text-right tabular-nums";
+  const Skel = () => <span className="ml-auto block h-3 w-10 animate-pulse rounded bg-text-primary/[0.06]" />;
+  return (
+    <div>
+      {sector.length > 0 && <p className="mb-2 text-[11.5px] text-text-muted">Sector: <span className="font-medium text-text-secondary">{sector.join(" · ")}</span></p>}
+      <div className="overflow-x-auto">
+        <table className="w-full text-[12px]">
+          <thead>
+            <tr className="border-b border-surface-border/10 text-[10px] uppercase tracking-wider text-text-muted">
+              <th className="pb-2 text-left font-medium">Company</th><th className="pb-2 text-right font-medium">Price</th><th className="pb-2 text-right font-medium">Today</th>
+              <th className="pb-2 text-right font-medium">P/E</th><th className="pb-2 text-right font-medium">ROE</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-surface-border/5">
+            <tr className="bg-violet-500/[0.05]">
+              <td className="py-2.5 pl-2"><span className="font-bold text-violet-700 dark:text-violet-300">{symbol}</span> <span className="ml-1 rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-bold text-violet-700 dark:text-violet-300">This company</span></td>
+              <td className={`${cell} font-semibold text-text-primary`}>{self?.price ? `₹${self.price}` : "—"}</td>
+              <td className={cell}>{pct(self?.pct_change)}</td>
+              <td className={`${cell} font-semibold text-text-primary`}>{self?.pe || "—"}</td>
+              <td className={`${cell} font-semibold text-text-primary`}>{self?.roe || "—"}</td>
+            </tr>
+            {peerRows.map(r => (
+              <tr key={r.symbol}>
+                <td className="py-2.5 pl-2"><Link href={`/companies/${r.symbol}` as any} className="font-semibold text-text-primary transition hover:text-violet-600 dark:hover:text-violet-300">{r.symbol}</Link>{r.name ? <span className="ml-2 hidden text-[10.5px] text-text-muted xl:inline">{r.name.length > 22 ? r.name.slice(0, 21) + "…" : r.name}</span> : null}</td>
+                <td className={`${cell} text-text-secondary`}>{loading ? <Skel /> : r.price ? `₹${r.price}` : "—"}</td>
+                <td className={cell}>{loading ? <Skel /> : pct(r.pct_change)}</td>
+                <td className={`${cell} text-text-secondary`}>{loading ? <Skel /> : r.pe || "—"}</td>
+                <td className={`${cell} text-text-secondary`}>{loading ? <Skel /> : r.roe || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {sentences.length > 0 && (
+        <ul className="mt-3 space-y-1 border-t border-surface-border/10 pt-3 text-[11.5px] leading-5 text-text-secondary">
+          {sentences.map((t, i) => <li key={i}>{t}</li>)}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 const CARD = "rounded-[20px] border border-surface-border/7 bg-text-primary/[0.02] p-5";
 const HEAD = "mb-1 flex items-center gap-1.5 text-[13px] font-semibold text-text-primary";
@@ -47,7 +107,7 @@ function IntelSkeleton() {
  * (a second fetch of the same verdict), the same event headlines twice, and related opportunities that the Related Intelligence block below repeats.
  * Now: the verdict card, what is affecting the company, where it sits in its sector, and a similar past situation.
  */
-export function CompanyIntelligenceSection({ symbol, govScore, pricePositive }: { symbol: string; govScore?: number | null; pricePositive?: boolean | null }) {
+export function CompanyIntelligenceSection({ symbol, govScore, pricePositive, self }: { symbol: string; govScore?: number | null; pricePositive?: boolean | null; self?: SelfFigures }) {
   const [data, setData] = useState<CompanyIntel | null>(null);
 
   // `cancelled` stops a stale in-flight request for a previously viewed company from overwriting the current company's data.
@@ -107,31 +167,8 @@ export function CompanyIntelligenceSection({ symbol, govScore, pricePositive }: 
           {hasChain && ripple && (
             <div className={CARD}>
               <p className={HEAD}><GitBranch className="h-3.5 w-3.5 text-sky-400" /> Where {symbol} sits</p>
-              <p className={SUB}>Its sector and the same-industry companies it is usually compared with.</p>
-              <dl className="space-y-3 text-[12px]">
-                {ripple.upstream.length > 0 && (
-                  <div>
-                    <dt className="mb-1 text-[10px] uppercase tracking-wider text-text-muted">Sector</dt>
-                    <dd className="flex flex-wrap gap-1.5">
-                      {ripple.upstream.map((u, i) => <span key={i} className="rounded-full border border-surface-border/10 bg-text-primary/[0.03] px-2.5 py-1 text-text-secondary">{u}</span>)}
-                    </dd>
-                  </div>
-                )}
-                <div>
-                  <dt className="mb-1 text-[10px] uppercase tracking-wider text-text-muted">This company</dt>
-                  <dd><span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 font-bold text-violet-600 dark:text-violet-300">{ripple.company}</span></dd>
-                </div>
-                {ripple.downstream.length > 0 && (
-                  <div>
-                    <dt className="mb-1 text-[10px] uppercase tracking-wider text-text-muted">Peers</dt>
-                    <dd className="flex flex-wrap gap-1.5">
-                      {ripple.downstream.map((d, i) => (
-                        <Link key={i} href={`/companies/${d}` as any} className="rounded-full border border-surface-border/10 bg-text-primary/[0.03] px-2.5 py-1 text-text-secondary transition hover:border-violet-500/30 hover:text-violet-600 dark:hover:text-violet-300">{d}</Link>
-                      ))}
-                    </dd>
-                  </div>
-                )}
-              </dl>
+              <p className={SUB}>How {name} compares with the same-industry companies it is usually measured against.</p>
+              <PeerTable symbol={symbol} self={self} sector={ripple.upstream} peers={ripple.downstream} />
             </div>
           )}
         </div>

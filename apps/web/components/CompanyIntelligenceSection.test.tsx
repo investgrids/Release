@@ -24,8 +24,9 @@ describe("CompanyIntelligenceSection", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<CompanyIntelligenceSection symbol="TCS" govScore={30} pricePositive />);
     await waitFor(() => expect(screen.getByText("Investment Watch")).toBeInTheDocument());
-    expect(fetchMock).toHaveBeenCalledTimes(1);                                   // the verdict comes with the intelligence payload: no investment-watch request
-    expect(String(fetchMock.mock.calls[0][0])).toContain("/api/company-intelligence/TCS");
+    const urls = fetchMock.mock.calls.map(c => String(c[0]));
+    expect(urls.filter(u => u.includes("/api/company-intelligence/TCS"))).toHaveLength(1);   // one intelligence request ...
+    expect(urls.some(u => u.includes("investment-watch"))).toBe(false);                      // ... and the verdict comes with it: no investment-watch request
     expect(screen.getAllByText("Cautious").length).toBeGreaterThan(0);
     expect(screen.getByText(/Low/)).toBeInTheDocument();                           // confidence in words
     expect(screen.getAllByText(/Record FPI outflows signal pressure/i)).toHaveLength(1);
@@ -36,6 +37,28 @@ describe("CompanyIntelligenceSection", () => {
     // the old duplicates are gone: no second verdict card, no related-opportunity chips (Related Intelligence below covers them)
     expect(screen.queryByText(/Why TCS Matters Today/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Some bank opportunity")).not.toBeInTheDocument();
+  });
+
+  it("shows the company next to its peers with real figures and a plain comparison sentence", async () => {
+    const peers: Record<string, unknown> = {
+      INFY: { name: "Infosys Ltd", price: "1,500.00", pct_change: -0.4, pe: "21.0", roe: "30.0%" },
+      WIPRO: { name: "Wipro Ltd", price: "250.00", pct_change: 0.8, pe: "18.0", roe: "16.0%" },
+    };
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => {
+      const m = /\/api\/stocks\/(\w+)/.exec(url);
+      return Promise.resolve({ ok: true, json: async () => (m ? (peers[m[1]] ?? null) : payload) });
+    }));
+    render(<CompanyIntelligenceSection symbol="TCS" self={{ name: "Tata Consultancy Services", price: "2,075.00", pct_change: 1.19, pe: "15.1", roe: "47.7%" }} />);
+    await waitFor(() => expect(screen.getByText("Where TCS sits")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("₹1,500.00")).toBeInTheDocument());
+    expect(screen.getByText("This company")).toBeInTheDocument();
+    expect(screen.getByText("₹2,075.00")).toBeInTheDocument();
+    expect(screen.getByText("+1.19%")).toBeInTheDocument();
+    expect(screen.getByText("-0.40%")).toBeInTheDocument();
+    expect(screen.getByText("+0.80%")).toBeInTheDocument();
+    expect(screen.getByText(/P\/E 15\.1 against a peer median of 19\.5: below the median; priced lower than 2 of 2 peers\./)).toBeInTheDocument();
+    expect(screen.getByText(/ROE 47\.7% against a peer median of 23\.0%: above the median; higher than 2 of 2 peers\./)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "INFY" })).toHaveAttribute("href", "/companies/INFY");
   });
 
   it("shows a loading placeholder first and nothing at all for an unavailable company", async () => {
