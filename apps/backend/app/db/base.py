@@ -33,3 +33,4 @@ import app.db.models.opportunity_v2  # noqa: F401 E402  — registers opportunit
 import app.db.models.company_entity  # noqa: F401 E402  — registers company_entities/company_aliases tables (Company Identity C2)
 import app.db.models.article_v2_shadow_execution  # noqa: F401 E402  — registers article_v2_shadow_executions table (previously only registered as a side effect of another import chain running before create_all() -- the same fragile pattern company_signal.py's own comment above warns about; made explicit here rather than left implicit)
 import app.db.models.article_v2_canary_withhold   # noqa: F401 E402  — registers article_v2_canary_withholds table (P7 Candidate Ownership Arbitration)
+import app.db.models.filing_score  # noqa: F401 E402  — registers filing-backed score runs/snapshots (shadow, versioned)

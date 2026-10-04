@@ -103,3 +103,4 @@ __all__ = [
     "SourceDocument",
     "TransactionFact",
 ]
+from app.db.models.filing_score import FilingScoreRun, FilingScoreSnapshot  # noqa: E402
