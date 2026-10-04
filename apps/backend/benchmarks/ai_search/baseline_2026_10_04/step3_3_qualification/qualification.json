@@ -1,0 +1,1183 @@
+{
+  "cap": 8,
+  "pipeline_calls_made": 6,
+  "results": {
+    "CR2": {
+      "id": "CR2",
+      "query": "How is 3M India doing as a business?",
+      "entities": {
+        "companies": [
+          "3MINDIA"
+        ],
+        "sectors": [],
+        "policies": []
+      },
+      "wall_s": 19.86,
+      "calls": [
+        {
+          "kind": "classifier",
+          "max_tokens": 5,
+          "prompt_chars": 802,
+          "est_input_tokens": 200,
+          "ok": true,
+          "latency_ms": 1953,
+          "output_chars": 2,
+          "tokens_total_delta": 717,
+          "last_provider": "groq",
+          "failure_log": [],
+          "raw_output": "no"
+        },
+        {
+          "kind": "specialist",
+          "max_tokens": 6500,
+          "prompt_chars": 9259,
+          "est_input_tokens": 2315,
+          "ok": false,
+          "latency_ms": 3312,
+          "output_chars": 0,
+          "tokens_total_delta": 0,
+          "last_provider": null,
+          "failure_log": [
+            {
+              "model": "openai/gpt-oss-120b",
+              "provider": "groq",
+              "reason": "429"
+            },
+            {
+              "model": "openai/gpt-oss-20b",
+              "provider": "groq",
+              "reason": "429"
+            },
+            {
+              "model": "qwen/qwen3.8-27b",
+              "provider": "groq",
+              "reason": "429"
+            },
+            {
+              "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+              "provider": "openrouter",
+              "reason": "429"
+            },
+            {
+              "model": "nvidia/nemotron-3-super-120b-a12b:free",
+              "provider": "openrouter",
+              "reason": "429"
+            },
+            {
+              "model": "google/gemma-4-31b-it:free",
+              "provider": "openrouter",
+              "reason": "429"
+            },
+            {
+              "model": "google/gemma-4-26b-a4b-it:free",
+              "provider": "openrouter",
+              "reason": "429"
+            },
+            {
+              "model": "cohere/north-mini-code:free",
+              "provider": "openrouter",
+              "reason": "429"
+            },
+            {
+              "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+              "provider": "openrouter",
+              "reason": "429"
+            }
+          ],
+          "raw_output": ""
+        }
+      ],
+      "specialist_call_ok": false,
+      "response": {
+        "query": "How is 3M India doing as a business?",
+        "response_id": "6ce5dd8e-f1a5-462b-8089-be52bd4e68dc",
+        "schema_version": "v3.0",
+        "specialist": "company",
+        "degraded_reason": "capacity",
+        "intent": "general",
+        "ui_mode": "direct_company_research",
+        "switch_holding": null,
+        "switch_target": null,
+        "synthesis_incomplete": true,
+        "answer": {
+          "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the synthesis step didn't complete. Try rephrasing the question or checking back shortly. No supporting evidence is shown for this question.",
+          "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the synthesis step didn't complete. Try rephrasing the question or checking back shortly. No supporting evidence is shown for this question.",
+          "what_happened": "",
+          "why_it_happened": "",
+          "immediate_impact": "",
+          "medium_term": "",
+          "long_term": "",
+          "what_priced_in": "",
+          "risks": [],
+          "opportunities": [],
+          "confidence": null,
+          "confidence_level": "unscored",
+          "sentiment": "neutral",
+          "sources_count": 0
+        },
+        "key_drivers": [],
+        "insights": [],
+        "companies": [],
+        "sectors": [],
+        "related_events": [],
+        "news": [],
+        "policies": [],
+        "timeline": [],
+        "historical_comparison": [],
+        "ripple_chain": [],
+        "scenarios": {},
+        "monitoring": {
+          "items": []
+        },
+        "follow_up_questions": [],
+        "follow_up_groups": [],
+        "investment_verdict": {
+          "rating": "Not Applicable",
+          "direction": "neutral",
+          "confidence": null,
+          "horizon": null,
+          "top_picks": [],
+          "risks": [],
+          "catalysts": [],
+          "opportunity_score": null,
+          "risk_level": "",
+          "suitable_for": "",
+          "engine_verdict": null
+        },
+        "market_chart": {
+          "labels": [],
+          "series": []
+        },
+        "graph": {
+          "nodes": [],
+          "edges": []
+        },
+        "citations": [],
+        "decision_intelligence": null,
+        "confidence_data": {
+          "level": "unscored",
+          "score": null,
+          "reasons": [],
+          "breakdown": {},
+          "caveats": []
+        },
+        "decision_engine_v2": {},
+        "timeline_intelligence": {},
+        "opportunity_risk_matrix": {},
+        "ai_conclusion": {},
+        "evidence_score": {
+          "stars": null,
+          "checklist": {},
+          "source_count": 0,
+          "development_count": 0,
+          "corroborating_source_count": 0
+        },
+        "confidence_breakdown": {
+          "final_confidence": null,
+          "level": "unscored"
+        },
+        "confidence": {
+          "status": "unscored",
+          "score": null,
+          "components": {
+            "evidence_quality": null,
+            "market_confirmation": null,
+            "historical_similarity": null,
+            "data_freshness": null
+          }
+        },
+        "source_attribution": [],
+        "validation": {
+          "repairs": [],
+          "omissions": [],
+          "contradiction_flagged": false
+        },
+        "market_impact_horizons": {},
+        "what_to_monitor": [],
+        "ai_reasoning_methods": [],
+        "timing": {
+          "intent_detection_ms": 0.0,
+          "entity_detection_ms": 15.0,
+          "evidence_collection_ms": 14516.0,
+          "reasoning_ms": 3312.0,
+          "validation_ms": 63.0,
+          "assembly_ms": 0.0,
+          "total_ms": 19859.0
+        },
+        "context_used": {
+          "companies": [],
+          "sectors": []
+        },
+        "watch_subject": {
+          "subject_key": "company:3MINDIA",
+          "subject_type": "company",
+          "subject_label": "3MINDIA",
+          "company_name": "3MINDIA"
+        },
+        "answer_availability": {
+          "state": "temporarily_unavailable",
+          "evidence_retrieval_completed": true,
+          "evidence_count": 0
+        }
+      },
+      "evidence": {
+        "plan_kind": "company",
+        "filter_report": {
+          "plan": "company",
+          "events": {
+            "kept": 0,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "news": {
+            "kept": 0,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_undated": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "announcements": {
+            "kept": 0,
+            "dropped_stale": 0
+          },
+          "policies": {
+            "kept": 0,
+            "dropped_irrelevant": 0
+          },
+          "premise": {
+            "required": false,
+            "terms": [],
+            "supported": null,
+            "supporting": []
+          }
+        },
+        "events": [],
+        "news": [],
+        "announcements": [],
+        "policies": [],
+        "valuation": {},
+        "vix": 14.45,
+        "sector_rows": [],
+        "macro_indices": [],
+        "context_lines": [
+          "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?",
+          "Company context for 3MINDIA (real, from Intelligence Graph): The Nifty 50 and Bank Nifty are slightly down, with the market trading in a tight range as investors await the RBI’s upcoming repo rate decision. The lack of sectoral movement suggests a cautious stance amid concerns ove · Mood: Cautious Bull"
+        ],
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        },
+        "index": [
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:1"
+          },
+          {
+            "id": "C2",
+            "kind": "context",
+            "title": "Company context for 3MINDIA (real, from Intelligence Graph): The Nifty 50 and Bank Nifty are slightly down, with the market trading in a tight range as investor",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:2"
+          }
+        ],
+        "historical": []
+      },
+      "structured_parse_ok": false,
+      "full_specialist_success": false
+    },
+    "EI1": {
+      "id": "EI1",
+      "query": "BEL just won a new defence order, what does this mean for the stock?",
+      "entities": {
+        "companies": [
+          "BEL"
+        ],
+        "sectors": [
+          "defence"
+        ],
+        "policies": []
+      },
+      "wall_s": 0.38,
+      "calls": [
+        {
+          "kind": "classifier",
+          "max_tokens": 5,
+          "prompt_chars": 834,
+          "est_input_tokens": 208,
+          "ok": false,
+          "latency_ms": 0,
+          "output_chars": 0,
+          "tokens_total_delta": 0,
+          "last_provider": null,
+          "failure_log": [
+            {
+              "model": "openai/gpt-oss-120b",
+              "provider": "groq-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "openai/gpt-oss-20b",
+              "provider": "groq-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "qwen/qwen3.8-27b",
+              "provider": "groq-fast",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+              "provider": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-super-120b-a12b:free",
+              "provider": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "google/gemma-4-31b-it:free",
+              "provider": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "google/gemma-4-26b-a4b-it:free",
+              "provider": "openrouter-small",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "cohere/north-mini-code:free",
+              "provider": "openrouter-small",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+              "provider": "openrouter-small",
+              "reason": "already_exhausted"
+            }
+          ],
+          "raw_output": ""
+        },
+        {
+          "kind": "specialist",
+          "max_tokens": 6500,
+          "prompt_chars": 9776,
+          "est_input_tokens": 2444,
+          "ok": false,
+          "latency_ms": 15,
+          "output_chars": 0,
+          "tokens_total_delta": 0,
+          "last_provider": null,
+          "failure_log": [
+            {
+              "model": "openai/gpt-oss-120b",
+              "provider": "groq-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "openai/gpt-oss-20b",
+              "provider": "groq-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "qwen/qwen3.8-27b",
+              "provider": "groq-fast",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+              "provider": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-super-120b-a12b:free",
+              "provider": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "google/gemma-4-31b-it:free",
+              "provider": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "google/gemma-4-26b-a4b-it:free",
+              "provider": "openrouter-small",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "cohere/north-mini-code:free",
+              "provider": "openrouter-small",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+              "provider": "openrouter-small",
+              "reason": "already_exhausted"
+            }
+          ],
+          "raw_output": ""
+        }
+      ],
+      "specialist_call_ok": false,
+      "response": {
+        "query": "BEL just won a new defence order, what does this mean for the stock?",
+        "response_id": "0805589f-c95a-4ea3-a693-3aadfe642dfd",
+        "schema_version": "v3.0",
+        "specialist": "company",
+        "degraded_reason": "capacity",
+        "intent": "news_reaction",
+        "ui_mode": "event_impact",
+        "switch_holding": null,
+        "switch_target": null,
+        "synthesis_incomplete": true,
+        "answer": {
+          "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the synthesis step didn't complete. Try rephrasing the question or checking back shortly. No supporting evidence is shown for this question.",
+          "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the synthesis step didn't complete. Try rephrasing the question or checking back shortly. No supporting evidence is shown for this question.",
+          "what_happened": "",
+          "why_it_happened": "",
+          "immediate_impact": "",
+          "medium_term": "",
+          "long_term": "",
+          "what_priced_in": "",
+          "risks": [],
+          "opportunities": [],
+          "confidence": null,
+          "confidence_level": "unscored",
+          "sentiment": "neutral",
+          "sources_count": 0
+        },
+        "key_drivers": [],
+        "insights": [],
+        "companies": [],
+        "sectors": [],
+        "related_events": [],
+        "news": [],
+        "policies": [],
+        "timeline": [],
+        "historical_comparison": [],
+        "ripple_chain": [],
+        "scenarios": {},
+        "monitoring": {
+          "items": []
+        },
+        "follow_up_questions": [],
+        "follow_up_groups": [],
+        "investment_verdict": {
+          "rating": "Not Applicable",
+          "direction": "neutral",
+          "confidence": null,
+          "horizon": null,
+          "top_picks": [],
+          "risks": [],
+          "catalysts": [],
+          "opportunity_score": null,
+          "risk_level": "",
+          "suitable_for": "",
+          "engine_verdict": null
+        },
+        "market_chart": {
+          "labels": [],
+          "series": []
+        },
+        "graph": {
+          "nodes": [],
+          "edges": []
+        },
+        "citations": [],
+        "decision_intelligence": null,
+        "confidence_data": {
+          "level": "unscored",
+          "score": null,
+          "reasons": [],
+          "breakdown": {},
+          "caveats": []
+        },
+        "decision_engine_v2": {},
+        "timeline_intelligence": {},
+        "opportunity_risk_matrix": {},
+        "ai_conclusion": {},
+        "evidence_score": {
+          "stars": null,
+          "checklist": {},
+          "source_count": 0,
+          "development_count": 0,
+          "corroborating_source_count": 0
+        },
+        "confidence_breakdown": {
+          "final_confidence": null,
+          "level": "unscored"
+        },
+        "confidence": {
+          "status": "unscored",
+          "score": null,
+          "components": {
+            "evidence_quality": null,
+            "market_confirmation": null,
+            "historical_similarity": null,
+            "data_freshness": null
+          }
+        },
+        "source_attribution": [],
+        "validation": {
+          "repairs": [],
+          "omissions": [],
+          "contradiction_flagged": false
+        },
+        "market_impact_horizons": {},
+        "what_to_monitor": [],
+        "ai_reasoning_methods": [],
+        "timing": {
+          "intent_detection_ms": 0.0,
+          "entity_detection_ms": 15.0,
+          "evidence_collection_ms": 282.0,
+          "reasoning_ms": 15.0,
+          "validation_ms": 47.0,
+          "assembly_ms": 0.0,
+          "total_ms": 359.0
+        },
+        "context_used": {
+          "companies": [],
+          "sectors": []
+        },
+        "watch_subject": {
+          "subject_key": "company:BEL",
+          "subject_type": "company",
+          "subject_label": "BEL",
+          "company_name": "BEL"
+        },
+        "answer_availability": {
+          "state": "temporarily_unavailable",
+          "evidence_retrieval_completed": true,
+          "evidence_count": 0
+        }
+      },
+      "evidence": {
+        "plan_kind": "company",
+        "filter_report": {
+          "plan": "company",
+          "events": {
+            "kept": 0,
+            "dropped_stale": 1,
+            "dropped_irrelevant": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "news": {
+            "kept": 0,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_undated": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "announcements": {
+            "kept": 0,
+            "dropped_stale": 2
+          },
+          "policies": {
+            "kept": 0,
+            "dropped_irrelevant": 0
+          },
+          "premise": {
+            "required": true,
+            "terms": [
+              "order"
+            ],
+            "supported": false,
+            "supporting": []
+          }
+        },
+        "events": [],
+        "news": [],
+        "announcements": [],
+        "policies": [],
+        "valuation": {},
+        "vix": 14.45,
+        "sector_rows": [],
+        "macro_indices": [],
+        "context_lines": [
+          "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?"
+        ],
+        "premise": {
+          "required": true,
+          "terms": [
+            "order"
+          ],
+          "supported": false,
+          "supporting": []
+        },
+        "index": [
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:1"
+          }
+        ],
+        "historical": []
+      },
+      "structured_parse_ok": false,
+      "full_specialist_success": false
+    },
+    "CC1": {
+      "id": "CC1",
+      "query": "TCS vs Infosys, which is stronger?",
+      "entities": {
+        "companies": [
+          "TCS",
+          "INFY"
+        ],
+        "sectors": [],
+        "policies": []
+      },
+      "wall_s": 1.66,
+      "calls": [
+        {
+          "kind": "classifier",
+          "max_tokens": 5,
+          "prompt_chars": 800,
+          "est_input_tokens": 200,
+          "ok": false,
+          "latency_ms": 0,
+          "output_chars": 0,
+          "tokens_total_delta": 0,
+          "last_provider": null,
+          "failure_log": [
+            {
+              "model": "openai/gpt-oss-120b",
+              "provider": "groq-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "openai/gpt-oss-20b",
+              "provider": "groq-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "qwen/qwen3.8-27b",
+              "provider": "groq-fast",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+              "provider": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-super-120b-a12b:free",
+              "provider": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "google/gemma-4-31b-it:free",
+              "provider": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "google/gemma-4-26b-a4b-it:free",
+              "provider": "openrouter-small",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "cohere/north-mini-code:free",
+              "provider": "openrouter-small",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+              "provider": "openrouter-small",
+              "reason": "already_exhausted"
+            }
+          ],
+          "raw_output": ""
+        },
+        {
+          "kind": "specialist",
+          "max_tokens": 7000,
+          "prompt_chars": 12254,
+          "est_input_tokens": 3064,
+          "ok": false,
+          "latency_ms": 0,
+          "output_chars": 0,
+          "tokens_total_delta": 0,
+          "last_provider": null,
+          "failure_log": [
+            {
+              "model": "openai/gpt-oss-120b",
+              "provider": "groq-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "openai/gpt-oss-20b",
+              "provider": "groq-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "qwen/qwen3.8-27b",
+              "provider": "groq-fast",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+              "provider": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-super-120b-a12b:free",
+              "provider": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "google/gemma-4-31b-it:free",
+              "provider": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "google/gemma-4-26b-a4b-it:free",
+              "provider": "openrouter-small",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "cohere/north-mini-code:free",
+              "provider": "openrouter-small",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+              "provider": "openrouter-small",
+              "reason": "already_exhausted"
+            }
+          ],
+          "raw_output": ""
+        }
+      ],
+      "specialist_call_ok": false,
+      "response": {
+        "query": "TCS vs Infosys, which is stronger?",
+        "response_id": "7f1f2376-a06c-4f15-856c-1b8f616cc694",
+        "schema_version": "v3.0",
+        "specialist": "comparison",
+        "degraded_reason": "capacity",
+        "intent": "compare",
+        "ui_mode": "company_comparison",
+        "switch_holding": null,
+        "switch_target": null,
+        "synthesis_incomplete": true,
+        "answer": {
+          "summary": "There isn't enough freshly generated analysis to answer this question with confidence right now — the synthesis step didn't complete. Try rephrasing the question or checking back shortly. 1 related event found for this question is listed below.",
+          "bottom_line": "There isn't enough freshly generated analysis to answer this question with confidence right now — the synthesis step didn't complete. Try rephrasing the question or checking back shortly. 1 related event found for this question is listed below.",
+          "what_happened": "",
+          "why_it_happened": "",
+          "immediate_impact": "",
+          "medium_term": "",
+          "long_term": "",
+          "what_priced_in": "",
+          "risks": [],
+          "opportunities": [],
+          "confidence": null,
+          "confidence_level": "unscored",
+          "sentiment": "neutral",
+          "sources_count": 1
+        },
+        "key_drivers": [],
+        "insights": [],
+        "companies": [],
+        "sectors": [],
+        "related_events": [
+          {
+            "id": "evt-it-deal-slowdown-2026",
+            "slug": "us-enterprise-it-spending-contracts-for-second-consecutive-quarter-evt-it-d",
+            "title": "US enterprise IT spending contracts for second consecutive quarter",
+            "summary": "CIO surveys and enterprise software vendors report discretionary IT budget freezes. Indian IT majors with high US revenue exposure face near-term demand headwinds, though management guidance remains cautious.",
+            "category": "Global",
+            "impact_score": 7.4,
+            "confidence": 0.8,
+            "sectors": [
+              "IT",
+              "Technology"
+            ],
+            "companies": [
+              {
+                "symbol": "TCS",
+                "name": "Tata Consultancy Services",
+                "impact": "Negative"
+              },
+              {
+                "symbol": "INFY",
+                "name": "Infosys",
+                "impact": "Negative"
+              },
+              {
+                "symbol": "WIPRO",
+                "name": "Wipro",
+                "impact": "Negative"
+              }
+            ],
+            "date": "Jul 10, 2026",
+            "source": "",
+            "event_date": null,
+            "published_at": "2026-07-10T09:30:00"
+          }
+        ],
+        "news": [],
+        "policies": [],
+        "timeline": [],
+        "historical_comparison": [],
+        "ripple_chain": [],
+        "scenarios": {},
+        "monitoring": {
+          "items": []
+        },
+        "follow_up_questions": [],
+        "follow_up_groups": [],
+        "investment_verdict": {
+          "rating": "Not Applicable",
+          "direction": "neutral",
+          "confidence": null,
+          "horizon": null,
+          "top_picks": [],
+          "risks": [],
+          "catalysts": [],
+          "opportunity_score": null,
+          "risk_level": "",
+          "suitable_for": "",
+          "engine_verdict": null
+        },
+        "market_chart": {
+          "labels": [],
+          "series": []
+        },
+        "graph": {
+          "nodes": [],
+          "edges": []
+        },
+        "citations": [],
+        "decision_intelligence": null,
+        "confidence_data": {
+          "level": "unscored",
+          "score": null,
+          "reasons": [],
+          "breakdown": {},
+          "caveats": []
+        },
+        "decision_engine_v2": {},
+        "timeline_intelligence": {},
+        "opportunity_risk_matrix": {},
+        "ai_conclusion": {},
+        "evidence_score": {
+          "stars": null,
+          "checklist": {},
+          "source_count": 1,
+          "development_count": 1,
+          "corroborating_source_count": 1
+        },
+        "confidence_breakdown": {
+          "final_confidence": null,
+          "level": "unscored"
+        },
+        "confidence": {
+          "status": "unscored",
+          "score": null,
+          "components": {
+            "evidence_quality": null,
+            "market_confirmation": null,
+            "historical_similarity": null,
+            "data_freshness": null
+          }
+        },
+        "source_attribution": [
+          "event:evt-it-deal-slowdown-2026"
+        ],
+        "validation": {
+          "repairs": [],
+          "omissions": [],
+          "contradiction_flagged": false
+        },
+        "market_impact_horizons": {},
+        "what_to_monitor": [],
+        "ai_reasoning_methods": [],
+        "timing": {
+          "intent_detection_ms": 0.0,
+          "entity_detection_ms": 15.0,
+          "evidence_collection_ms": 1579.0,
+          "reasoning_ms": 0.0,
+          "validation_ms": 62.0,
+          "assembly_ms": 0.0,
+          "total_ms": 1656.0
+        },
+        "context_used": {
+          "companies": [],
+          "sectors": []
+        },
+        "watch_subject": null,
+        "answer_availability": {
+          "state": "temporarily_unavailable",
+          "evidence_retrieval_completed": true,
+          "evidence_count": 1
+        }
+      },
+      "evidence": {
+        "plan_kind": "comparison",
+        "filter_report": {
+          "plan": "comparison",
+          "events": {
+            "kept": 1,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "news": {
+            "kept": 1,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_undated": 0,
+            "dropped_tips": 1,
+            "dropped_single_company_filing": 0
+          },
+          "announcements": {
+            "kept": 6,
+            "dropped_stale": 0
+          },
+          "policies": {
+            "kept": 0,
+            "dropped_irrelevant": 0
+          },
+          "premise": {
+            "required": false,
+            "terms": [],
+            "supported": null,
+            "supporting": []
+          }
+        },
+        "events": [
+          {
+            "id": "evt-it-deal-slowdown-2026",
+            "title": "US enterprise IT spending contracts for second consecutive quarter",
+            "summary": "CIO surveys and enterprise software vendors report discretionary IT budget freezes. Indian IT majors with high US revenue exposure face near-term demand headwinds, though management guidance remains cautious.",
+            "date": "2026-07-10T09:30:00",
+            "source": "",
+            "companies": [
+              "TCS",
+              "INFY",
+              "WIPRO"
+            ]
+          }
+        ],
+        "news": [
+          {
+            "id": "live-0159572fe8cc",
+            "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+            "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+            "date": "2h ago",
+            "source": "Business Standard"
+          }
+        ],
+        "announcements": [
+          {
+            "id": "ann_nse-3e08b3c13a",
+            "title": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+            "category": null,
+            "date": "2026-10-01T00:00:00"
+          },
+          {
+            "id": "ann_nse-d5bed2f533",
+            "title": "Tata Consultancy Services Limited has informed the Exchange regarding a press release dated October 01, 2026, titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+            "category": null,
+            "date": "2026-10-01T00:00:00"
+          },
+          {
+            "id": "ann_nse-ffc7721042",
+            "title": "Infosys Limited has informed the Exchange regarding 'Infosys and Columbia University Launch Strategic Collaboration Across Deep Research to Drive Innovation and Unlock Business Value'.",
+            "category": null,
+            "date": "2026-10-01T00:00:00"
+          },
+          {
+            "id": "ann_nse-ca93723168",
+            "title": "Infosys Limited has informed the Exchange regarding 'Investor Conference'.",
+            "category": null,
+            "date": "2026-09-01T00:00:00"
+          },
+          {
+            "id": "ann_nse-600f534235",
+            "title": "Infosys Limited has informed the Exchange regarding Allotment of 175865  Shares.",
+            "category": null,
+            "date": "2026-08-24T00:00:00"
+          },
+          {
+            "id": "ann_nse-6ca57a1d3e",
+            "title": "Infosys Limited has informed the Exchange about change in Management",
+            "category": null,
+            "date": "2026-08-24T00:00:00"
+          }
+        ],
+        "policies": [],
+        "valuation": {
+          "TCS": {
+            "pe": 15.1,
+            "pb": 6.85,
+            "52w_high": 3350.0,
+            "52w_low": 1976.8
+          },
+          "INFY": {
+            "pe": 13.3,
+            "pb": 4.54,
+            "52w_high": 1728.0,
+            "52w_low": 980.4
+          }
+        },
+        "vix": 14.45,
+        "sector_rows": [],
+        "macro_indices": [],
+        "context_lines": [
+          "TCS: P/E 15.1, P/B 6.85, 52W 1976.8-3350.0",
+          "INFY: P/E 13.3, P/B 4.54, 52W 980.4-1728.0",
+          "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/10] Auto sales surge in September, but GST base clouds the picture. Can stocks rebound ahead of Q2 results?"
+        ],
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        },
+        "index": [
+          {
+            "id": "E1",
+            "kind": "event",
+            "title": "US enterprise IT spending contracts for second consecutive quarter",
+            "summary": "CIO surveys and enterprise software vendors report discretionary IT budget freezes. Indian IT majors with high US revenue exposure face near-term demand headwinds, though management guidance remains c",
+            "date": "2026-07-10T09:30:00",
+            "source": "",
+            "companies": [
+              "TCS",
+              "INFY",
+              "WIPRO"
+            ],
+            "ref": "event:evt-it-deal-slowdown-2026"
+          },
+          {
+            "id": "N1",
+            "kind": "news",
+            "title": "RBI MPC policy, oil prices, bond yields may drive market this week",
+            "summary": "RBI's interest rate decision, TCS' earnings, crude oil prices and global bond yields will be important factors to determine stock market movement this week, analysts said.\nMacroeconomic data announcem",
+            "date": "2h ago",
+            "source": "Business Standard",
+            "companies": [],
+            "ref": "news:live-0159572fe8cc"
+          },
+          {
+            "id": "A1",
+            "kind": "announcement",
+            "title": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+            "date": "2026-10-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "TCS"
+            ],
+            "ref": "announcement:ann_nse-3e08b3c13a"
+          },
+          {
+            "id": "A2",
+            "kind": "announcement",
+            "title": "Tata Consultancy Services Limited has informed the Exchange regarding a press release dated October 01, 2026, titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+            "date": "2026-10-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "TCS"
+            ],
+            "ref": "announcement:ann_nse-d5bed2f533"
+          },
+          {
+            "id": "A3",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange regarding 'Infosys and Columbia University Launch Strategic Collaboration Across Deep Research to Drive Innovation and Unlock Business Value'.",
+            "date": "2026-10-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ],
+            "ref": "announcement:ann_nse-ffc7721042"
+          },
+          {
+            "id": "A4",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange regarding 'Investor Conference'.",
+            "date": "2026-09-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ],
+            "ref": "announcement:ann_nse-ca93723168"
+          },
+          {
+            "id": "A5",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange regarding Allotment of 175865  Shares.",
+            "date": "2026-08-24T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ],
+            "ref": "announcement:ann_nse-600f534235"
+          },
+          {
+            "id": "A6",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange about change in Management",
+            "date": "2026-08-24T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ],
+            "ref": "announcement:ann_nse-6ca57a1d3e"
+          },
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "TCS: P/E 15.1, P/B 6.85, 52W 1976.8-3350.0",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:1"
+          },
+          {
+            "id": "C2",
+            "kind": "context",
+            "title": "INFY: P/E 13.3, P/B 4.54, 52W 980.4-1728.0",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:2"
+          },
+          {
+            "id": "C3",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n[LIVE URGENCY 7/1",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:3"
+          }
+        ],
+        "historical": []
+      },
+      "structured_parse_ok": false,
+      "full_specialist_success": false
+    }
+  }
+}
