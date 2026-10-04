@@ -47,7 +47,8 @@ export function CandleChart({ chartData, intraday }: { chartData: ChartRow[]; in
       layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: text, fontSize: 10, attributionLogo: false },
       grid: { vertLines: { color: grid }, horzLines: { color: grid } },
       rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.06, bottom: 0.26 } },
-      timeScale: { borderVisible: false, timeVisible: intraday, secondsVisible: false, rightOffset: 2 },
+      // intraday: bars are spaced evenly so overnight and weekend gaps do not stretch the axis or squeeze the candles
+      timeScale: { borderVisible: false, timeVisible: intraday, secondsVisible: false, rightOffset: 2, uniformDistribution: intraday, minBarSpacing: 1 },
       crosshair: { mode: CrosshairMode.Normal },
       localization: { priceFormatter: (p: number) => `₹${p.toLocaleString("en-IN", { maximumFractionDigits: 2 })}` },
     });

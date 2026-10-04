@@ -148,9 +148,9 @@ async def get_index_chart(name: str, ticker: str) -> list[dict]:
 
 
 _PERIOD_MAP: dict = {
-    "1D":  ("5d",  "5m"),    # fetched as 5 days and cut to the latest session (_SINGLE_SESSION): period="1d" is empty on weekends and market holidays
-    "1W":  ("5d",  "60m"),
-    "5D":  ("5d",  "60m"),   # the company page sends 5D and 3M; before these keys existed both silently returned the 6M weekly series
+    "1D":  ("5d",  "5m"),    # fetched as 5 days and cut to the latest session (_SESSIONS): period="1d" is empty on weekends and market holidays
+    "1W":  ("1mo", "15m"),   # last 5 trading sessions in 15-minute bars (see _SESSIONS); Yahoo's 60-minute bars carry no volume in the 09:15 bar
+    "5D":  ("1mo", "15m"),   # the company page sends 5D and 3M; before these keys existed both silently returned the 6M weekly series
     "1M":  ("1mo", "1d"),
     "3M":  ("3mo", "1d"),
     "6M":  ("6mo", "1d"),    # daily bars (was weekly) so candles are real daily candles
@@ -999,7 +999,7 @@ async def get_index_chart(symbol: str, period: str = "6M") -> list:
                     close = row["Close"]
                     if hasattr(close, "iloc"):
                         close = close.iloc[0]
-                    label = idx.strftime("%Y-%m-%d %H:%M") if interval in ("5m", "60m") else idx.strftime("%Y-%m-%d")
+                    label = idx.strftime("%Y-%m-%d %H:%M") if interval in _INTRADAY else idx.strftime("%Y-%m-%d")
                     result.append({"label": label, "value": round(float(close), 2)})
                 except Exception:
                     continue
@@ -1010,15 +1010,17 @@ async def get_index_chart(symbol: str, period: str = "6M") -> list:
     return await loop.run_in_executor(None, _fetch)
 
 
-_SINGLE_SESSION = {"1D"}   # periods that show only the most recent trading session
+_SESSIONS = {"1D": 1, "5D": 5, "1W": 5}   # intraday periods are "the last N trading sessions", not N calendar days (holidays and weekends are skipped)
+_INTRADAY = ("5m", "15m", "60m")
 
 
-def _last_session(hist):
-    """Keep only the rows of the most recent trading day in the frame (the live session during market hours, the last completed one otherwise)."""
+def _last_sessions(hist, n: int):
+    """Keep only the rows of the n most recent trading days present in the frame (the live session during market hours, completed ones otherwise)."""
     if hist is None or hist.empty:
         return hist
     days = hist.index.normalize() if hasattr(hist.index, "normalize") else hist.index
-    return hist[days == days.max()]
+    keep = sorted(set(days))[-n:]
+    return hist[[d in keep for d in days]]
 
 
 _CHART_CACHE: dict = {}   # (SYMBOL, period) -> (monotonic time, rows): 60 s for intraday bars, 5 min otherwise
@@ -1048,7 +1050,7 @@ def _chart_rows(hist, interval: str) -> list:
                 vol = 0 if (math.isnan(vol) or math.isinf(vol)) else int(vol)
             except Exception:
                 vol = 0
-            intraday = interval in ("5m", "60m")
+            intraday = interval in _INTRADAY
             if intraday:
                 label = idx.strftime("%H:%M") if hasattr(idx, "strftime") else str(idx)
                 t = int(idx.timestamp()) if hasattr(idx, "timestamp") else None
@@ -1068,7 +1070,7 @@ async def get_stock_chart(symbol: str, period: str = "6M") -> list:
     key = (symbol.upper(), period)
     yf_period, interval = _PERIOD_MAP.get(period, ("6mo", "1d"))
     hit = _CHART_CACHE.get(key)
-    ttl = _CHART_TTL_INTRADAY if interval in ("5m", "60m") else _CHART_TTL
+    ttl = _CHART_TTL_INTRADAY if interval in _INTRADAY else _CHART_TTL
     if hit and _time.monotonic() - hit[0] < ttl:
         return hit[1]
     loop = asyncio.get_event_loop()
@@ -1079,8 +1081,8 @@ async def get_stock_chart(symbol: str, period: str = "6M") -> list:
             hist = yf.download(ns_ticker, period=yf_period, interval=interval, progress=False, auto_adjust=True, timeout=10)
             if hist.empty:
                 return []
-            if period in _SINGLE_SESSION:
-                hist = _last_session(hist)
+            if period in _SESSIONS:
+                hist = _last_sessions(hist, _SESSIONS[period])
             return _chart_rows(hist, interval)
         except Exception:
             return []

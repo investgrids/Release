@@ -39,7 +39,7 @@ def test_a_bar_with_a_non_finite_price_is_skipped_and_high_low_always_contain_op
 def test_every_period_the_company_page_sends_is_mapped_and_long_ranges_are_daily():
     for p in ("1D", "5D", "1M", "3M", "6M", "1Y", "5Y", "Max"):
         assert p in md._PERIOD_MAP, p
-    assert md._PERIOD_MAP["3M"][1] == "1d" and md._PERIOD_MAP["6M"][1] == "1d" and md._PERIOD_MAP["1Y"][1] == "1d" and md._PERIOD_MAP["5D"][1] == "60m"
+    assert md._PERIOD_MAP["3M"][1] == "1d" and md._PERIOD_MAP["6M"][1] == "1d" and md._PERIOD_MAP["1Y"][1] == "1d" and md._PERIOD_MAP["5D"] == ("1mo", "15m")
 
 
 async def test_chart_is_cached_but_an_empty_answer_never_is(monkeypatch):
@@ -62,10 +62,10 @@ async def test_chart_is_cached_but_an_empty_answer_never_is(monkeypatch):
 def test_one_day_is_the_latest_session_even_when_yahoo_returns_several_days():
     idx = pd.DatetimeIndex(["2026-09-30 09:15", "2026-09-30 09:20", "2026-10-01 09:15", "2026-10-01 09:20", "2026-10-01 09:25"], tz="Asia/Kolkata")
     df = _frame(idx, [[1, 2, 0.5, 1.5, 1]] * 5)
-    kept = md._last_session(df)
+    kept = md._last_sessions(df, 1)
     assert len(kept) == 3 and set(kept.index.strftime("%Y-%m-%d")) == {"2026-10-01"}
-    assert md._last_session(pd.DataFrame()).empty
-    assert md._PERIOD_MAP["1D"] == ("5d", "5m") and "1D" in md._SINGLE_SESSION and "5D" not in md._SINGLE_SESSION
+    assert md._last_sessions(pd.DataFrame(), 1).empty
+    assert md._PERIOD_MAP["1D"] == ("5d", "5m") and md._SESSIONS == {"1D": 1, "5D": 5, "1W": 5}
 
 
 async def test_one_day_chart_returns_only_the_last_session(monkeypatch):
@@ -75,3 +75,16 @@ async def test_one_day_chart_returns_only_the_last_session(monkeypatch):
     rows = await md.get_stock_chart("TCS", "1D")
     assert [r["label"] for r in rows] == ["09:15", "09:20"]
     md._CHART_CACHE.clear()
+
+
+def test_five_day_is_the_last_five_trading_sessions_not_five_calendar_days():
+    days = ["2026-09-24", "2026-09-25", "2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01"]          # a weekend sits between 25 and 28
+    idx = pd.DatetimeIndex([f"{d} {t}" for d in days for t in ("09:15", "09:30")], tz="Asia/Kolkata")
+    kept = md._last_sessions(_frame(idx, [[1, 2, 0.5, 1.5, 10]] * len(idx)), 5)
+    assert sorted(set(kept.index.strftime("%Y-%m-%d"))) == days[1:] and len(kept) == 10
+
+
+def test_fifteen_minute_bars_are_intraday_epoch_time_with_volume_in_the_first_bar():
+    idx = pd.DatetimeIndex(["2026-10-01 09:15", "2026-10-01 09:30"], tz="Asia/Kolkata")
+    rows = md._chart_rows(_frame(idx, [[1, 2, 0.5, 1.5, 237748], [1.5, 2, 1, 1.8, 90000]]), "15m")
+    assert isinstance(rows[0]["time"], int) and rows[0]["label"] == "09:15" and rows[0]["volume"] == 237748
