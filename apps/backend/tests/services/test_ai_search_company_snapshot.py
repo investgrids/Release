@@ -25,3 +25,23 @@ def test_symbol_match_is_case_insensitive_and_does_not_touch_the_evidence():
     attach_snapshots(cos, val)
     assert cos[0]["snapshot"] == {"pe": 24.1, "week52_high": 4200.0}
     assert val == before
+
+
+def test_profile_figures_are_display_only_and_merge_into_the_snapshot():
+    cos = [{"symbol": "HDFCBANK"}, {"symbol": "TCS"}]
+    prof = {"HDFCBANK": {"market_cap_cr": 1380000.5, "sector": "Financial Services"}}.get
+    attach_snapshots(cos, {"HDFCBANK": {"pe": 15.6}}, profile=lambda s: prof(s, {}))
+    assert cos[0]["snapshot"] == {"pe": 15.6, "market_cap_cr": 1380000.5, "sector": "Financial Services"}
+    assert "snapshot" not in cos[1]
+
+
+def test_profile_never_enters_the_evidence_valuation_dict():
+    from app.services.ai_search import enrichment as E
+    E._PROFILES["TESTSYM"] = {"market_cap_cr": 10.0, "sector": "X", "_at": __import__("time").time()}
+    assert E.profile_for("testsym") == {"market_cap_cr": 10.0, "sector": "X"}
+    val = {"TESTSYM": {"pe": 1.0}}
+    cos = [{"symbol": "TESTSYM"}]
+    attach_snapshots(cos, val, profile=E.profile_for)
+    assert val == {"TESTSYM": {"pe": 1.0}}                      # the corpus-feeding dict is untouched
+    E._PROFILES["TESTSYM"]["_at"] = 0
+    assert E.profile_for("TESTSYM") == {}                       # a stale profile is not shown

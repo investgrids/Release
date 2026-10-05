@@ -339,3 +339,130 @@ describe("mockup layout, real fields only", () => {
     expect(list.querySelectorAll("tbody tr").length).toBe(9);
   });
 });
+
+describe("comparison table rows from the mockup, real data only", () => {
+  const cmp = (): V2Result => research({
+    query: "Compare HDFC Bank and ICICI Bank", specialist: "comparison",
+    companies: [
+      { symbol: "HDFCBANK", name: "HDFC Bank", price: "714.50", change: "-0.93%", positive: false, chart: [700, 705, 710, 720, 735] },
+      { symbol: "ICICIBANK", name: "ICICI Bank", price: "1,315.40", change: "+0.37%", positive: true, chart: [] },
+    ],
+    evidence_index: [
+      { id: "N1", kind: "news", title: "HDFC Bank shares rise 2% after appointing a new CEO", source: "Economic Times" },
+      { id: "C1", kind: "context", title: "Live market data", source: "MarketRipple data" },
+    ],
+    news: [{ id: "n1", headline: "HDFC Bank shares rise 2% after appointing a new CEO", source: "Economic Times", published_at: "2026-10-04" }],
+    related_events: [],
+    claim_sources: [
+      { claim: "HDFC Bank shares rose 2% after it appointed a new CEO.", sources: ["N1"], company: "HDFCBANK", status: "ok" },
+      { claim: "HDFC Bank is at P/E 15.6 versus ICICI Bank at P/E 17.0.", sources: ["C1"], company: "HDFCBANK", status: "ok" },
+    ],
+  } as never);
+
+  it("shows each company's own sourced development with the [n] of its row in the evidence table", () => {
+    mount(cmp());
+    const t = screen.getByTestId("comparison-table");
+    expect(t).toHaveTextContent("Latest development");
+    expect(t).toHaveTextContent("HDFC Bank shares rose 2% after it appointed a new CEO.");
+    expect(t).toHaveTextContent("[1]");
+    expect(screen.getByTestId("evidence-list").querySelector("tbody tr")).toHaveTextContent("[1]");
+  });
+  it("never files a claim that names the other bank, or one resting only on live market data, under a company", () => {
+    mount(cmp());
+    const t = screen.getByTestId("comparison-table");
+    expect(t).not.toHaveTextContent("P/E 15.6 versus ICICI");
+  });
+  it("computes the 5-day reaction from the closes it has and shows a dash where it has none", () => {
+    mount(cmp());
+    const row = Array.from(screen.getByTestId("comparison-table").querySelectorAll("tbody tr")).find((r) => r.textContent?.startsWith("Price reaction"))!;
+    expect(row).toHaveTextContent("+5.0%");
+    expect(row).toHaveTextContent("5-day");          // 735 / 700
+    expect(row.querySelectorAll("td")[1]).toHaveTextContent("—");
+  });
+  it("uses initials tiles, not logos it does not have", () => {
+    const { container } = mount(cmp());
+    expect(container.querySelector("img")).toBeNull();
+    expect(screen.getByTestId("comparison-table")).toHaveTextContent("HB");
+  });
+});
+
+describe("visual elements draw only numbers the answer carries", () => {
+  const rich = (): V2Result => research({
+    query: "What is happening with Wipro?", specialist: "company",
+    companies: [{ symbol: "WIPRO", name: "Wipro", price: "248.30", change: "+0.20%", positive: true, chart: [244, 245.1, 246.9, 247.2, 248.3], snapshot: { pe: 21.4, pb: 3.6, week52_low: 205.1, week52_high: 289.9 } }],
+  } as never);
+
+  it("draws a sparkline from the closes and a range bar with the price marker", () => {
+    mount(rich());
+    const card = screen.getByTestId("entity-snapshot");
+    expect(card.querySelector('[data-testid="sparkline"]')).not.toBeNull();
+    expect(card.querySelector('[data-testid="range-bar"]')).not.toBeNull();
+    expect(card).toHaveTextContent("₹205.1");
+    expect(card).toHaveTextContent("₹289.9");
+    expect(card).toHaveTextContent("+0.20%");
+  });
+  it("draws no sparkline without two closes and no range bar without a 52-week range", () => {
+    mount(research({ companies: [{ symbol: "WIPRO", name: "Wipro", price: "248.30", change: "+0.20%", positive: true, chart: [248.3] }] } as never));
+    const card = screen.getByTestId("entity-snapshot");
+    expect(card.querySelector('[data-testid="sparkline"]')).toBeNull();
+    expect(card.querySelector('[data-testid="range-bar"]')).toBeNull();
+  });
+  it("colours evidence by kind and keeps the type as text, not colour alone", () => {
+    mount(research());
+    const badge = screen.getByTestId("evidence-list").querySelector("tbody tr span.rounded-md");
+    expect(badge?.textContent).toMatch(/Market event|News|Exchange filing/);
+  });
+  it("keeps the sign on a change pill", () => {
+    mount(rich());
+    expect(screen.getByTestId("entity-snapshot").textContent).toContain("+0.20%");
+  });
+});
+
+describe("market cap, sector and relative P/E and P/B colour", () => {
+  const pair = (): V2Result => research({
+    query: "Compare HDFC Bank and ICICI Bank", specialist: "comparison",
+    companies: [
+      { symbol: "HDFCBANK", name: "HDFC Bank", price: "714.50", change: "-0.93%", positive: false, snapshot: { pe: 15.6, pb: 2.48, market_cap_cr: 1380000.5, sector: "Financial Services" } },
+      { symbol: "ICICIBANK", name: "ICICI Bank", price: "1,315.40", change: "+0.37%", positive: true, snapshot: { pe: 17.0, pb: 2.48, market_cap_cr: 940000, sector: "Financial Services" } },
+    ],
+  } as never);
+
+  it("shows sector and market cap in the entity card and the table, in lakh crore above one lakh crore", () => {
+    mount(pair());
+    const card = screen.getByTestId("entity-snapshot");
+    expect(card.querySelectorAll('[data-testid="sector-chip"]').length).toBe(2);
+    expect(card).toHaveTextContent("₹13.80 lakh Cr");
+    expect(card).toHaveTextContent("₹9.40 lakh Cr");
+    const t = screen.getByTestId("comparison-table");
+    expect(t).toHaveTextContent("Sector");
+    expect(t).toHaveTextContent("Market cap");
+  });
+  it("colours each multiple against the other company, and writes the word as well as the colour", () => {
+    mount(pair());
+    const pes = Array.from(screen.getByTestId("entity-snapshot").querySelectorAll("[data-rel]")).map((e) => [e.textContent, e.getAttribute("data-rel")]);
+    expect(pes[0]).toEqual([expect.stringContaining("P/E 15.6"), "lower"]);
+    expect(pes[0][0]).toContain("lower");
+    expect(pes[2]).toEqual([expect.stringContaining("P/E 17.0"), "higher"]);
+    expect(pes[2][0]).toContain("higher");
+  });
+  it("says nothing relative when the values are equal (P/B 2.48 on both), and explains the colours", () => {
+    mount(pair());
+    const pbs = Array.from(screen.getByTestId("entity-snapshot").querySelectorAll("[data-rel]")).filter((e) => e.textContent?.includes("P/B"));
+    expect(pbs.length).toBe(2);
+    pbs.forEach((e) => expect(e.getAttribute("data-rel")).toBe("none"));
+    expect(screen.getByTestId("multiple-legend")).toHaveTextContent(/not automatically a better company/);
+  });
+  it("a single company gets neutral multiples and no legend: there is nothing to compare against", () => {
+    mount(research({ companies: [{ symbol: "WIPRO", name: "Wipro", price: "248.30", change: "+0.20%", positive: true, snapshot: { pe: 21.4, pb: 3.6, sector: "Technology" } }] } as never));
+    const card = screen.getByTestId("entity-snapshot");
+    card.querySelectorAll("[data-rel]").forEach((e) => expect(e.getAttribute("data-rel")).toBe("none"));
+    expect(screen.queryByTestId("multiple-legend")).toBeNull();
+    expect(card).toHaveTextContent("Technology");
+    expect(card.textContent).not.toMatch(/·\s*(lower|higher)/);
+  });
+  it("shows no market cap or sector when they were not fetched", () => {
+    mount(research({ companies: [{ symbol: "WIPRO", name: "Wipro", price: "248.30", snapshot: { pe: 21.4 } }] } as never));
+    expect(screen.queryByTestId("market-cap")).toBeNull();
+    expect(screen.queryByTestId("sector-chip")).toBeNull();
+  });
+});

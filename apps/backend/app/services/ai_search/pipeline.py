@@ -539,12 +539,19 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
     yield "done", STAGE_LABELS["finalizing"], response
 
 
-def attach_snapshots(companies: list, valuation: dict | None) -> None:
-    """Expose, per company, the figures the model was already given (P/E, P/B, 52-week range) as a structured `snapshot` for the entity card and comparison table.
-    Only values already in evidence.valuation (the same numbers the model-visible evidence and the Gate B corpus contain); nothing new is fetched or added to the corpus."""
+from app.services.ai_search.enrichment import profile_for as _profile_for
+
+
+def attach_snapshots(companies: list, valuation: dict | None, profile=None) -> None:
+    """Expose, per company, a structured `snapshot` for the entity card and comparison table: the figures the model was already given (P/E, P/B, 52-week range) plus display-only profile
+    figures (market cap in INR crore, sector as reported). The valuation figures are exactly what evidence.valuation holds (so the Gate B corpus is unchanged); the profile figures come from
+    the same Ticker.info call and never enter the evidence. Nothing is fetched here."""
     for c in companies:
-        v = (valuation or {}).get(str(c.get("symbol", "")).upper()) or {}
+        sym = str(c.get("symbol", "")).upper()
+        v = (valuation or {}).get(sym) or {}
         snap = {k: v[src] for k, src in (("pe", "pe"), ("pb", "pb"), ("week52_low", "52w_low"), ("week52_high", "52w_high")) if v.get(src) is not None}
+        if profile is not None:
+            snap.update({k: val for k, val in (profile(sym) or {}).items() if k in ("market_cap_cr", "sector") and val is not None})
         if snap:
             c["snapshot"] = snap
 
@@ -753,7 +760,7 @@ async def _assemble_response(
     _classify_ripple_position(companies_enriched)
     for c in companies_enriched:
         c.setdefault("why_it_matters", c.get("reason", ""))
-    attach_snapshots(companies_enriched, evidence.valuation)
+    attach_snapshots(companies_enriched, evidence.valuation, profile=_profile_for)
 
     sectors_raw = ai.get("sectors", [])
     for s in sectors_raw:

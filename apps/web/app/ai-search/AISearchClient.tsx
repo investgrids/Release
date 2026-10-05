@@ -4,7 +4,8 @@
 // example questions, truthful loading stages, the transport (streaming or plain request) and Market Pulse, which keeps its own response shape.
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { Bot, CheckCircle2, Clock, AlertTriangle, RotateCcw } from "lucide-react";
+import { Bot, CheckCircle2, Clock, AlertTriangle, RotateCcw, ArrowRight, BarChart3, Building2, Globe2, Lightbulb, Sparkles } from "lucide-react";
+import { IconTile } from "@/components/ai/v2/visuals";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
 import { ResearchingCard } from "@/components/ai/v2/ResearchingCard";
 import { AISearchHistory, AI_SEARCH_HISTORY_KEY, AI_SEARCH_HISTORY_EVENT } from "@/components/ai/AISearchHistory";
@@ -528,15 +529,24 @@ function useSuggestions(): { data: SuggestionData | null; settled: boolean } {
   return state;
 }
 
+const KIND_ICON: Record<string, { icon: React.ComponentType<{ className?: string }>; tone: "violet" | "emerald" | "amber" | "sky" }> = {
+  sector: { icon: BarChart3, tone: "violet" },
+  company: { icon: Building2, tone: "sky" },
+  macro: { icon: Globe2, tone: "amber" },
+  evergreen: { icon: Lightbulb, tone: "emerald" },
+};
+
 function EmptyState({ onSearch, suggestions, settled, onReopen }: { onSearch: (q: string) => void; suggestions: SuggestionData | null; settled: boolean; onReopen: (q: string) => void }) {
   const items: Suggestion[] = suggestions?.items ?? EXAMPLES.slice(0, 6).map((q) => ({ query: q, note: null, kind: "evergreen" }));
   const live = (suggestions?.live ?? 0) > 0;
   const asOf = suggestions?.asOf ? new Date(suggestions.asOf).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : null;
   return (
     <div className="space-y-8 pt-2" data-testid="ai-search-empty">
-      <div className="space-y-2">
-        <h1 className="text-[28px] font-semibold leading-tight tracking-tight text-text-primary sm:text-[34px]">Ask about the Indian market</h1>
-        <p className="max-w-[640px] text-[15px] leading-7 text-text-secondary">
+      <div className="relative space-y-3 overflow-hidden rounded-3xl border border-surface-border/10 bg-surface-card px-6 py-7 shadow-[0_1px_2px_rgba(16,24,40,0.05)] sm:px-8 sm:py-9">
+        <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-gradient-to-br from-violet-500/15 via-fuchsia-400/10 to-sky-400/15 blur-2xl" />
+        <span className="relative inline-flex items-center gap-1.5 rounded-full border border-violet-500/25 bg-violet-500/10 px-3 py-1 text-[12px] font-medium text-violet-700"><Sparkles className="h-3.5 w-3.5" aria-hidden />Evidence-first market research</span>
+        <h1 className="relative text-[30px] font-semibold leading-tight tracking-tight text-text-primary sm:text-[38px]">Ask about the <span className="bg-gradient-to-r from-violet-600 to-sky-500 bg-clip-text text-transparent">Indian market</span></h1>
+        <p className="relative max-w-[640px] text-[15px] leading-7 text-text-secondary">
           Answers are built from live news, exchange filings and market data, and they say plainly what the evidence does not establish.
         </p>
       </div>
@@ -555,9 +565,13 @@ function EmptyState({ onSearch, suggestions, settled, onReopen }: { onSearch: (q
         <ul className="grid gap-3 sm:grid-cols-2">
           {items.map((s) => (
             <li key={s.query}>
-              <button type="button" onClick={() => onSearch(s.query)} className="flex h-full w-full flex-col items-start gap-1 rounded-2xl border border-surface-border/10 bg-surface-card px-4 py-3.5 text-left transition hover:border-violet-500/40" data-kind={s.kind}>
-                <span className="text-[14.5px] font-medium leading-snug text-text-primary">{s.query}</span>
-                {s.note && <span className="text-[12px] leading-4 text-text-muted">{s.note}</span>}
+              <button type="button" onClick={() => onSearch(s.query)} className="group flex h-full w-full items-start gap-3 rounded-2xl border border-surface-border/10 bg-surface-card px-4 py-3.5 text-left shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition hover:-translate-y-0.5 hover:border-violet-500/40 hover:shadow-md" data-kind={s.kind}>
+                <IconTile icon={(KIND_ICON[s.kind] ?? KIND_ICON.evergreen).icon} tone={(KIND_ICON[s.kind] ?? KIND_ICON.evergreen).tone} />
+                <span className="flex min-w-0 flex-1 flex-col gap-1">
+                  <span className="text-[14.5px] font-medium leading-snug text-text-primary">{s.query}</span>
+                  {s.note && <span className="text-[12px] leading-4 text-text-muted">{s.note}</span>}
+                </span>
+                <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-text-muted transition group-hover:translate-x-0.5 group-hover:text-violet-600" aria-hidden />
               </button>
             </li>
           ))}

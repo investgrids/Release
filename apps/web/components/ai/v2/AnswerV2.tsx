@@ -4,22 +4,27 @@
 // what is the answer, what supports it, what is known versus not established, who and what matters, what to look at next. Empty sections do not render.
 import { useState } from "react";
 import Link from "next/link";
-import { RotateCcw, Sparkles } from "lucide-react";
+import { AlertCircle, ArrowRight, Lightbulb, ListChecks, RotateCcw, Sparkles } from "lucide-react";
+import { Avatar, ChangePill, IconTile, KIND_BADGE, KIND_DOT, RangeBar, Sparkline } from "./visuals";
 import { AISearchFeedback } from "@/components/ai/AISearchFeedback";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
 import {
   EVIDENCE_TYPE_LABEL, authorizedVerdict, evidenceStrength, followUps, internalSourceLink, norm, partialNotice, resolveKind, temporaryCopy, unavailableCopy,
-  type V2IndexEntry, type V2Result,
+  type V2IndexEntry, type V2Result, type V2Snapshot,
 } from "./contract";
 
-const CARD = "rounded-2xl border border-surface-border/10 bg-surface-card";
+const CARD = "rounded-2xl border border-surface-border/10 bg-surface-card shadow-[0_1px_2px_rgba(16,24,40,0.05)]";
 const LABEL = "text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted";
 const BODY = "text-[15px] leading-7 text-text-secondary";
 
-function Section({ label, children, testId }: { label: string; children: React.ReactNode; testId?: string }) {
+function Section({ label, children, testId, icon }: { label: string; children: React.ReactNode; testId?: string; icon?: React.ComponentType<{ className?: string }> }) {
   return (
     <section className="space-y-3" data-testid={testId}>
-      <h2 className={LABEL}>{label}</h2>
+      {icon ? (
+        <div className="flex items-center gap-2.5"><IconTile icon={icon} /><h2 className="text-[15px] font-semibold text-text-primary">{label}</h2></div>
+      ) : (
+        <h2 className={LABEL}>{label}</h2>
+      )}
       {children}
     </section>
   );
@@ -149,18 +154,81 @@ const compared = (r: V2Result) => (r.specialist === "comparison" ? (r.companies 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`;
 const pe1 = (n: number) => n.toFixed(1);
 const pb2 = (n: number) => n.toFixed(2);
+/** Market cap arrives in INR crore. */
+const capText = (cr: number) => (cr >= 100000 ? `₹${(cr / 100000).toFixed(2)} lakh Cr` : `₹${cr.toLocaleString("en-IN", { maximumFractionDigits: 0 })} Cr`);
+
+type Rel = "lower" | "higher" | null;
+/** How each company's multiple sits against the other compared companies. A multiple has no good or bad value on its own, so this only ever says lower or higher than the others, and says nothing for a single
+ * company or for equal values. A lower multiple is a cheaper valuation, not automatically a better company. */
+function relativeMultiples(cs: { symbol: string; snapshot?: V2Snapshot | null }[], key: "pe" | "pb"): Map<string, Rel> {
+  const vals = cs.map((c) => [c.symbol, c.snapshot?.[key]] as const).filter((x): x is readonly [string, number] => typeof x[1] === "number");
+  const out = new Map<string, Rel>();
+  if (vals.length < 2) return out;
+  const lo = Math.min(...vals.map((v) => v[1])), hi = Math.max(...vals.map((v) => v[1]));
+  if (lo === hi) return out;
+  vals.forEach(([sym, v]) => out.set(sym, v === lo ? "lower" : v === hi ? "higher" : null));
+  return out;
+}
+const REL_CHIP: Record<string, string> = {
+  lower: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  higher: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  none: "bg-sky-500/10 text-sky-700 dark:text-sky-300",
+};
+
+/** A multiple as a tinted chip. Colour is relative (lower/higher than the compared company) and is always also written out. */
+function Multiple({ label, value, rel }: { label: string; value: string; rel: Rel | undefined }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[12px] ${REL_CHIP[rel ?? "none"]}`} data-rel={rel ?? "none"}>
+      {label} <b className="tabular-nums">{value}</b>{rel && <span className="text-[11px] font-medium opacity-90">· {rel}</span>}
+    </span>
+  );
+}
 
 /** Side-by-side, built only from fields the contract carries: live price and move, the valuation figures the answer was given, and which kinds of evidence exist for each company. */
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+
+/** Change over the last five sessions from the daily closes the answer already carries. Needs at least two closes; otherwise there is no figure. */
+const fiveDay = (chart?: number[] | null) => {
+  const c = (chart ?? []).filter((n) => typeof n === "number" && n > 0);
+  if (c.length < 2) return null;
+  const pct = (c[c.length - 1] / c[0] - 1) * 100;
+  return { text: `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`, up: pct >= 0 };
+};
+
+/** The company's own latest sourced development: its first claim that rests on a news item, event or filing and does not also name another compared company. */
+function latestDevelopment(r: V2Result, c: { symbol: string; name: string }, others: { symbol: string; name: string }[], nums: Map<string, number>) {
+  const kind = new Map((r.evidence_index ?? []).map((e) => [e.id, e.kind]));
+  const mentions = (t: string, x: { symbol: string; name: string }) => norm(t).includes(norm(x.name)) || norm(t).split(" ").includes(norm(x.symbol));
+  const hit = (r.claim_sources ?? []).find((cl) =>
+    (cl.status ?? "ok") === "ok" && cl.company === c.symbol && cl.sources.some((id) => ["news", "event", "announcement", "policy"].includes(kind.get(id) ?? "")) && !others.some((o) => mentions(cl.claim, o)));
+  if (!hit) return null;
+  const marks = Array.from(new Set(hit.sources.map((id) => nums.get(id)).filter((n): n is number => !!n))).sort((a, b) => a - b);
+  return { text: hit.claim, marks };
+}
+
 function ComparisonTable({ r }: { r: V2Result }) {
   const cs = compared(r);
   if (cs.length < 2) return null;
+  const nums = evidenceNumbers(r, listedEvidence(r));
+  const relPe = relativeMultiples(cs, "pe");
+  const relPb = relativeMultiples(cs, "pb");
   const cov = r.conclusion_scope?.coverage ?? {};
   const has = (sym: string, k: "valuation" | "operating") => (cov[sym] ? (cov[sym][k] ? "Available" : "Not yet available") : null);
   const rows: [string, (c: (typeof cs)[number]) => React.ReactNode][] = [
+    ["Latest development", (c) => {
+      const d = latestDevelopment(r, c, cs.filter((o) => o.symbol !== c.symbol), nums);
+      return d ? <span>{d.text}{d.marks.length > 0 && <span className="ml-1 tabular-nums text-text-muted">{d.marks.map((n) => `[${n}]`).join(" ")}</span>}</span> : "—";
+    }],
+    ["Price reaction", (c) => {
+      const f = fiveDay(c.chart);
+      return f ? <span className="flex flex-wrap items-center gap-2"><ChangePill text={f.text} up={f.up} /><span className="text-[11.5px] text-text-muted">5-day</span><Sparkline data={c.chart} w={64} h={22} /></span> : "—";
+    }],
     ["Latest price", (c) => (c.price ? <span className="tabular-nums">₹{c.price}</span> : "—")],
-    ["Today", (c) => (c.change ? <span className={`tabular-nums ${c.positive ? "text-emerald-600" : "text-rose-600"}`}>{c.change}</span> : "—")],
-    ["P/E", (c) => (c.snapshot?.pe != null ? <span className="tabular-nums">{pe1(c.snapshot.pe)}</span> : "—")],
-    ["P/B", (c) => (c.snapshot?.pb != null ? <span className="tabular-nums">{pb2(c.snapshot.pb)}</span> : "—")],
+    ["Today", (c) => (c.change ? <ChangePill text={c.change} up={!!c.positive} /> : "—")],
+    ["Sector", (c) => c.snapshot?.sector ?? "—"],
+    ["Market cap", (c) => (c.snapshot?.market_cap_cr != null ? <span className="tabular-nums">{capText(c.snapshot.market_cap_cr)}</span> : "—")],
+    ["P/E", (c) => (c.snapshot?.pe != null ? <Multiple label="" value={pe1(c.snapshot.pe)} rel={relPe.get(c.symbol)} /> : "—")],
+    ["P/B", (c) => (c.snapshot?.pb != null ? <Multiple label="" value={pb2(c.snapshot.pb)} rel={relPb.get(c.symbol)} /> : "—")],
     ["52-week range", (c) => (c.snapshot?.week52_low != null && c.snapshot?.week52_high != null ? <span className="tabular-nums">{inr(c.snapshot.week52_low)} – {inr(c.snapshot.week52_high)}</span> : "—")],
     ["Valuation evidence", (c) => has(c.symbol, "valuation") ?? "—"],
     ["Operating results", (c) => has(c.symbol, "operating") ?? "—"],
@@ -174,17 +242,22 @@ function ComparisonTable({ r }: { r: V2Result }) {
             <th scope="col" className="w-[30%] px-3 py-3 text-[12px] font-medium text-text-muted sm:px-4">Factor</th>
             {cs.map((c) => (
               <th key={c.symbol} scope="col" className="px-3 py-3 sm:px-4">
-                <Link href={`/companies/${encodeURIComponent(c.symbol)}`} className="font-semibold text-text-primary hover:text-violet-600">{c.name}</Link>
-                <span className="block text-[11.5px] font-normal text-text-muted">NSE: {c.symbol}</span>
+                <div className="flex items-center gap-2.5">
+                  <span className="hidden sm:block"><Avatar name={c.name} /></span>
+                  <div className="min-w-0">
+                    <Link href={`/companies/${encodeURIComponent(c.symbol)}`} className="font-semibold text-text-primary hover:text-violet-600">{c.name}</Link>
+                    <span className="block text-[11.5px] font-normal text-text-muted">NSE: {c.symbol}</span>
+                  </div>
+                </div>
               </th>
             ))}
           </tr>
         </thead>
         <tbody className="divide-y divide-surface-border/10">
           {visible.map(([label, f]) => (
-            <tr key={label}>
+            <tr key={label} className="transition-colors hover:bg-violet-500/[0.03]">
               <th scope="row" className="px-3 py-2.5 text-[12.5px] font-medium text-text-primary sm:px-4 sm:text-[13px]">{label}</th>
-              {cs.map((c) => <td key={c.symbol} className="break-words px-3 py-2.5 text-text-secondary sm:px-4">{f(c)}</td>)}
+              {cs.map((c) => <td key={c.symbol} className="break-words px-3 py-2.5 align-top text-text-secondary sm:px-4">{f(c)}</td>)}
             </tr>
           ))}
         </tbody>
@@ -209,34 +282,52 @@ function EntitySnapshot({ r }: { r: V2Result }) {
   const cs = (r.companies ?? []).filter((c) => c.symbol && c.name).slice(0, 3);
   if (!cs.length) return null;
   const comparison = r.specialist === "comparison";
+  const relPe = relativeMultiples(cs, "pe");
+  const relPb = relativeMultiples(cs, "pb");
+  const anyRel = relPe.size > 0 || relPb.size > 0;
   return (
     <RailCard title="Entity snapshot" testId="entity-snapshot">
-      <ul className="divide-y divide-surface-border/10">
+      <ul className="space-y-4">
         {cs.map((c) => {
           const s = c.snapshot ?? {};
-          const facts: [string, string][] = [];
-          if (s.pe != null) facts.push(["P/E", pe1(s.pe)]);
-          if (s.pb != null) facts.push(["P/B", pb2(s.pb)]);
-          if (s.week52_low != null && s.week52_high != null) facts.push(["52-week range", `${inr(s.week52_low)} – ${inr(s.week52_high)}`]);
+          const price = c.price ? Number.parseFloat(c.price.replace(/,/g, "")) : null;
           return (
-            <li key={c.symbol} className="py-3 first:pt-0 last:pb-0">
-              <div className="flex items-baseline justify-between gap-3">
-                <div className="min-w-0">
-                  <Link href={`/companies/${encodeURIComponent(c.symbol)}`} className="text-[14px] font-semibold text-text-primary hover:text-violet-600">{c.name}</Link>
-                  <p className="text-[11.5px] text-text-muted">NSE: {c.symbol}</p>
+            <li key={c.symbol} className="rounded-xl border border-surface-border/10 p-3 transition hover:border-violet-500/30">
+              <div className="flex items-center gap-3">
+                <Avatar name={c.name} />
+                <div className="min-w-0 flex-1">
+                  <Link href={`/companies/${encodeURIComponent(c.symbol)}`} className="block truncate text-[14px] font-semibold text-text-primary hover:text-violet-600">{c.name}</Link>
+                  <p className="flex flex-wrap items-center gap-x-2 text-[11.5px] text-text-muted"><span>NSE: {c.symbol}</span>{s.sector && <span className="rounded-md bg-slate-500/10 px-1.5 py-0.5 text-[11px] font-medium text-text-secondary" data-testid="sector-chip">{s.sector}</span>}</p>
                 </div>
-                {c.price && <p className="shrink-0 text-[13.5px] tabular-nums text-text-secondary">₹{c.price}{c.change && <span className={`ml-2 ${c.positive ? "text-emerald-600" : "text-rose-600"}`}>{c.change}</span>}</p>}
+                <Sparkline data={c.chart} w={72} h={28} />
               </div>
-              {facts.length > 0 && (
-                <dl className="mt-2 space-y-1 text-[12.5px]">
-                  {facts.map(([k, v]) => <div key={k} className="flex justify-between gap-3"><dt className="text-text-muted">{k}</dt><dd className="tabular-nums text-text-secondary">{v}</dd></div>)}
-                </dl>
+              {c.price && (
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <p className="text-[20px] font-semibold tabular-nums tracking-tight text-text-primary">₹{c.price}</p>
+                  {c.change && <ChangePill text={c.change} up={!!c.positive} />}
+                </div>
               )}
-              {!comparison && c.reason && <p className="mt-1.5 text-[12.5px] leading-5 text-text-muted">{c.reason}</p>}
+              {s.market_cap_cr != null && (
+                <div className="mt-3 flex items-center justify-between text-[12.5px]"><span className="text-text-muted">Market cap</span><span className="font-semibold tabular-nums text-text-primary" data-testid="market-cap">{capText(s.market_cap_cr)}</span></div>
+              )}
+              {(s.pe != null || s.pb != null) && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {s.pe != null && <Multiple label="P/E" value={pe1(s.pe)} rel={relPe.get(c.symbol)} />}
+                  {s.pb != null && <Multiple label="P/B" value={pb2(s.pb)} rel={relPb.get(c.symbol)} />}
+                </div>
+              )}
+              {s.week52_low != null && s.week52_high != null && (
+                <div className="mt-3">
+                  <p className="mb-1.5 text-[11.5px] font-medium text-text-muted">52-week range</p>
+                  <RangeBar low={s.week52_low} high={s.week52_high} price={price} fmt={inr} />
+                </div>
+              )}
+              {!comparison && c.reason && <p className="mt-3 text-[12.5px] leading-5 text-text-muted">{c.reason}</p>}
             </li>
           );
         })}
       </ul>
+      {anyRel && <p className="mt-3 text-[11.5px] leading-4 text-text-muted" data-testid="multiple-legend">Colour compares the companies above: green is the lower multiple, amber the higher. A lower multiple is a cheaper valuation, not automatically a better company.</p>}
     </RailCard>
   );
 }
@@ -266,12 +357,12 @@ function CoverageCard({ r }: { r: V2Result }) {
   const rows = [...s.found.map((k) => [k, true] as const), ...s.missing.map((k) => [k, false] as const)];
   return (
     <RailCard title="Evidence coverage" testId="evidence-coverage">
-      <p className="mb-2 text-[12.5px] text-text-secondary">{s.found.length} of {rows.length} kinds of evidence found</p>
-      <ul className="space-y-1.5 text-[12.5px]">
+      <p className="mb-3 text-[12.5px] text-text-secondary">{s.found.length} of {rows.length} kinds of evidence found</p>
+      <ul className="flex flex-wrap gap-2 text-[12.5px]">
         {rows.map(([k, ok]) => (
-          <li key={k} className="flex items-center gap-2">
-            <span aria-hidden className={`flex h-4 w-4 items-center justify-center rounded-full text-[10px] ${ok ? "bg-emerald-500/15 text-emerald-600" : "bg-surface-border/10 text-text-muted"}`}>{ok ? "✓" : "–"}</span>
-            <span className={ok ? "text-text-primary" : "text-text-muted"}>{k.charAt(0).toUpperCase() + k.slice(1)}</span>
+          <li key={k} className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${ok ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-surface-border/10 text-text-muted"}`}>
+            <span aria-hidden className="text-[10px]">{ok ? "✓" : "–"}</span>
+            <span>{k.charAt(0).toUpperCase() + k.slice(1)}</span>
             <span className="sr-only">{ok ? "found" : "not available"}</span>
           </li>
         ))}
@@ -281,7 +372,6 @@ function CoverageCard({ r }: { r: V2Result }) {
   );
 }
 
-/** What the evidence was made of: counts by kind and the outlets named. No grading of the outlets. */
 const SOURCE_ONE: Record<string, string> = { event: "market event", news: "news article", policy: "policy item", announcement: "exchange filing", context: "live data point" };
 const SOURCE_MANY: Record<string, string> = { event: "market events", news: "news articles", policy: "policy items", announcement: "exchange filings", context: "live data points" };
 
@@ -295,9 +385,12 @@ function SourcesCard({ items }: { items: Listed[] }) {
           const rows = items.filter((e) => e.kind === k);
           const names = Array.from(new Set(rows.map((e) => e.source).filter(Boolean))).slice(0, 4).join(", ");
           return (
-            <li key={k}>
-              <p className="text-[13px] font-medium text-text-primary">{rows.length} {(rows.length === 1 ? SOURCE_ONE : SOURCE_MANY)[k] ?? "evidence items"}</p>
-              {names && <p className="text-[12px] text-text-muted">{names}</p>}
+            <li key={k} className="flex gap-2.5">
+              <span aria-hidden className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${KIND_DOT[k] ?? "bg-slate-400"}`} />
+              <div className="min-w-0">
+                <p className="text-[13px] font-medium text-text-primary">{rows.length} {(rows.length === 1 ? SOURCE_ONE : SOURCE_MANY)[k] ?? "evidence items"}</p>
+                {names && <p className="text-[12px] text-text-muted">{names}</p>}
+              </div>
             </li>
           );
         })}
@@ -309,7 +402,7 @@ function SourcesCard({ items }: { items: Listed[] }) {
 function MethodologyRow() {
   return (
     <Link href="/ai-methodology" className={`${CARD} flex items-center justify-between px-4 py-3 text-[14px] font-semibold text-text-primary transition hover:border-violet-500/40`} data-testid="methodology-link">
-      Methodology <span aria-hidden className="text-text-muted">›</span>
+      <span className="flex items-center gap-2.5"><IconTile icon={Sparkles} tone="sky" />Methodology</span><ArrowRight className="h-4 w-4 text-text-muted" aria-hidden />
     </Link>
   );
 }
@@ -323,15 +416,26 @@ const fmtDate = (s?: string) => {
 };
 const TABLE_SHOWN = 6;
 
+/** The order evidence is numbered in: items the answer used first. The table rows and every [n] marker use this one ordering. */
+const orderedEvidence = (items: Listed[]) => [...items.filter((e) => e.cited), ...items.filter((e) => !e.cited)];
+
+/** Evidence-index id -> the [n] it carries in the table. Matched by title, because the index and the listed items come from different arrays. */
+function evidenceNumbers(r: V2Result, items: Listed[]): Map<string, number> {
+  const pos = new Map(orderedEvidence(items).map((e, i) => [norm(e.title), i + 1]));
+  const out = new Map<string, number>();
+  (r.evidence_index ?? []).forEach((e) => { const n = pos.get(norm(e.title)); if (n) out.set(e.id, n); });
+  return out;
+}
+
 /** The sources behind the answer as a numbered table (number, date, source, headline). Items the answer used come first. Plain text; nothing links off-site. */
 function KeyEvidenceTable({ items, count }: { items: Listed[]; count: number }) {
   const [all, setAll] = useState(false);
   if (!items.length) return null;
-  const ordered = [...items.filter((e) => e.cited), ...items.filter((e) => !e.cited)];
+  const ordered = orderedEvidence(items);
   const shown = all ? ordered : ordered.slice(0, TABLE_SHOWN);
   return (
     <section className="space-y-3" data-testid="evidence-list">
-      <h2 className="text-[15px] font-semibold text-text-primary">Key evidence and sources <span className="font-normal text-text-muted">({count})</span></h2>
+      <div className="flex items-center gap-2.5"><IconTile icon={ListChecks} tone="sky" /><h2 className="text-[15px] font-semibold text-text-primary">Key evidence and sources <span className="font-normal text-text-muted">({count})</span></h2></div>
       <div className={`${CARD} overflow-x-auto`}>
         <table className="w-full text-left text-[13px]">
           <thead>
@@ -351,7 +455,7 @@ function KeyEvidenceTable({ items, count }: { items: Listed[]; count: number }) 
                 <td className="px-2 py-2.5 text-text-primary">
                   {e.title}
                   <span className="mt-0.5 block text-[11.5px] text-text-muted sm:hidden">{[e.source, fmtDate(e.date)].filter(Boolean).join(" · ")}</span>
-                  <span className="mt-0.5 block text-[11.5px] text-text-muted">{EVIDENCE_TYPE_LABEL[e.kind]}{e.cited && <span className="ml-2 text-violet-600">Used in this answer</span>}</span>
+                  <span className="mt-1 flex flex-wrap items-center gap-1.5"><span className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${KIND_BADGE[e.kind] ?? KIND_BADGE.context}`}>{EVIDENCE_TYPE_LABEL[e.kind]}</span>{e.cited && <span className="rounded-md bg-violet-500/10 px-1.5 py-0.5 text-[11px] font-medium text-violet-700">Used in this answer</span>}</span>
                 </td>
               </tr>
             ))}
@@ -372,13 +476,14 @@ function NextSteps({ questions, onAsk }: { questions: string[]; onAsk: (q: strin
   if (!questions.length) return null;
   return (
     <section className="space-y-3" data-testid="follow-ups">
-      <h2 className="text-[15px] font-semibold text-text-primary">Where to look next</h2>
+      <div className="flex items-center gap-2.5"><IconTile icon={ArrowRight} tone="emerald" /><h2 className="text-[15px] font-semibold text-text-primary">Where to look next</h2></div>
       <ol className="grid gap-3 sm:grid-cols-2">
         {questions.map((q, i) => (
           <li key={q}>
-            <button type="button" onClick={() => onAsk(q)} className="flex h-full w-full items-start gap-3 rounded-2xl border border-surface-border/10 bg-surface-card px-4 py-3.5 text-left text-[14px] leading-snug text-text-primary transition hover:border-violet-500/40">
-              <span aria-hidden className="mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-violet-500/40 text-[12px] font-semibold text-violet-600">{i + 1}</span>
-              <span>{q}</span>
+            <button type="button" onClick={() => onAsk(q)} className="group flex h-full w-full items-start gap-3 rounded-2xl border border-surface-border/10 bg-surface-card px-4 py-3.5 text-left text-[14px] leading-snug text-text-primary shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition hover:-translate-y-0.5 hover:border-violet-500/40 hover:shadow-md">
+              <span aria-hidden className="mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500/10 text-[12px] font-semibold text-violet-700">{i + 1}</span>
+              <span className="flex-1">{q}</span>
+              <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-text-muted transition group-hover:translate-x-0.5 group-hover:text-violet-600" aria-hidden />
             </button>
           </li>
         ))}
@@ -446,9 +551,10 @@ function ResearchView({ result: r, onFollowUp, onNewSearch, feedbackMeta }: Prop
       <PageHead r={r} crumb={crumb} onNewSearch={onNewSearch} />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-6">
-          <section className={`${CARD} space-y-6 p-5 sm:p-6`} data-testid="answer-card">
+          <section className={`${CARD} relative space-y-6 overflow-hidden p-5 sm:p-6`} data-testid="answer-card">
+            <div aria-hidden className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-500 via-fuchsia-400 to-sky-400" />
             <div className="flex flex-wrap items-center gap-2">
-              <Sparkles className="h-5 w-5 text-violet-600" aria-hidden />
+              <IconTile icon={Sparkles} />
               <h2 className="mr-1 text-[16px] font-semibold text-text-primary">{cardTitle}</h2>
               {SPECIALIST_CHIP[spec] && <Chip tone="violet">{SPECIALIST_CHIP[spec]}</Chip>}
               {count > 0 && <Chip>{count} {count === 1 ? "source" : "sources"} reviewed</Chip>}
@@ -462,7 +568,7 @@ function ResearchView({ result: r, onFollowUp, onNewSearch, feedbackMeta }: Prop
               </div>
             )}
             <div className="space-y-3">
-              <p className="text-[20px] font-semibold leading-snug tracking-tight text-text-primary sm:text-[22px]" data-testid="lead">{lead}</p>
+              <p className="text-[21px] font-semibold leading-snug tracking-tight text-text-primary sm:text-[24px]" data-testid="lead">{lead}</p>
               {short && <p className={BODY} data-testid="in-short"><span className="font-semibold text-text-primary">In short: </span>{short}</p>}
             </div>
             <ComparisonTable r={r} />
@@ -474,7 +580,7 @@ function ResearchView({ result: r, onFollowUp, onNewSearch, feedbackMeta }: Prop
               </div>
             )}
             {(claims.length > 0 || what) && (
-              <Section label="What the evidence shows" testId="observations">
+              <Section label="What the evidence shows" testId="observations" icon={ListChecks}>
                 <ul className="space-y-4">
                   {claims.map((c) => (
                     <li key={c.claim} className="border-l-2 border-surface-border/20 pl-4">
@@ -487,7 +593,7 @@ function ResearchView({ result: r, onFollowUp, onNewSearch, feedbackMeta }: Prop
               </Section>
             )}
             {(drivers.length > 0 || meaning.length > 0) && (
-              <Section label="What it means" testId="meaning">
+              <Section label="What it means" testId="meaning" icon={Lightbulb}>
                 <div className="space-y-3">
                   {drivers.map((d) => <p key={d.title} className={BODY}><span className="font-semibold text-text-primary">{d.title}. </span>{d.explanation}</p>)}
                   {meaning.map(([k, t]) => <p key={k} className={BODY}><span className="font-semibold text-text-primary">{k}. </span>{t}</p>)}
@@ -495,7 +601,7 @@ function ResearchView({ result: r, onFollowUp, onNewSearch, feedbackMeta }: Prop
               </Section>
             )}
             {(limits.length > 0 || opps.length > 0) && (
-              <Section label="Known limits" testId="limits">
+              <Section label="Known limits" testId="limits" icon={AlertCircle}>
                 <ul className="space-y-2">
                   {limits.map((t) => <li key={t} className={`${BODY} flex gap-3`}><span aria-hidden className="mt-3 h-1 w-1 shrink-0 rounded-full bg-text-muted" />{t}</li>)}
                   {opps.map((t) => <li key={t} className={`${BODY} flex gap-3`}><span aria-hidden className="mt-3 h-1 w-1 shrink-0 rounded-full bg-text-muted" />{t}</li>)}

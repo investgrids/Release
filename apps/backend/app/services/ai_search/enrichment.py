@@ -51,6 +51,21 @@ def _enrich_sync(companies: list[dict]) -> list[dict]:
 
 
 # ── Valuation data fetch ──────────────────────────────────────────────────────
+# Company profile figures seen during the valuation fetch (market cap and sector come from the same Ticker.info call, so they cost nothing extra). Kept OUT of evidence.valuation on purpose:
+# that dict feeds the Gate B authorization corpus, which must equal what the model was shown. These are display-only.
+_PROFILE_TTL_S = 900
+_PROFILES: dict[str, dict] = {}
+
+
+def profile_for(symbol: str) -> dict:
+    """Display-only profile (market_cap_cr in INR crore, sector as reported) for a symbol seen recently, else {}."""
+    import time
+    p = _PROFILES.get(str(symbol).upper())
+    if not p or time.time() - p.get("_at", 0) > _PROFILE_TTL_S:
+        return {}
+    return {k: v for k, v in p.items() if not k.startswith("_") and v is not None}
+
+
 def _fetch_valuation_sync(symbols: list[str]) -> dict:
     """Fetch P/E, P/B, 52W range from yfinance for valuation-sensitive queries."""
     import yfinance as yf
@@ -62,6 +77,12 @@ def _fetch_valuation_sync(symbols: list[str]) -> dict:
             pb  = info.get("priceToBook")
             hi  = info.get("fiftyTwoWeekHigh")
             lo  = info.get("fiftyTwoWeekLow")
+            mc  = info.get("marketCap")
+            _PROFILES[sym.upper()] = {
+                "market_cap_cr": round(float(mc) / 1e7, 1) if mc else None,
+                "sector": (info.get("sector") or None),
+                "_at": __import__("time").time(),
+            }
             result[sym] = {
                 k: v for k, v in {
                     "pe": round(float(pe), 1) if pe else None,
