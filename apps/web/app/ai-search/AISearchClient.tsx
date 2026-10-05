@@ -509,21 +509,26 @@ export function MarketPulseResults({ result }: { result: MarketPulseResult }) {
 interface Suggestion { query: string; note: string | null; kind: string }
 interface SuggestionData { items: Suggestion[]; asOf: string | null; live: number }
 
-/** Today's example questions, built by the backend from the live market (sector moves, live headlines). Falls back to the static examples if it cannot be reached. */
-function useSuggestions(): SuggestionData | null {
-  const [data, setData] = useState<SuggestionData | null>(null);
+const SUGGESTIONS_WAIT_MS = 5000;
+
+/** Today's example questions, built by the backend from the live market (sector moves, live headlines). `settled` turns true once the request has answered, failed or run out of patience, so the landing shows one set of questions and never swaps a static set for the live one. */
+function useSuggestions(): { data: SuggestionData | null; settled: boolean } {
+  const [state, setState] = useState<{ data: SuggestionData | null; settled: boolean }>({ data: null, settled: false });
   useEffect(() => {
     let off = false;
-    fetch(`${API}/api/ai/search/suggestions`)
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), SUGGESTIONS_WAIT_MS);
+    fetch(`${API}/api/ai/search/suggestions`, { signal: ctl.signal })
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (!off && j?.items?.length) setData({ items: j.items, asOf: j.as_of ?? null, live: j.live_count ?? 0 }); })
-      .catch(() => { /* static examples are used */ });
-    return () => { off = true; };
+      .then((j) => { if (!off) setState({ data: j?.items?.length ? { items: j.items, asOf: j.as_of ?? null, live: j.live_count ?? 0 } : null, settled: true }); })
+      .catch(() => { if (!off) setState({ data: null, settled: true }); /* static examples are used */ })
+      .finally(() => clearTimeout(timer));
+    return () => { off = true; ctl.abort(); clearTimeout(timer); };
   }, []);
-  return data;
+  return state;
 }
 
-function EmptyState({ onSearch, suggestions, onReopen }: { onSearch: (q: string) => void; suggestions: SuggestionData | null; onReopen: (q: string) => void }) {
+function EmptyState({ onSearch, suggestions, settled, onReopen }: { onSearch: (q: string) => void; suggestions: SuggestionData | null; settled: boolean; onReopen: (q: string) => void }) {
   const items: Suggestion[] = suggestions?.items ?? EXAMPLES.slice(0, 6).map((q) => ({ query: q, note: null, kind: "evergreen" }));
   const live = (suggestions?.live ?? 0) > 0;
   const asOf = suggestions?.asOf ? new Date(suggestions.asOf).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : null;
@@ -535,6 +540,14 @@ function EmptyState({ onSearch, suggestions, onReopen }: { onSearch: (q: string)
           Answers are built from live news, exchange filings and market data, and they say plainly what the evidence does not establish.
         </p>
       </div>
+      {!settled ? (
+        <section className="space-y-3" data-testid="suggestions-loading" aria-busy="true" aria-label="Loading example questions">
+          <div className="h-3 w-40 rounded bg-surface-border/10" />
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {[0, 1, 2, 3, 4, 5].map((i) => <li key={i} className="h-[62px] rounded-2xl border border-surface-border/10 bg-surface-card" />)}
+          </ul>
+        </section>
+      ) : (
       <section className="space-y-3" data-testid="suggestions">
         <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
           {live ? "Today in the market" : "Try asking"}{live && asOf ? <span className="ml-2 font-normal normal-case tracking-normal">updated {asOf}</span> : null}
@@ -550,6 +563,7 @@ function EmptyState({ onSearch, suggestions, onReopen }: { onSearch: (q: string)
           ))}
         </ul>
       </section>
+      )}
       <AISearchHistory onReopen={onReopen} />
     </div>
   );
@@ -582,7 +596,7 @@ export default function AISearchClient() {
   const searchParams = useSearchParams();
   const v3Stream = useAISearchStream();
   const session = useResearchSession();
-  const suggestions = useSuggestions();
+  const { data: suggestions, settled: suggestionsSettled } = useSuggestions();
   const [clarification, setClarification] = useState<{ term: string; candidates: { symbol: string; name: string }[]; originalQuery: string } | null>(null);
 
   useEffect(() => {
@@ -773,7 +787,7 @@ export default function AISearchClient() {
             />
           )
       ) : (
-        <EmptyState onSearch={runSearch} suggestions={suggestions} onReopen={runSearch} />
+        <EmptyState onSearch={runSearch} suggestions={suggestions} settled={suggestionsSettled} onReopen={runSearch} />
       )}
     </div>
   );

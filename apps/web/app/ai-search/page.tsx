@@ -22,7 +22,7 @@ export default async function AISearchPage({
   return (
     <>
     {/* AI Search sits on a plain white page in light mode (the answer cards are white surfaces, so a grey page behind them reads as a grey UI). Scoped to this route: the style unmounts on navigation, and dark mode is untouched. */}
-    <style>{`:root:not([data-theme="dark"]) body { background-color: #ffffff; }`}</style>
+    <style>{`:root:not([data-theme="dark"]), :root:not([data-theme="dark"]) body { background-color: #ffffff; }`}</style>
     <Suspense fallback={
       <div className="flex h-32 items-center justify-center">
         <div className="h-5 w-5 animate-spin rounded-full border-2 border-violet-500 border-t-transparent"/>

@@ -24,6 +24,19 @@ describe("landing", () => {
     expect(screen.getByText(/Today in the market/)).toBeInTheDocument();
   });
 
+  it("never shows the static set first: a neutral placeholder holds until the live questions arrive", async () => {
+    let release: (v: unknown) => void = () => {};
+    vi.stubGlobal("fetch", vi.fn(() => new Promise((res) => { release = res; })));
+    render(<AISearchClient />);
+    expect(screen.getByTestId("suggestions-loading")).toBeInTheDocument();
+    expect(screen.queryByText(/Try asking/)).toBeNull();
+    expect(screen.queryByTestId("suggestions")).toBeNull();
+    release({ ok: true, json: async () => live });
+    expect(await screen.findByText("What is driving the Banking sector today?")).toBeInTheDocument();
+    expect(screen.queryByText(/Try asking/)).toBeNull();
+    expect(screen.queryByTestId("suggestions-loading")).toBeNull();
+  });
+
   it("falls back to the static examples when the suggestions cannot be fetched", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); }));
     render(<AISearchClient />);
