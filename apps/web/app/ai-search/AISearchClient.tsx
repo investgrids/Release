@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { Bot, CheckCircle2, Clock, AlertTriangle, RotateCcw } from "lucide-react";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
-import { SearchProgressStages } from "@/components/ai/SearchProgressStages";
+import { ResearchingCard } from "@/components/ai/v2/ResearchingCard";
 import { AISearchHistory, AI_SEARCH_HISTORY_KEY, AI_SEARCH_HISTORY_EVENT } from "@/components/ai/AISearchHistory";
 import { useResearchSession, type SessionEntity } from "@/lib/hooks/useResearchSession";
 import { ContextChips } from "@/components/ai/ContextChips";
@@ -569,16 +569,6 @@ function EmptyState({ onSearch, suggestions, settled, onReopen }: { onSearch: (q
   );
 }
 
-function Working({ query }: { query: string }) {
-  return (
-    <div className="rounded-2xl border border-surface-border/10 bg-surface-card p-6" data-testid="ai-search-working">
-      <p className="text-[13px] text-text-muted">Researching</p>
-      <p className="mt-1 text-[16px] font-medium text-text-primary">{query}</p>
-      <p className="mt-3 text-[13px] text-text-muted">Gathering evidence and checking it. This can take up to half a minute.</p>
-    </div>
-  );
-}
-
 
 // ── Page ──────────────────────────────────────────────────────
 
@@ -763,9 +753,7 @@ export default function AISearchClient() {
           }}
         />
       ) : loading ? (
-        AI_SEARCH_V3_ENABLED && v3Stream.stageHistory.length > 0
-          ? <SearchProgressStages query={query} stageHistory={v3Stream.stageHistory} elapsedMs={v3Stream.elapsedMs} loading={v3Stream.loading} />
-          : <Working query={query} />
+        <ResearchingCard query={query} stages={AI_SEARCH_V3_ENABLED ? v3Stream.stageHistory : []} />
       ) : result ? (
         result.type === "market_pulse"
           ? <MarketPulseResults result={result as MarketPulseResult} />
