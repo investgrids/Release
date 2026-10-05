@@ -1,0 +1,38 @@
+{
+  "provider_calls_made": 0,
+  "retrieval_failures": {},
+  "news": [
+    {
+      "headline": "HDFC Bank, YES Bank, AU SFB: Bank stocks jump; Bank Nifty up over 1% - Q2 business updates, share price rally explained",
+      "published_at": "3h ago",
+      "source": "Livemint",
+      "summary_NOT_visible": "Nifty Bank jumped 1.4% in morning trade to an intraday high of 55,192.65, with HDFC Bank, ICICI Bank, Kotak Mahindra Bank, Axis Bank, YES Bank, and AU Small Finance Bank among top gainers. Some of the"
+    }
+  ],
+  "announcements": [
+    "Kotak Mahindra Bank Limited has informed the Exchange about Investor Presentation",
+    "Kotak Mahindra Bank Limited has informed the Exchange about General Updates."
+  ],
+  "events": [],
+  "context_lines": [
+    "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+    "Company context for KOTAKBANK (real, from Intelligence Graph): The Nifty 50 and Bank Nifty are slightly down, with the market trading in a tight range as investors await the RBI’s upcoming repo rate decision. The lack of sectoral movement suggests a cautious stance amid concerns ove · Mood: Cautious Bull",
+    "DEVELOPMENT MEMORY (real, from Market Ripple's Intelligence Brain)\n\nDevelopment: Kotak Mahindra Bank Limited has informed the Exchange about General Updates.\nReconciliation: no_signal (confidence: 28%)"
+  ],
+  "prompt_evidence_markers": [
+    "A1",
+    "A2",
+    "C1",
+    "C2",
+    "C3",
+    "N1"
+  ],
+  "gate_a": {
+    "status": "SUFFICIENT",
+    "context": [
+      "HDFC Bank, YES Bank, AU SFB: Bank stocks jump; Bank Nifty up over 1% - Q2 business updates, share pr",
+      "Kotak Mahindra Bank Limited has informed the Exchange about Investor Presentation"
+    ]
+  },
+  "visible_announcement_and_context_text": "[C1] LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)\n\n[C2] Company context for KOTAKBANK (real, from Intelligence Graph): The Nifty 50 and Bank Nifty are slightly down, with the market trading in a tight range as investors await the RBI’s upcoming repo rate decision. The lack of sectoral movement suggests a cautious stance amid concerns ove · Mood: Cautious Bull\n\n[C3] DEVELOPMENT MEMORY (real, from Market Ripple's Intelligence Brain)\n\nDevelopment: Kotak Mahindra Bank Limited has informed the Exchange about General Updates.\nReconciliation: no_signal (confidence: 28%)\n\nRecent filed announcements (real, from NSE):\n- [A1] KOTAKBANK: Kotak Mahindra Bank Limited has informed the Exchange about Investor Presentation (filing, 2026-08-17)\n- [A2] KOTAKBANK: Kotak Mahindra Bank Limited has informed the Exchange about General Updates. (filing, 2026-08-24)"
+}
