@@ -1,0 +1,1581 @@
+{
+  "mode": "live",
+  "model": "gpt-6-luna",
+  "cap": 1,
+  "model_requests_made": 1,
+  "stopped": null,
+  "results": {
+    "EI3": {
+      "id": "EI3",
+      "query": "Banking sector just reported stronger credit growth, what is the impact?",
+      "entities": {
+        "companies": [],
+        "sectors": [
+          "banking"
+        ],
+        "policies": []
+      },
+      "wall_s": 34.03,
+      "calls": [
+        {
+          "provider": "openai-benchmark-project",
+          "model": "gpt-6-luna",
+          "max_completion_tokens": 6500,
+          "prompt_chars": 8449,
+          "approx_input_tokens": 2112,
+          "latency_ms": 19188,
+          "status": 200,
+          "limit_headers": {
+            "openai-processing-ms": "17861",
+            "x-ratelimit-limit-requests": "50",
+            "x-ratelimit-limit-tokens": "100000",
+            "x-ratelimit-remaining-requests": "44",
+            "x-ratelimit-remaining-tokens": "52256",
+            "x-ratelimit-reset-requests": "2h25m27.301s",
+            "x-ratelimit-reset-tokens": "343h45m24.48s",
+            "x-request-id": "req_0a8297d6879a4ed28cbb7d9336b20426"
+          },
+          "response_model": "gpt-6-luna",
+          "finish_reason": "stop",
+          "output_chars": 2115,
+          "usage": {
+            "prompt_tokens": 2064,
+            "completion_tokens": 2246,
+            "total_tokens": 4310
+          },
+          "reasoning_tokens": 1676,
+          "would_exceed_30s": false,
+          "raw_output": "{\n  \"investment\": {\n    \"summary\": \"The available MarketRipple evidence does not establish the reported stronger credit growth or its sector impact. Banking was +0.5% for the day; PSU Bank was +1.2%, while Private Bank was -0.1%.\",\n    \"bottom_line\": \"The available MarketRipple evidence does not establish the reported stronger credit growth or its sector impact. Banking was +0.5% for the day; PSU Bank was +1.2%, while Private Bank was -0.1%.\"\n  },\n  \"claim_sources\": [\n    {\n      \"claim\": \"Banking was +0.5% for the day; PSU Bank was +1.2%, while Private Bank was -0.1%.\",\n      \"sources\": [\"C2\"]\n    }\n  ],\n  \"evidence\": {\n    \"what_happened\": \"\",\n    \"why_it_happened\": \"\",\n    \"key_drivers\": []\n  },\n  \"sector_analysis\": {\n    \"current_trend\": \"Banking was +0.5% for the day; PSU Bank was +1.2%, while Private Bank was -0.1%.\",\n    \"government_drivers\": [],\n    \"macro_drivers\": []\n  },\n  \"companies\": [],\n  \"sectors\": [\n    {\n      \"name\": \"Banking\",\n      \"explanation\": \"Banking was +0.5% for the day; PSU Bank was +1.2%, while Private Bank was -0.1%.\"\n    }\n  ],\n  \"timeline\": {\n    \"milestones\": []\n  },\n  \"risks\": {\n    \"risks\": [\n      \"The available evidence does not establish whether the reported credit growth affects earnings or asset quality.\"\n    ],\n    \"opportunities\": []\n  },\n  \"extras\": {\n    \"monitoring\": {\n      \"items\": [\n        {\n          \"label\": \"Credit-growth disclosures\",\n          \"importance\": \"critical\",\n          \"why_it_matters\": \"The reported growth's scale and breadth would help establish its sector impact.\",\n          \"frequency\": \"As released\"\n        },\n        {\n          \"label\": \"Bank earnings and asset quality\",\n          \"importance\": \"critical\",\n          \"why_it_matters\": \"These data would help assess whether the reported credit growth is reflected in financial outcomes.\",\n          \"frequency\": \"As released\"\n        }\n      ]\n    },\n    \"follow_up_questions\": [\n      \"What were the reported credit-growth figures and the period they cover?\",\n      \"Are bank earnings and asset-quality data available to assess the effect of that growth?\"\n    ]\n  }\n}"
+        }
+      ],
+      "model_calls": 1,
+      "expected_model_calls": null,
+      "call_count_as_expected": null,
+      "response": {
+        "query": "Banking sector just reported stronger credit growth, what is the impact?",
+        "response_id": "2dd66bf9-29a8-4ee6-a1fd-630484d08942",
+        "schema_version": "v3.0",
+        "specialist": "sector",
+        "intent": "news_reaction",
+        "ui_mode": "event_impact",
+        "switch_holding": null,
+        "switch_target": null,
+        "degraded_reason": null,
+        "synthesis_incomplete": false,
+        "answer": {
+          "summary": "The available MarketRipple evidence does not establish the reported stronger credit growth or its sector impact. Banking was +0.5% for the day; PSU Bank was +1.2%, while Private Bank was -0.1%.",
+          "bottom_line": "The available MarketRipple evidence does not establish the reported stronger credit growth or its sector impact. Banking was +0.5% for the day; PSU Bank was +1.2%, while Private Bank was -0.1%.",
+          "what_happened": "",
+          "why_it_happened": "",
+          "immediate_impact": "",
+          "medium_term": "",
+          "long_term": "",
+          "what_priced_in": "",
+          "risks": [
+            "The available evidence does not establish whether the reported credit growth affects earnings or asset quality."
+          ],
+          "opportunities": [],
+          "confidence": 42.5,
+          "confidence_level": "Medium",
+          "sentiment": null,
+          "sources_count": 27
+        },
+        "key_drivers": [],
+        "insights": [],
+        "companies": [],
+        "sectors": [
+          {
+            "name": "Banking",
+            "explanation": "Banking was +0.5% for the day; PSU Bank was +1.2%, while Private Bank was -0.1%.",
+            "score": null,
+            "outlook": null,
+            "positive": null,
+            "confidence": null
+          }
+        ],
+        "related_events": [
+          {
+            "id": "rss-22bbfbb737a0",
+            "slug": "rbi-remains-cautious-on-crypto-backs-underlying-technology-governor-sanjay-malhotra",
+            "title": "RBI Remains Cautious On Crypto, Backs Underlying Technology: Governor Sanjay Malhotra",
+            "summary": "RBI Governor Sanjay Malhotra stated India promotes blockchain and tokenisation technology but remains cautious on cryptocurrencies due to concerns over monetary sovereignty and policy.",
+            "category": "Market",
+            "impact_score": 68.2,
+            "confidence": 50.0,
+            "sectors": [
+              "IT",
+              "Financial Services",
+              "Banking",
+              "Infrastructure"
+            ],
+            "companies": [],
+            "date": "Oct 03, 2026",
+            "source": "NDTV Profit",
+            "event_date": null,
+            "published_at": "2026-10-03T10:25:15.466208"
+          },
+          {
+            "id": "rss-d59fc9906a97",
+            "slug": "sebi-proposes-mandatory-colour-coded-credit-risk-o-meter-for-debt-securities",
+            "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+            "summary": "The Securities and Exchange Board of India (Sebi) has introduced a mandatory Credit Risk-o-Meter for debt securities, aiming to enhance investor awareness regarding credit risk. This user-friendly tool features a standardized, colour-coded scale, similar to those used in mutual funds. Issuers and on",
+            "category": "Market",
+            "impact_score": 62.4,
+            "confidence": 50.0,
+            "sectors": [
+              "Financial Services",
+              "Banking",
+              "Mutual Funds",
+              "IT",
+              "Insurance"
+            ],
+            "companies": [],
+            "date": "Aug 14, 2026",
+            "source": "Economic Times",
+            "event_date": null,
+            "published_at": "2026-08-14T05:40:27.378039"
+          },
+          {
+            "id": "rss-ad00a27f34b9",
+            "slug": "rbi-to-close-fcnr-b-swaps-a-month-earlier-due-to-gush",
+            "title": "RBI to close FCNR(B) swaps a month earlier due to gush",
+            "summary": "The Reserve Bank of India has moved the FCNR(B) deposit deadline to August 31 in response to better-than-expected foreign currency inflows. This adjustment follows a positive uptake of the swap facility linked to these deposits, with inflows surpassing previous totals. Meanwhile, the swap schemes fo",
+            "category": "Market",
+            "impact_score": 61.6,
+            "confidence": 35.0,
+            "sectors": [
+              "Banking",
+              "Financial Services",
+              "Energy",
+              "IT",
+              "FMCG"
+            ],
+            "companies": [
+              "HDFCBANK.NS",
+              "ICICIBANK.NS",
+              "SBIN.NS"
+            ],
+            "date": "Aug 15, 2026",
+            "source": "Economic Times",
+            "event_date": null,
+            "published_at": "2026-08-15T04:20:19.977742"
+          },
+          {
+            "id": "nse-3fe23e9e4b",
+            "slug": "disclosure-under-regulation-30-of-the-sebi-listing-obligations-and-disclosure-requirements-regulation-2015-renewal-of-loan-credit-facility",
+            "title": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+            "summary": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+            "category": "Market",
+            "impact_score": 58.2,
+            "confidence": 35.0,
+            "sectors": [
+              "Banking",
+              "Financial Services",
+              "Infrastructure",
+              "Metals",
+              "Realty"
+            ],
+            "companies": [
+              "NIMBSPROJ"
+            ],
+            "date": "Aug 12, 2026",
+            "source": "NSE",
+            "event_date": null,
+            "published_at": "2026-08-12T16:33:33.702605"
+          },
+          {
+            "id": "rss-452ba91505d8",
+            "slug": "rupee-holds-steady-at-95-44-amidst-rbi-intervention",
+            "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+            "summary": "The Indian rupee remained stable on Thursday, closing near its previous level.  Dollar sales by the Reserve Bank of India kept the local unit within a tight range.  Demand from maturing forwards and debt outflows added pressure to the currency.  Traders observed a narrow trading band, anticipating f",
+            "category": "Market",
+            "impact_score": 57.1,
+            "confidence": 50.0,
+            "sectors": [
+              "Banking",
+              "IT",
+              "Pharma",
+              "Energy",
+              "Export Oriented Sectors (IT, Pharma)"
+            ],
+            "companies": [],
+            "date": "Aug 14, 2026",
+            "source": "Economic Times",
+            "event_date": null,
+            "published_at": "2026-08-14T02:00:43.280534"
+          },
+          {
+            "id": "rss-4b6b8365cd2b",
+            "slug": "rupee-logs-weekly-decline-with-rbi-intervention-curbing-losses",
+            "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+            "summary": "The Indian rupee faced a challenging week, depreciating against the dollar amidst mounting tensions from the Middle East conflict. Despite this, central bank interventions and steady dollar sales by state banks helped mitigate more significant losses. With India relying on imports for about ninety p",
+            "category": "Market",
+            "impact_score": 55.3,
+            "confidence": 50.0,
+            "sectors": [
+              "Energy",
+              "IT",
+              "Pharma",
+              "FMCG",
+              "Chemicals"
+            ],
+            "companies": [
+              "RELIANCE",
+              "ONGC",
+              "TATAMOTORS",
+              "INFY",
+              "HINDUNILVR"
+            ],
+            "date": "Aug 14, 2026",
+            "source": "Economic Times",
+            "event_date": null,
+            "published_at": "2026-08-14T10:55:41.495253"
+          }
+        ],
+        "news": [
+          {
+            "id": "live-d08966a50cf2",
+            "headline": "RBI likely intervenes to support rupee, traders say",
+            "summary": "The Reserve Bank of India intervened in the foreign exchange market to support the rupee. This action was taken as the currency faced pressure from a stronger dollar and fluctuating oil prices. Trader",
+            "source": "Economic Times",
+            "published_at": "20m ago",
+            "impact_score": 8.5,
+            "url": "https://economictimes.indiatimes.com/markets/forex/rbi-likely-intervenes-to-support-rupee-traders-say/articleshow/134686004.cms"
+          },
+          {
+            "id": "live-55ffbb46f20a",
+            "headline": "Indian markets open higher amid positive global cues; PSU bank stocks lead - Telangana Today",
+            "summary": "Indian markets open higher amid positive global cues; PSU bank stocks lead&nbsp;&nbsp;Telangana Today",
+            "source": "Google News",
+            "published_at": "34m ago",
+            "impact_score": 7.0,
+            "url": "https://news.google.com/rss/articles/CBMiogFBVV95cUxOT0JWTHVSSTFPNlNvX1RuY21VRzA4WHBnN0JjRGdDd3dadjU5NllDZWZ6RGdwNWowTXNDYmgtNWJ4d2VWZGRJMEFsTmtKU1R0T0ZGeHc4UlBvU2thYzBHeWotYmRJaHV4YW5GVkdQMWN6VXBORG5JdGlWLWxsUllNZmdkLUp5V0IwVWhlNVF2bl9HVDkxNm55UEJ3TmNPWlFRM1E?oc=5"
+          },
+          {
+            "id": "live-ef1a981a7f99",
+            "headline": "Yes Bank shares rise 3% after Q2 business update shows loans surging 24% YoY, deposits up 20%",
+            "summary": "Yes Bank shares rose after the lender reported a 23.8% YoY growth in loans and advances to around Rs 3.1 lakh crore in Q2 FY27. Deposits also grew nearly 20% YoY, signalling continued business momentu",
+            "source": "Economic Times",
+            "published_at": "53m ago",
+            "impact_score": 7.5,
+            "url": "https://economictimes.indiatimes.com/markets/stocks/news/yes-bank-shares-rise-3-after-q2-business-update-shows-loans-surging-24-yoy-deposits-up-20/articleshow/134685404.cms"
+          },
+          {
+            "id": "live-82948d56e7a0",
+            "headline": "Why is market rising today? Sensex rallies 700 points, Nifty above 22,600. 6 key factors driving rebound",
+            "summary": "After a long slump, the Indian stock market is experiencing a refreshing surge, with both Sensex and Nifty indices showcasing notable increases. The recent leadership transition at HDFC Bank has invig",
+            "source": "Economic Times",
+            "published_at": "58m ago",
+            "impact_score": 8.5,
+            "url": "https://economictimes.indiatimes.com/markets/stocks/news/why-is-market-rising-today-sensex-gains-nearly-500-pts-nifty-above-22550-7-key-factors-driving-rebound/articleshow/134685325.cms"
+          },
+          {
+            "id": "live-93fe9b163d82",
+            "headline": "HDFC Bank shares rise 2% after appointing Anup Bagchi as new CEO, Q2 biz update. Buy, sell or hold?",
+            "summary": "HDFC Bank shares rose after Anup Bagchi was appointed as the bank’s new MD &amp; CEO, ending months of uncertainty over its top leadership. Brokerages Jefferies, Morgan Stanley and Citi retained posit",
+            "source": "Economic Times",
+            "published_at": "1h ago",
+            "impact_score": 7.5,
+            "url": "https://economictimes.indiatimes.com/markets/stocks/news/hdfc-bank-shares-in-focus-after-appointing-anup-bagchi-as-new-ceo-q2-biz-update-buy-sell-or-hold/articleshow/134685243.cms"
+          },
+          {
+            "id": "live-d723b4bf9296",
+            "headline": "HDFC Bank shares rise 2% as Street cheers Anup Bagchi's appointment as CEO",
+            "summary": "HDFC Bank shares have significantly underperformed peers over the last few years. The stock price has declined by 25 per cent in the past one year and 8 per cent in the past five years.",
+            "source": "Business Standard",
+            "published_at": "1h ago",
+            "impact_score": 7.0,
+            "url": "https://www.business-standard.com/markets/news/hdfc-bank-shares-rise-2-as-street-cheers-anup-bagchi-s-appointment-as-ceo-126100500106_1.html"
+          }
+        ],
+        "policies": [],
+        "timeline": [],
+        "historical_comparison": [],
+        "ripple_chain": [
+          {
+            "depth": 0,
+            "nodes": [
+              {
+                "id": "sector:it",
+                "label": "IT",
+                "type": "sector",
+                "direction": "positive",
+                "weight": 1.0,
+                "parent_id": null
+              }
+            ]
+          },
+          {
+            "depth": 1,
+            "nodes": [
+              {
+                "id": "index:nifty-it",
+                "label": "Nifty IT",
+                "type": "index",
+                "direction": "uncertain",
+                "weight": 0.85,
+                "parent_id": "sector:it"
+              },
+              {
+                "id": "index:nifty-50",
+                "label": "Nifty 50",
+                "type": "index",
+                "direction": "uncertain",
+                "weight": 0.53,
+                "parent_id": "sector:it"
+              }
+            ]
+          }
+        ],
+        "scenarios": {},
+        "monitoring": {
+          "items": [
+            {
+              "label": "Credit-growth disclosures",
+              "importance": "critical",
+              "why_it_matters": "The reported growth's scale and breadth would help establish its sector impact.",
+              "frequency": "As released"
+            },
+            {
+              "label": "Bank earnings and asset quality",
+              "importance": "critical",
+              "why_it_matters": "These data would help assess whether the reported credit growth is reflected in financial outcomes.",
+              "frequency": "As released"
+            }
+          ]
+        },
+        "follow_up_questions": [
+          "What were the reported credit-growth figures and the period they cover?",
+          "Are bank earnings and asset-quality data available to assess the effect of that growth?"
+        ],
+        "investment_verdict": {
+          "rating": "Not Applicable",
+          "direction": null,
+          "confidence": 42.5,
+          "horizon": "1-3 months",
+          "top_picks": [],
+          "risks": [],
+          "catalysts": [],
+          "opportunity_score": 97.0,
+          "risk_level": "",
+          "suitable_for": "",
+          "engine_verdict": null
+        },
+        "market_chart": {
+          "labels": [],
+          "series": []
+        },
+        "graph": {
+          "nodes": [
+            {
+              "id": "q",
+              "label": "Banking sector just reported…",
+              "type": "query",
+              "x": 0,
+              "y": 0
+            },
+            {
+              "id": "mig-sector:it",
+              "label": "IT",
+              "type": "sector",
+              "x": 0,
+              "y": 130,
+              "direction": "positive"
+            },
+            {
+              "id": "mig-index:nifty-it",
+              "label": "Nifty IT",
+              "type": "index",
+              "x": 0,
+              "y": 260,
+              "direction": "uncertain"
+            },
+            {
+              "id": "mig-index:nifty-50",
+              "label": "Nifty 50",
+              "type": "index",
+              "x": 170,
+              "y": 260,
+              "direction": "uncertain"
+            },
+            {
+              "id": "risk-0",
+              "label": "The available evidence does not establis…",
+              "type": "risk",
+              "x": 0,
+              "y": 390
+            }
+          ],
+          "edges": [
+            {
+              "id": "q->mig-sector:it",
+              "source": "q",
+              "target": "mig-sector:it",
+              "label": "impacts"
+            },
+            {
+              "id": "mig-sector:it->mig-index:nifty-it",
+              "source": "mig-sector:it",
+              "target": "mig-index:nifty-it",
+              "label": "impacts"
+            },
+            {
+              "id": "mig-sector:it->mig-index:nifty-50",
+              "source": "mig-sector:it",
+              "target": "mig-index:nifty-50",
+              "label": "impacts"
+            },
+            {
+              "id": "q->risk-0",
+              "source": "q",
+              "target": "risk-0",
+              "label": "threatens"
+            }
+          ]
+        },
+        "citations": [
+          "Business Standard",
+          "Google News",
+          "Economic Times",
+          "NDTV Profit",
+          "Livemint"
+        ],
+        "decision_intelligence": {},
+        "confidence_data": {
+          "level": "Medium",
+          "score": 42.5,
+          "reasons": [
+            "26 independent developments, corroborated by 27 sources",
+            "Calibrated from 102 verified predictions (57% historical accuracy)"
+          ],
+          "breakdown": {
+            "evidence_quality": 52.5,
+            "market_confirmation": 0.0,
+            "historical_similarity": 0.0,
+            "data_freshness": 100.0,
+            "reasoning_confidence": 50.0
+          },
+          "caveats": []
+        },
+        "decision_engine_v2": {},
+        "timeline_intelligence": {},
+        "opportunity_risk_matrix": {},
+        "ai_conclusion": {},
+        "evidence_score": {
+          "stars": 3,
+          "checklist": {
+            "real_time_price_data": true,
+            "government_data": false,
+            "historical_precedent": false,
+            "company_filings": false,
+            "live_market_events": true
+          },
+          "source_count": 27,
+          "development_count": 26,
+          "corroborating_source_count": 27
+        },
+        "confidence_breakdown": {
+          "evidence_quality": 52.5,
+          "market_confirmation": 0.0,
+          "historical_similarity": 0.0,
+          "data_freshness": 100.0,
+          "reasoning_confidence": 50.0,
+          "final_confidence": 42.5,
+          "level": "Medium",
+          "reasons": [
+            "26 independent developments, corroborated by 27 sources",
+            "Calibrated from 102 verified predictions (57% historical accuracy)"
+          ]
+        },
+        "confidence": {
+          "status": "scored",
+          "score": 33.4,
+          "components": {
+            "evidence_quality": 52.5,
+            "market_confirmation": 0.0,
+            "historical_similarity": 0.0,
+            "data_freshness": 100.0
+          }
+        },
+        "source_attribution": [
+          "event:rss-22bbfbb737a0",
+          "event:rss-d59fc9906a97",
+          "event:rss-ad00a27f34b9",
+          "event:nse-3fe23e9e4b",
+          "event:rss-452ba91505d8",
+          "event:rss-4b6b8365cd2b",
+          "event:rss-b36bc6485df8",
+          "event:nse-e73653ad09",
+          "news:live-d08966a50cf2",
+          "news:live-55ffbb46f20a",
+          "news:live-ef1a981a7f99",
+          "news:live-82948d56e7a0",
+          "news:live-93fe9b163d82",
+          "news:live-d723b4bf9296",
+          "news:live-81831ca2c246",
+          "news:live-5bb11d985ce9",
+          "news:live-2e37e55d12e0",
+          "news:live-19242829be69",
+          "news:live-49cafe92bde4",
+          "news:live-e1c06fd9a7d4",
+          "news:live-ea42665cc713",
+          "news:live-a3417356f9b2",
+          "news:live-f80336401a44",
+          "news:live-5ed5dc17ff75",
+          "news:live-90be64e87840",
+          "news:live-394f4e9b3a99",
+          "news:live-184d15fcaee2"
+        ],
+        "evidence_index": [
+          {
+            "id": "E1",
+            "kind": "event",
+            "title": "RBI Remains Cautious On Crypto, Backs Underlying Technology: Governor Sanjay Malhotra",
+            "date": "2026-10-03T10:25:15.466208",
+            "source": "NDTV Profit",
+            "companies": []
+          },
+          {
+            "id": "E2",
+            "kind": "event",
+            "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+            "date": "2026-08-14T05:40:27.378039",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "E3",
+            "kind": "event",
+            "title": "RBI to close FCNR(B) swaps a month earlier due to gush",
+            "date": "2026-08-15T04:20:19.977742",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "E4",
+            "kind": "event",
+            "title": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+            "date": "2026-08-12T16:33:33.702605",
+            "source": "NSE",
+            "companies": []
+          },
+          {
+            "id": "E5",
+            "kind": "event",
+            "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+            "date": "2026-08-14T02:00:43.280534",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "E6",
+            "kind": "event",
+            "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+            "date": "2026-08-14T10:55:41.495253",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "E7",
+            "kind": "event",
+            "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+            "date": "2026-08-12T16:05:37.135262",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "E8",
+            "kind": "event",
+            "title": "Pursuant to the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015 and the Code of Fair Disclosure and Conduct and in terms of Regulation 8 of the SEBI (Prohibition of Insider Trading) Regulations, 2015, the Bank would like to place the attached information on record pertaining to its performance in the quarter ended September 30, 2026.",
+            "date": "2026-10-03T14:10:23.818974",
+            "source": "NSE",
+            "companies": []
+          },
+          {
+            "id": "N1",
+            "kind": "news",
+            "title": "RBI likely intervenes to support rupee, traders say",
+            "date": "20m ago",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "N2",
+            "kind": "news",
+            "title": "Indian markets open higher amid positive global cues; PSU bank stocks lead - Telangana Today",
+            "date": "34m ago",
+            "source": "Google News",
+            "companies": []
+          },
+          {
+            "id": "N3",
+            "kind": "news",
+            "title": "Yes Bank shares rise 3% after Q2 business update shows loans surging 24% YoY, deposits up 20%",
+            "date": "53m ago",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "N4",
+            "kind": "news",
+            "title": "Why is market rising today? Sensex rallies 700 points, Nifty above 22,600. 6 key factors driving rebound",
+            "date": "58m ago",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "N5",
+            "kind": "news",
+            "title": "HDFC Bank shares rise 2% after appointing Anup Bagchi as new CEO, Q2 biz update. Buy, sell or hold?",
+            "date": "1h ago",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "N6",
+            "kind": "news",
+            "title": "HDFC Bank shares rise 2% as Street cheers Anup Bagchi's appointment as CEO",
+            "date": "1h ago",
+            "source": "Business Standard",
+            "companies": []
+          },
+          {
+            "id": "N7",
+            "kind": "news",
+            "title": "HDFC Bank: Anup Bagchi at helm lifts overhang; brokerages share outlook",
+            "date": "1h ago",
+            "source": "Business Standard",
+            "companies": []
+          },
+          {
+            "id": "N8",
+            "kind": "news",
+            "title": "Kotak Mahindra Bank Primed For Next Leg Of Growth As Street Cheers Anup Saha's Elevation",
+            "date": "1h ago",
+            "source": "NDTV Profit",
+            "companies": []
+          },
+          {
+            "id": "N9",
+            "kind": "news",
+            "title": "Stock market today LIVE: Sensex up 500 points, Nifty up 150 points; HDFC Bank, RIL, Bajaj Finance shares gain",
+            "date": "1h ago",
+            "source": "Livemint",
+            "companies": []
+          },
+          {
+            "id": "N10",
+            "kind": "news",
+            "title": "Sensex, Nifty opening: Will stock market rise ahead of RBI MPC? - India Today",
+            "date": "1h ago",
+            "source": "Google News",
+            "companies": []
+          },
+          {
+            "id": "N11",
+            "kind": "news",
+            "title": "India's bond yield curve poised to flatten as RBI drains surplus cash",
+            "date": "1h ago",
+            "source": "Business Standard",
+            "companies": []
+          },
+          {
+            "id": "N12",
+            "kind": "news",
+            "title": "Anup Bagchi's Appointment Removes Key Overhang For HDFC Bank Stock, Supports Re-Rating, Say Brokerages",
+            "date": "1h ago",
+            "source": "NDTV Profit",
+            "companies": []
+          },
+          {
+            "id": "N13",
+            "kind": "news",
+            "title": "Axis Bank Share Price Live Updates: Axis Bank Stock Details",
+            "date": "2h ago",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "N14",
+            "kind": "news",
+            "title": "RBI's dollar inflow measures buy time, but external risks remain",
+            "date": "1h ago",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "N15",
+            "kind": "news",
+            "title": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch - Business Today",
+            "date": "11m ago",
+            "source": "Google News",
+            "companies": []
+          },
+          {
+            "id": "N16",
+            "kind": "news",
+            "title": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses - BusinessLine",
+            "date": "46m ago",
+            "source": "Google News",
+            "companies": []
+          },
+          {
+            "id": "N17",
+            "kind": "news",
+            "title": "Zerodha now wants to enter investment banking space, seeks Sebi nod",
+            "date": "12m ago",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "N18",
+            "kind": "news",
+            "title": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active - Moneycontrol.com",
+            "date": "7m ago",
+            "source": "Google News",
+            "companies": []
+          },
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": []
+          },
+          {
+            "id": "C2",
+            "kind": "context",
+            "title": "Sector performance (real, live 1-day change): PSU Bank +1.2%; Banking +0.5%; Private Bank -0.1%",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": []
+          }
+        ],
+        "claim_sources": [
+          {
+            "claim": "Banking was +0.5% for the day; PSU Bank was +1.2%, while Private Bank was -0.1%.",
+            "sources": [
+              "C2"
+            ],
+            "scope": "sector",
+            "company": null,
+            "status": "ok",
+            "problems": [],
+            "ineligible": []
+          }
+        ],
+        "claim_validation": {
+          "status": "ok",
+          "summary": {
+            "claims": 1,
+            "ok": 1,
+            "problems": 0,
+            "uncovered_factual_sentences": 0
+          },
+          "uncovered": []
+        },
+        "premise_check": {
+          "status": "not_applicable",
+          "terms": []
+        },
+        "validation": {
+          "repairs": [],
+          "omissions": [],
+          "contradiction_flagged": false
+        },
+        "market_impact_horizons": {},
+        "what_to_monitor": [],
+        "ai_reasoning_methods": [],
+        "follow_up_groups": [
+          {
+            "key": "risks",
+            "label": "Risks",
+            "icon": "risk",
+            "items": [
+              {
+                "text": "What is the biggest downside risk?",
+                "query": "What is the biggest downside risk for the Banking sector right now?",
+                "difficulty": "beginner"
+              }
+            ]
+          },
+          {
+            "key": "horizon",
+            "label": "Different Horizons",
+            "icon": "horizon",
+            "items": [
+              {
+                "text": "Banking for 1 Month",
+                "query": "the Banking sector for 1 month",
+                "difficulty": "beginner"
+              },
+              {
+                "text": "Banking for 6 Months",
+                "query": "the Banking sector for 6 months",
+                "difficulty": "beginner"
+              },
+              {
+                "text": "Banking for 3 Years",
+                "query": "the Banking sector for 3 years",
+                "difficulty": "beginner"
+              }
+            ]
+          },
+          {
+            "key": "ripple",
+            "label": "Explore Ripple",
+            "icon": "ripple",
+            "items": [
+              {
+                "text": "Explore IT",
+                "query": "What is the impact of IT?",
+                "difficulty": "intermediate"
+              },
+              {
+                "text": "Explore Nifty IT",
+                "query": "What is the impact of Nifty IT?",
+                "difficulty": "intermediate"
+              },
+              {
+                "text": "Explore Nifty 50",
+                "query": "What is the impact of Nifty 50?",
+                "difficulty": "intermediate"
+              }
+            ]
+          }
+        ],
+        "conclusion_scope": {
+          "requested": "not_applicable",
+          "authorized": "not_applicable",
+          "partial": false,
+          "missing": [],
+          "reason": null,
+          "coverage": {}
+        },
+        "structured_authorization": {
+          "policy": "llm_structured_claims_withheld_unless_deterministically_authorized",
+          "withheld": [],
+          "state": "none_generated"
+        },
+        "evidence_sufficiency": {
+          "status": "SUFFICIENT",
+          "kind": "sector_assessment",
+          "required": [
+            "sector_evidence_banking"
+          ],
+          "satisfied": [
+            "sector_evidence_banking"
+          ],
+          "missing": [],
+          "reason": null,
+          "missing_entities": [],
+          "context": [
+            "RBI Remains Cautious On Crypto, Backs Underlying Technology: Governor Sanjay Malhotra",
+            "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+            "RBI to close FCNR(B) swaps a month earlier due to gush"
+          ]
+        },
+        "answer_authorization": {
+          "applicable": true,
+          "authorized": true,
+          "reasons": [],
+          "unsupported_figure_count": 0,
+          "factual_sentences": 1
+        },
+        "timing": {
+          "intent_detection_ms": 16.0,
+          "entity_detection_ms": 16.0,
+          "evidence_collection_ms": 14093.0,
+          "reasoning_ms": 19204.0,
+          "validation_ms": 62.0,
+          "assembly_ms": 641.0,
+          "total_ms": 34032.0
+        },
+        "context_used": {
+          "companies": [],
+          "sectors": []
+        },
+        "watch_subject": {
+          "subject_key": "sector:banking",
+          "subject_type": "sector",
+          "subject_label": "banking",
+          "company_name": null
+        },
+        "answer_availability": {
+          "state": "available",
+          "evidence_retrieval_completed": true,
+          "evidence_count": 12
+        }
+      },
+      "gate_a": {
+        "status": "SUFFICIENT",
+        "kind": "sector_assessment",
+        "required": [
+          "sector_evidence_banking"
+        ],
+        "satisfied": [
+          "sector_evidence_banking"
+        ],
+        "missing": [],
+        "reason": null,
+        "missing_entities": [],
+        "context": [
+          "RBI Remains Cautious On Crypto, Backs Underlying Technology: Governor Sanjay Malhotra",
+          "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+          "RBI to close FCNR(B) swaps a month earlier due to gush"
+        ]
+      },
+      "premise_check": {
+        "status": "not_applicable",
+        "terms": []
+      },
+      "gate_b": {
+        "applicable": true,
+        "authorized": true,
+        "reasons": [],
+        "unsupported_figure_count": 0,
+        "factual_sentences": 1
+      },
+      "claim_validation": {
+        "status": "ok",
+        "summary": {
+          "claims": 1,
+          "ok": 1,
+          "problems": 0,
+          "uncovered_factual_sentences": 0
+        },
+        "uncovered": []
+      },
+      "claim_sources": [
+        {
+          "claim": "Banking was +0.5% for the day; PSU Bank was +1.2%, while Private Bank was -0.1%.",
+          "sources": [
+            "C2"
+          ],
+          "scope": "sector",
+          "company": null,
+          "status": "ok",
+          "problems": [],
+          "ineligible": []
+        }
+      ],
+      "degraded_reason": null,
+      "rejected_generation": [],
+      "evidence": {
+        "plan_kind": "topic",
+        "filter_report": {
+          "plan": "topic",
+          "events": {
+            "kept": 8,
+            "dropped_stale": 5,
+            "dropped_irrelevant": 3,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 14
+          },
+          "news": {
+            "kept": 19,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_undated": 0,
+            "dropped_tips": 1,
+            "dropped_single_company_filing": 0
+          },
+          "announcements": {
+            "kept": 0,
+            "dropped_stale": 0
+          },
+          "policies": {
+            "kept": 0,
+            "dropped_irrelevant": 0
+          },
+          "premise": {
+            "required": false,
+            "terms": [],
+            "supported": null,
+            "supporting": []
+          }
+        },
+        "events": [
+          {
+            "id": "rss-22bbfbb737a0",
+            "title": "RBI Remains Cautious On Crypto, Backs Underlying Technology: Governor Sanjay Malhotra",
+            "summary": "RBI Governor Sanjay Malhotra stated India promotes blockchain and tokenisation technology but remains cautious on cryptocurrencies due to concerns over monetary sovereignty and policy.",
+            "date": "2026-10-03T10:25:15.466208",
+            "source": "NDTV Profit",
+            "companies": []
+          },
+          {
+            "id": "rss-d59fc9906a97",
+            "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+            "summary": "The Securities and Exchange Board of India (Sebi) has introduced a mandatory Credit Risk-o-Meter for debt securities, aiming to enhance investor awareness regarding credit risk. This user-friendly tool features a standardized, colour-coded scale, similar to those used in mutual funds. Issuers and on",
+            "date": "2026-08-14T05:40:27.378039",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "rss-ad00a27f34b9",
+            "title": "RBI to close FCNR(B) swaps a month earlier due to gush",
+            "summary": "The Reserve Bank of India has moved the FCNR(B) deposit deadline to August 31 in response to better-than-expected foreign currency inflows. This adjustment follows a positive uptake of the swap facility linked to these deposits, with inflows surpassing previous totals. Meanwhile, the swap schemes fo",
+            "date": "2026-08-15T04:20:19.977742",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "nse-3fe23e9e4b",
+            "title": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+            "summary": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+            "date": "2026-08-12T16:33:33.702605",
+            "source": "NSE",
+            "companies": []
+          },
+          {
+            "id": "rss-452ba91505d8",
+            "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+            "summary": "The Indian rupee remained stable on Thursday, closing near its previous level.  Dollar sales by the Reserve Bank of India kept the local unit within a tight range.  Demand from maturing forwards and debt outflows added pressure to the currency.  Traders observed a narrow trading band, anticipating f",
+            "date": "2026-08-14T02:00:43.280534",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "rss-4b6b8365cd2b",
+            "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+            "summary": "The Indian rupee faced a challenging week, depreciating against the dollar amidst mounting tensions from the Middle East conflict. Despite this, central bank interventions and steady dollar sales by state banks helped mitigate more significant losses. With India relying on imports for about ninety p",
+            "date": "2026-08-14T10:55:41.495253",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "rss-b36bc6485df8",
+            "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+            "summary": "The Indian rupee finished the day marginally higher, propelled by ongoing tensions in the Middle East. Continuous interventions from the central bank have provided support against the U.S. dollar. Traders remain watchful as critical inflation data from India and the U.S. approaches. Throughout Augus",
+            "date": "2026-08-12T16:05:37.135262",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "nse-e73653ad09",
+            "title": "Pursuant to the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015 and the Code of Fair Disclosure and Conduct and in terms of Regulation 8 of the SEBI (Prohibition of Insider Trading) Regulations, 2015, the Bank would like to place the attached information on record pertaining to its performance in the quarter ended September 30, 2026.",
+            "summary": "Pursuant to the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015 and the Code of Fair Disclosure and Conduct and in terms of Regulation 8 of the SEBI (Prohibition of Insider Trading) Regulations, 2015, the Bank would like to place the attached information on record pertaining",
+            "date": "2026-10-03T14:10:23.818974",
+            "source": "NSE",
+            "companies": []
+          }
+        ],
+        "news": [
+          {
+            "id": "live-d08966a50cf2",
+            "title": "RBI likely intervenes to support rupee, traders say",
+            "summary": "The Reserve Bank of India intervened in the foreign exchange market to support the rupee. This action was taken as the currency faced pressure from a stronger dollar and fluctuating oil prices. Trader",
+            "date": "20m ago",
+            "source": "Economic Times"
+          },
+          {
+            "id": "live-55ffbb46f20a",
+            "title": "Indian markets open higher amid positive global cues; PSU bank stocks lead - Telangana Today",
+            "summary": "Indian markets open higher amid positive global cues; PSU bank stocks lead&nbsp;&nbsp;Telangana Today",
+            "date": "34m ago",
+            "source": "Google News"
+          },
+          {
+            "id": "live-ef1a981a7f99",
+            "title": "Yes Bank shares rise 3% after Q2 business update shows loans surging 24% YoY, deposits up 20%",
+            "summary": "Yes Bank shares rose after the lender reported a 23.8% YoY growth in loans and advances to around Rs 3.1 lakh crore in Q2 FY27. Deposits also grew nearly 20% YoY, signalling continued business momentu",
+            "date": "53m ago",
+            "source": "Economic Times"
+          },
+          {
+            "id": "live-82948d56e7a0",
+            "title": "Why is market rising today? Sensex rallies 700 points, Nifty above 22,600. 6 key factors driving rebound",
+            "summary": "After a long slump, the Indian stock market is experiencing a refreshing surge, with both Sensex and Nifty indices showcasing notable increases. The recent leadership transition at HDFC Bank has invig",
+            "date": "58m ago",
+            "source": "Economic Times"
+          },
+          {
+            "id": "live-93fe9b163d82",
+            "title": "HDFC Bank shares rise 2% after appointing Anup Bagchi as new CEO, Q2 biz update. Buy, sell or hold?",
+            "summary": "HDFC Bank shares rose after Anup Bagchi was appointed as the bank’s new MD &amp; CEO, ending months of uncertainty over its top leadership. Brokerages Jefferies, Morgan Stanley and Citi retained posit",
+            "date": "1h ago",
+            "source": "Economic Times"
+          },
+          {
+            "id": "live-d723b4bf9296",
+            "title": "HDFC Bank shares rise 2% as Street cheers Anup Bagchi's appointment as CEO",
+            "summary": "HDFC Bank shares have significantly underperformed peers over the last few years. The stock price has declined by 25 per cent in the past one year and 8 per cent in the past five years.",
+            "date": "1h ago",
+            "source": "Business Standard"
+          },
+          {
+            "id": "live-81831ca2c246",
+            "title": "HDFC Bank: Anup Bagchi at helm lifts overhang; brokerages share outlook",
+            "summary": "Analysts at Motilal Oswal Financial Services (MOFSL) said Bagchi's appointment removes a key overhang around HDFC Bank's leadership succession.",
+            "date": "1h ago",
+            "source": "Business Standard"
+          },
+          {
+            "id": "live-5bb11d985ce9",
+            "title": "Kotak Mahindra Bank Primed For Next Leg Of Growth As Street Cheers Anup Saha's Elevation",
+            "summary": "Street analysts view his deep domain expertise in analytics-driven consumer finance and high-yielding credit portfolios as an ideal catalyst for Kotak Mahindra Bank's next phase of transformation and ",
+            "date": "1h ago",
+            "source": "NDTV Profit"
+          },
+          {
+            "id": "live-2e37e55d12e0",
+            "title": "Stock market today LIVE: Sensex up 500 points, Nifty up 150 points; HDFC Bank, RIL, Bajaj Finance shares gain",
+            "summary": "Stock market Opening Bell Today: The Gift Nifty live chart is signalling around 200 points gap-up opening for the Nifty 50 index",
+            "date": "1h ago",
+            "source": "Livemint"
+          },
+          {
+            "id": "live-19242829be69",
+            "title": "Sensex, Nifty opening: Will stock market rise ahead of RBI MPC? - India Today",
+            "summary": "Sensex, Nifty opening: Will stock market rise ahead of RBI MPC?&nbsp;&nbsp;India Today",
+            "date": "1h ago",
+            "source": "Google News"
+          },
+          {
+            "id": "live-49cafe92bde4",
+            "title": "India's bond yield curve poised to flatten as RBI drains surplus cash",
+            "summary": "The 5-10 year yield gap is expected to narrow as the RBI drains surplus cash, pressuring shorter maturities",
+            "date": "1h ago",
+            "source": "Business Standard"
+          },
+          {
+            "id": "live-e1c06fd9a7d4",
+            "title": "Anup Bagchi's Appointment Removes Key Overhang For HDFC Bank Stock, Supports Re-Rating, Say Brokerages",
+            "summary": "Analysts believe the appointment should help restore investor and customer confidence in HDFC Bank, given that Anup Bagchi is a banking veteran with experience across diverse responsibilities within t",
+            "date": "1h ago",
+            "source": "NDTV Profit"
+          },
+          {
+            "id": "live-ea42665cc713",
+            "title": "Axis Bank Share Price Live Updates: Axis Bank Stock Details",
+            "summary": "Axis Bank Share Price Live Updates: Axis Bank Stock Details",
+            "date": "2h ago",
+            "source": "Economic Times"
+          },
+          {
+            "id": "live-a3417356f9b2",
+            "title": "Kotak Bank Share Price Live Updates: Kotak Bank Stock Details",
+            "summary": "Kotak Bank Share Price Live Updates: Kotak Bank Stock Details",
+            "date": "2h ago",
+            "source": "Economic Times"
+          },
+          {
+            "id": "live-f80336401a44",
+            "title": "RBI's dollar inflow measures buy time, but external risks remain",
+            "summary": "The Reserve Bank of India's recent measures to boost dollar inflows are a temporary fix, economists warn. While these steps aim to stabilize the rupee now, the country must strengthen its balance of p",
+            "date": "1h ago",
+            "source": "Economic Times"
+          },
+          {
+            "id": "live-5ed5dc17ff75",
+            "title": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch - Business Today",
+            "summary": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch&nbsp;&nbsp;Business Today",
+            "date": "11m ago",
+            "source": "Google News"
+          },
+          {
+            "id": "live-90be64e87840",
+            "title": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses - BusinessLine",
+            "summary": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses&nbsp;&nbsp;BusinessLine",
+            "date": "46m ago",
+            "source": "Google News"
+          },
+          {
+            "id": "live-394f4e9b3a99",
+            "title": "Zerodha now wants to enter investment banking space, seeks Sebi nod",
+            "summary": "Zerodha has applied to SEBI for a Category I merchant banking licence, signalling its entry into investment banking. The move aligns with India’s strong IPO pipeline and expanding capital markets acti",
+            "date": "12m ago",
+            "source": "Economic Times"
+          },
+          {
+            "id": "live-184d15fcaee2",
+            "title": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active - Moneycontrol.com",
+            "summary": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active&nbsp;&nbsp;Moneycontrol.com",
+            "date": "7m ago",
+            "source": "Google News"
+          }
+        ],
+        "announcements": [],
+        "policies": [],
+        "valuation": {},
+        "vix": 14.59,
+        "sector_rows": [
+          {
+            "id": "it",
+            "name": "IT",
+            "value": "+0.6%",
+            "positive": true
+          },
+          {
+            "id": "banking",
+            "name": "Banking",
+            "value": "+0.5%",
+            "positive": true
+          },
+          {
+            "id": "pharma",
+            "name": "Pharma",
+            "value": "-1.6%",
+            "positive": false
+          },
+          {
+            "id": "auto",
+            "name": "Auto",
+            "value": "-1.1%",
+            "positive": false
+          },
+          {
+            "id": "energy",
+            "name": "Energy",
+            "value": "-0.4%",
+            "positive": false
+          },
+          {
+            "id": "fmcg",
+            "name": "FMCG",
+            "value": "+0.3%",
+            "positive": true
+          },
+          {
+            "id": "infra",
+            "name": "Infra",
+            "value": "+0.4%",
+            "positive": true
+          },
+          {
+            "id": "metal",
+            "name": "Metal",
+            "value": "+0.0%",
+            "positive": true
+          },
+          {
+            "id": "realty",
+            "name": "Realty",
+            "value": "+0.7%",
+            "positive": true
+          },
+          {
+            "id": "psu-bank",
+            "name": "PSU Bank",
+            "value": "+1.2%",
+            "positive": true
+          },
+          {
+            "id": "private-bank",
+            "name": "Private Bank",
+            "value": "-0.1%",
+            "positive": false
+          }
+        ],
+        "macro_indices": [],
+        "context_lines": [
+          "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+          "Sector performance (real, live 1-day change): PSU Bank +1.2%; Banking +0.5%; Private Bank -0.1%"
+        ],
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        },
+        "index": [
+          {
+            "id": "E1",
+            "kind": "event",
+            "title": "RBI Remains Cautious On Crypto, Backs Underlying Technology: Governor Sanjay Malhotra",
+            "summary": "RBI Governor Sanjay Malhotra stated India promotes blockchain and tokenisation technology but remains cautious on cryptocurrencies due to concerns over monetary sovereignty and policy.",
+            "date": "2026-10-03T10:25:15.466208",
+            "source": "NDTV Profit",
+            "companies": [],
+            "ref": "event:rss-22bbfbb737a0"
+          },
+          {
+            "id": "E2",
+            "kind": "event",
+            "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+            "summary": "The Securities and Exchange Board of India (Sebi) has introduced a mandatory Credit Risk-o-Meter for debt securities, aiming to enhance investor awareness regarding credit risk. This user-friendly too",
+            "date": "2026-08-14T05:40:27.378039",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "event:rss-d59fc9906a97"
+          },
+          {
+            "id": "E3",
+            "kind": "event",
+            "title": "RBI to close FCNR(B) swaps a month earlier due to gush",
+            "summary": "The Reserve Bank of India has moved the FCNR(B) deposit deadline to August 31 in response to better-than-expected foreign currency inflows. This adjustment follows a positive uptake of the swap facili",
+            "date": "2026-08-15T04:20:19.977742",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "event:rss-ad00a27f34b9"
+          },
+          {
+            "id": "E4",
+            "kind": "event",
+            "title": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+            "summary": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+            "date": "2026-08-12T16:33:33.702605",
+            "source": "NSE",
+            "companies": [],
+            "ref": "event:nse-3fe23e9e4b"
+          },
+          {
+            "id": "E5",
+            "kind": "event",
+            "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+            "summary": "The Indian rupee remained stable on Thursday, closing near its previous level.  Dollar sales by the Reserve Bank of India kept the local unit within a tight range.  Demand from maturing forwards and d",
+            "date": "2026-08-14T02:00:43.280534",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "event:rss-452ba91505d8"
+          },
+          {
+            "id": "E6",
+            "kind": "event",
+            "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+            "summary": "The Indian rupee faced a challenging week, depreciating against the dollar amidst mounting tensions from the Middle East conflict. Despite this, central bank interventions and steady dollar sales by s",
+            "date": "2026-08-14T10:55:41.495253",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "event:rss-4b6b8365cd2b"
+          },
+          {
+            "id": "E7",
+            "kind": "event",
+            "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+            "summary": "The Indian rupee finished the day marginally higher, propelled by ongoing tensions in the Middle East. Continuous interventions from the central bank have provided support against the U.S. dollar. Tra",
+            "date": "2026-08-12T16:05:37.135262",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "event:rss-b36bc6485df8"
+          },
+          {
+            "id": "E8",
+            "kind": "event",
+            "title": "Pursuant to the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015 and the Code of Fair Disclosure and Conduct and in terms of Regulation 8 of the SEBI (Prohibition of Insider Trading) Regulations, 2015, the Bank would like to place the attached information on record pertaining to its performance in the quarter ended September 30, 2026.",
+            "summary": "Pursuant to the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015 and the Code of Fair Disclosure and Conduct and in terms of Regulation 8 of the SEBI (Prohibition of Insider Tr",
+            "date": "2026-10-03T14:10:23.818974",
+            "source": "NSE",
+            "companies": [],
+            "ref": "event:nse-e73653ad09"
+          },
+          {
+            "id": "N1",
+            "kind": "news",
+            "title": "RBI likely intervenes to support rupee, traders say",
+            "summary": "The Reserve Bank of India intervened in the foreign exchange market to support the rupee. This action was taken as the currency faced pressure from a stronger dollar and fluctuating oil prices. Trader",
+            "date": "20m ago",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "news:live-d08966a50cf2"
+          },
+          {
+            "id": "N2",
+            "kind": "news",
+            "title": "Indian markets open higher amid positive global cues; PSU bank stocks lead - Telangana Today",
+            "summary": "Indian markets open higher amid positive global cues; PSU bank stocks lead&nbsp;&nbsp;Telangana Today",
+            "date": "34m ago",
+            "source": "Google News",
+            "companies": [],
+            "ref": "news:live-55ffbb46f20a"
+          },
+          {
+            "id": "N3",
+            "kind": "news",
+            "title": "Yes Bank shares rise 3% after Q2 business update shows loans surging 24% YoY, deposits up 20%",
+            "summary": "Yes Bank shares rose after the lender reported a 23.8% YoY growth in loans and advances to around Rs 3.1 lakh crore in Q2 FY27. Deposits also grew nearly 20% YoY, signalling continued business momentu",
+            "date": "53m ago",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "news:live-ef1a981a7f99"
+          },
+          {
+            "id": "N4",
+            "kind": "news",
+            "title": "Why is market rising today? Sensex rallies 700 points, Nifty above 22,600. 6 key factors driving rebound",
+            "summary": "After a long slump, the Indian stock market is experiencing a refreshing surge, with both Sensex and Nifty indices showcasing notable increases. The recent leadership transition at HDFC Bank has invig",
+            "date": "58m ago",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "news:live-82948d56e7a0"
+          },
+          {
+            "id": "N5",
+            "kind": "news",
+            "title": "HDFC Bank shares rise 2% after appointing Anup Bagchi as new CEO, Q2 biz update. Buy, sell or hold?",
+            "summary": "HDFC Bank shares rose after Anup Bagchi was appointed as the bank’s new MD &amp; CEO, ending months of uncertainty over its top leadership. Brokerages Jefferies, Morgan Stanley and Citi retained posit",
+            "date": "1h ago",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "news:live-93fe9b163d82"
+          },
+          {
+            "id": "N6",
+            "kind": "news",
+            "title": "HDFC Bank shares rise 2% as Street cheers Anup Bagchi's appointment as CEO",
+            "summary": "HDFC Bank shares have significantly underperformed peers over the last few years. The stock price has declined by 25 per cent in the past one year and 8 per cent in the past five years.",
+            "date": "1h ago",
+            "source": "Business Standard",
+            "companies": [],
+            "ref": "news:live-d723b4bf9296"
+          },
+          {
+            "id": "N7",
+            "kind": "news",
+            "title": "HDFC Bank: Anup Bagchi at helm lifts overhang; brokerages share outlook",
+            "summary": "Analysts at Motilal Oswal Financial Services (MOFSL) said Bagchi's appointment removes a key overhang around HDFC Bank's leadership succession.",
+            "date": "1h ago",
+            "source": "Business Standard",
+            "companies": [],
+            "ref": "news:live-81831ca2c246"
+          },
+          {
+            "id": "N8",
+            "kind": "news",
+            "title": "Kotak Mahindra Bank Primed For Next Leg Of Growth As Street Cheers Anup Saha's Elevation",
+            "summary": "Street analysts view his deep domain expertise in analytics-driven consumer finance and high-yielding credit portfolios as an ideal catalyst for Kotak Mahindra Bank's next phase of transformation and ",
+            "date": "1h ago",
+            "source": "NDTV Profit",
+            "companies": [],
+            "ref": "news:live-5bb11d985ce9"
+          },
+          {
+            "id": "N9",
+            "kind": "news",
+            "title": "Stock market today LIVE: Sensex up 500 points, Nifty up 150 points; HDFC Bank, RIL, Bajaj Finance shares gain",
+            "summary": "Stock market Opening Bell Today: The Gift Nifty live chart is signalling around 200 points gap-up opening for the Nifty 50 index",
+            "date": "1h ago",
+            "source": "Livemint",
+            "companies": [],
+            "ref": "news:live-2e37e55d12e0"
+          },
+          {
+            "id": "N10",
+            "kind": "news",
+            "title": "Sensex, Nifty opening: Will stock market rise ahead of RBI MPC? - India Today",
+            "summary": "Sensex, Nifty opening: Will stock market rise ahead of RBI MPC?&nbsp;&nbsp;India Today",
+            "date": "1h ago",
+            "source": "Google News",
+            "companies": [],
+            "ref": "news:live-19242829be69"
+          },
+          {
+            "id": "N11",
+            "kind": "news",
+            "title": "India's bond yield curve poised to flatten as RBI drains surplus cash",
+            "summary": "The 5-10 year yield gap is expected to narrow as the RBI drains surplus cash, pressuring shorter maturities",
+            "date": "1h ago",
+            "source": "Business Standard",
+            "companies": [],
+            "ref": "news:live-49cafe92bde4"
+          },
+          {
+            "id": "N12",
+            "kind": "news",
+            "title": "Anup Bagchi's Appointment Removes Key Overhang For HDFC Bank Stock, Supports Re-Rating, Say Brokerages",
+            "summary": "Analysts believe the appointment should help restore investor and customer confidence in HDFC Bank, given that Anup Bagchi is a banking veteran with experience across diverse responsibilities within t",
+            "date": "1h ago",
+            "source": "NDTV Profit",
+            "companies": [],
+            "ref": "news:live-e1c06fd9a7d4"
+          },
+          {
+            "id": "N13",
+            "kind": "news",
+            "title": "Axis Bank Share Price Live Updates: Axis Bank Stock Details",
+            "summary": "Axis Bank Share Price Live Updates: Axis Bank Stock Details",
+            "date": "2h ago",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "news:live-ea42665cc713"
+          },
+          {
+            "id": "N14",
+            "kind": "news",
+            "title": "RBI's dollar inflow measures buy time, but external risks remain",
+            "summary": "The Reserve Bank of India's recent measures to boost dollar inflows are a temporary fix, economists warn. While these steps aim to stabilize the rupee now, the country must strengthen its balance of p",
+            "date": "1h ago",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "news:live-f80336401a44"
+          },
+          {
+            "id": "N15",
+            "kind": "news",
+            "title": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch - Business Today",
+            "summary": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch&nbsp;&nbsp;Business Today",
+            "date": "11m ago",
+            "source": "Google News",
+            "companies": [],
+            "ref": "news:live-5ed5dc17ff75"
+          },
+          {
+            "id": "N16",
+            "kind": "news",
+            "title": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses - BusinessLine",
+            "summary": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses&nbsp;&nbsp;BusinessLine",
+            "date": "46m ago",
+            "source": "Google News",
+            "companies": [],
+            "ref": "news:live-90be64e87840"
+          },
+          {
+            "id": "N17",
+            "kind": "news",
+            "title": "Zerodha now wants to enter investment banking space, seeks Sebi nod",
+            "summary": "Zerodha has applied to SEBI for a Category I merchant banking licence, signalling its entry into investment banking. The move aligns with India’s strong IPO pipeline and expanding capital markets acti",
+            "date": "12m ago",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "news:live-394f4e9b3a99"
+          },
+          {
+            "id": "N18",
+            "kind": "news",
+            "title": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active - Moneycontrol.com",
+            "summary": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active&nbsp;&nbsp;Moneycontrol.com",
+            "date": "7m ago",
+            "source": "Google News",
+            "companies": [],
+            "ref": "news:live-184d15fcaee2"
+          },
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:1"
+          },
+          {
+            "id": "C2",
+            "kind": "context",
+            "title": "Sector performance (real, live 1-day change): PSU Bank +1.2%; Banking +0.5%; Private Bank -0.1%",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:2"
+          }
+        ],
+        "historical": []
+      },
+      "model_result": {
+        "status": 200,
+        "classification": null,
+        "finish_reason": "stop",
+        "latency_ms": 19188,
+        "usage": {
+          "prompt_tokens": 2064,
+          "completion_tokens": 2246,
+          "total_tokens": 4310
+        },
+        "reasoning_tokens": 1676,
+        "would_exceed_30s": false
+      },
+      "outcome": "generation_authorized"
+    }
+  }
+}
