@@ -173,6 +173,21 @@ def build_response(query: str, topic_id: str, *, schema_version: str | None, ui_
     return r
 
 
+NOT_COVERED_TITLE = "No reviewed explanation yet"
+NOT_COVERED_BODY = ("MarketRipple answers general-knowledge questions only from explanations it has reviewed, and it doesn't have one for this question yet, so it isn't answering from general memory. "
+                    "You can ask about a specific company, sector or policy, or about the P/E ratio, FII selling or the MarketRipple Score.")
+
+
+def build_not_covered_response(query: str, *, schema_version: str | None, ui_mode: str | None, intent: str = "general") -> dict:
+    """An uncurated definitional question (for example "What is EBITDA?"). No model call and no retrieval: there is no reviewed source to answer from, and the old evidence-free generic path let a model state current
+    market facts, recommendations, forecasts or MarketRipple product facts with no authorization at all. The honest response is that the explanation is not covered yet."""
+    from app.services.ai_search.degraded_shape import build_degraded_shape
+    return build_degraded_shape(
+        query=query, response_id=str(uuid.uuid4()), schema_version=schema_version, specialist_kind="education", degraded_reason="education_not_covered", summary=NOT_COVERED_BODY,
+        intent=intent, ui_mode=ui_mode, public_title=NOT_COVERED_TITLE,
+    )
+
+
 def public_text(response: dict) -> str:
     """Every sentence a curated response can show, for tests."""
     a = response.get("answer") or {}

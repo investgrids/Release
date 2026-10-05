@@ -249,7 +249,7 @@ def test_retrieval_cut_off_by_the_budget_is_a_retrieval_failure_never_no_evidenc
     assert res["degraded_reason"] == "retrieval_deadline_exceeded" and "_retrieval_failures" not in res
     av = res["answer_availability"]
     assert av["state"] == "temporarily_unavailable" and av["evidence_retrieval_completed"] is False
-    assert res.get("evidence_sufficiency") is None and "insufficient_evidence" not in json.dumps(res)       # an infrastructure condition, not a statement about the evidence
+    assert raw.get("evidence_sufficiency") is None and "insufficient_evidence" not in json.dumps(res)       # an infrastructure condition, not a statement about the evidence
 
 
 def test_no_specialist_call_starts_when_too_little_time_is_left_after_retrieval(pipe, monkeypatch):
@@ -278,7 +278,7 @@ def test_gate_b_still_authorizes_a_generation_that_arrives_inside_the_finalizati
     for name in ("company_specialist", "comparison_specialist", "sector_specialist"):
         monkeypatch.setattr(getattr(P, name), "run", late_specialist)
     raw, res = run_with_deadline("What is happening with TCS lately? (deadline reserve)", total=3.0, reserve=1.0, min_attempt=0.5, attempt_cap=2.0)
-    assert res["synthesis_incomplete"] is False and res["answer_authorization"]["authorized"] is True        # the reserve left room for Gate B and assembly
+    assert res["synthesis_incomplete"] is False and raw["answer_authorization"]["authorized"] is True        # the reserve left room for Gate B and assembly
 
 
 def test_a_generation_with_no_time_left_to_authorize_is_never_published(pipe, monkeypatch):
@@ -292,7 +292,7 @@ def test_a_generation_with_no_time_left_to_authorize_is_never_published(pipe, mo
         monkeypatch.setattr(getattr(P, name), "run", overrunning_specialist)
     raw, res = run_with_deadline("What is happening with TCS lately? (deadline authorization)", total=2.0, reserve=0.5, min_attempt=0.5, attempt_cap=2.0)
     assert pipe["specialist"] == 1 and res["degraded_reason"] == "deadline_exceeded"
-    assert "authorized" not in json.dumps(res.get("answer_authorization") or {}).lower() or res["answer_authorization"].get("authorized") is not True
+    assert "authorized" not in json.dumps(raw.get("answer_authorization") or {}).lower() or raw["answer_authorization"].get("authorized") is not True
     assert good_generation()["summary"] not in json.dumps(res)           # unauthorized content never reaches the response
 
 

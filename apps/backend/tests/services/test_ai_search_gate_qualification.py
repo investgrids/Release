@@ -160,14 +160,14 @@ def test_insufficient_questions_make_zero_specialist_calls_and_carry_no_analysis
     pipe["set_bundle"](b())
     raw, res, cached = run_pipeline(f"{query} (3.4B {tag})")
     assert pipe["specialist"] == 0 and cached is False
-    assert res["degraded_reason"] == "insufficient_evidence" and res["evidence_sufficiency"]["kind"] == missing_kind
+    assert res["degraded_reason"] == "insufficient_evidence" and raw["evidence_sufficiency"]["kind"] == missing_kind
     assert res["investment_verdict"]["rating"] == "Not Applicable" and res["answer"]["confidence"] is None
     assert res["timeline"] == [] and res["scenarios"] == {} and res["key_drivers"] == [] and res["companies"] == []
     text = json.dumps(res, ensure_ascii=False).lower()
     assert not any(w in text for w in FORBIDDEN)
     assert safety_gate.find_v3_safety_violation(res) is None
     if tag == "EI1":
-        assert res["premise_check"]["status"] == "not_established"
+        assert raw["premise_check"]["status"] == "not_established"
 
 
 def test_sufficient_evidence_does_reach_the_specialist(pipe):
@@ -352,7 +352,7 @@ def test_real_cr2_generation_is_rejected_and_does_not_leak_through_any_public_ch
     for path, text in public_strings(g):
         if len(text) > 25:
             assert text.lower() not in blob, path
-    assert public["answer_authorization"]["authorized"] is False
+    assert res["answer_authorization"]["authorized"] is False and "answer_authorization" not in public      # internal gate record; Step 5 removed it from the public response
 
 
 def test_public_authorization_summary_carries_codes_and_counts_but_never_the_withheld_content():
@@ -402,7 +402,7 @@ def test_a_correct_generation_with_supported_figures_is_published_end_to_end(pip
     s = "TCS informed the Exchange of quarterly results with revenue up 11%."
     pipe["generation"] = (gen(s, "A1"), False)
     raw, res, _ = run_pipeline("What is happening with TCS lately? (3.4B publish)")
-    assert res["synthesis_incomplete"] is False and res["answer_authorization"]["authorized"] is True
+    assert res["synthesis_incomplete"] is False and raw["answer_authorization"]["authorized"] is True
 
 
 # ═══ not-gated paths stay not-gated; gate decisions are deterministic ═════════════════════════════════════════════════════════════════════

@@ -84,7 +84,7 @@ def test_capacity_reason_survives_finalize_v3_response_for_the_real_bel_hal_quer
     assert final["degraded_reason"] == "capacity"
     assert final["synthesis_incomplete"] is True
     assert final["answer_availability"] == {
-        "state": "temporarily_unavailable", "evidence_retrieval_completed": True, "evidence_count": 0, "reason": "provider_capacity", "basis": "none",
+        "state": "temporarily_unavailable", "evidence_retrieval_completed": True, "evidence_count": 0, "reason": "provider_capacity", "basis": "none", "kind": "temporarily_unavailable", "scope": "none", "conclusion_authorized": False,
     }
 
 

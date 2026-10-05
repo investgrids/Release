@@ -18,7 +18,6 @@ from app.services import ai_service as S
 from app.services.ai_search import degraded_shape as DS
 from app.services.ai_search import evidence_sufficiency as SUFF
 from app.services.ai_search import pipeline as P
-from app.services.ai_search import postprocess as PP
 from app.services.ai_search.response_finalize import _derive_answer_availability, finalize_v3_response
 from app.services.ai_search.specialists import base as spec_base
 from tests.services.test_ai_search_fail_closed import bundle, good_generation, pipe, run_pipeline, tcs_bundle  # noqa: F401
@@ -126,7 +125,7 @@ def test_gate_a_reaches_the_same_verdict_with_and_without_a_failed_source_but_th
 def test_a_failed_search_never_says_evidence_is_missing_and_exposes_no_internals(pipe, no_provider):
     failed = refusal(pipe, failed=True)
     text = json.dumps(failed, ensure_ascii=False)
-    assert failed["evidence_sufficiency"] is None                                      # no "insufficient" verdict is published for a search that did not finish
+    assert "evidence_sufficiency" not in failed                                        # no "insufficient" verdict is published for a search that did not finish (and Step 5: the gate record is internal)
     assert not re.search(r"not enough|enough recent|doesn't currently have|no evidence|insufficient", failed["answer"]["summary"], re.IGNORECASE)
     assert "can't tell whether supporting evidence exists" in failed["answer"]["summary"]
     for leak in ("LiveNewsUnavailable", "Traceback", "Exception", "retrieval_failures", "TimeoutError"):
@@ -135,7 +134,7 @@ def test_a_failed_search_never_says_evidence_is_missing_and_exposes_no_internals
 
 def test_a_genuine_absence_still_says_so(pipe, no_provider):
     absent = refusal(pipe, failed=False)
-    assert absent["evidence_sufficiency"]["status"] == "INSUFFICIENT" and "enough recent" in absent["answer"]["summary"]
+    assert "enough recent" in absent["answer"]["summary"] and "evidence_sufficiency" not in absent
 
 
 def test_the_refusal_stages_are_distinct_and_neither_is_reported_as_a_cache_hit(pipe, no_provider):
@@ -208,51 +207,8 @@ def test_the_count_normalization_is_idempotent_and_leaves_other_fields_alone():
     twice = finalize_v3_response("q", copy.deepcopy(once), x_admin_key=None, was_cached=True)
     assert once == twice
     changed = {k for k in once if once[k] != res.get(k)}
-    assert changed <= {"answer", "evidence_score", "answer_availability"}               # an authorized answer is otherwise unchanged
-    assert {k for k in once["answer"] if once["answer"][k] != res["answer"].get(k)} <= {"sources_count"}
-
-
-@pytest.mark.parametrize("raw,dev,expect", [
-    (["9 trusted sources", "Calibrated from 102 verified predictions (57% historical accuracy)"], 9, True),
-    (["26 independent developments, corroborated by 27 sources"], 26, True),
-    (["2 news & event sources"], 2, True),
-    (["1 independent development, corroborated by 3 sources"], 1, True),
-])
-def test_the_confidence_copy_never_labels_a_development_count_as_sources(raw, dev, expect):
-    out = PP.public_confidence_reasons(raw, dev)
-    assert not any(re.search(r"\b\d+ (?:trusted |news & event )?sources?\b", r) for r in out)
-    assert any("independent development" in r and str(dev) in r for r in out)
-    assert [r for r in out if r.startswith("Calibrated")] == [r for r in raw if r.startswith("Calibrated")]       # unrelated reasons untouched
-
-
-def test_with_no_developments_no_source_claim_is_made_at_all():
-    assert PP.public_confidence_reasons(["2 news & event sources"], 0) == []
-
-
-def test_a_real_confidence_run_contains_no_sources_wording_and_no_count_that_contradicts_evidence_count(monkeypatch):
-    from app.services.ai_search.evidence import EvidenceBundle
-
-    async def no_cal():
-        return {}
-    monkeypatch.setattr("app.services.ai_search.prediction_recording.get_search_calibration", no_cal)
-    b = EvidenceBundle()
-    b.news = [{"id": f"n{i}", "headline": f"h{i}"} for i in range(3)]
-    b.announcements = [{"id": f"a{i}"} for i in range(6)]
-    b.development_count = 9
-    bd = asyncio.run(PP.compute_confidence_breakdown(b, {"confidence_self_rating": 5}, {}))
-    text = " ".join(bd["reasons"])
-    assert not re.search(r"\b\d+ (?:trusted |news & event )?sources?\b", text) and "9 independent developments" in text
-
-
-def test_human_readable_counts_in_a_finalized_response_agree_with_evidence_count():
-    res = saved("openai_3_4g1.json", "CC2")                                              # the historical defect: "9 trusted sources" next to evidence_count 3
-    dev = res["evidence_score"]["development_count"]
-    for holder in (res["confidence_data"], res["confidence_breakdown"]):
-        holder["reasons"] = PP.public_confidence_reasons(holder["reasons"], dev)
-    r = finalize_v3_response("q", res, x_admin_key=None, was_cached=True)
-    n = r["answer_availability"]["evidence_count"]
-    claimed = [int(m) for m in re.findall(r"\b(\d+) (?:trusted |evidence |news & event )?(?:sources?|items?)\b", json.dumps(r["confidence_data"]["reasons"] + r["confidence_breakdown"]["reasons"]))]
-    assert n == 3 and all(c == n for c in claimed)
+    assert changed <= {"answer", "evidence_score", "answer_availability", "investment_verdict", "confidence_data", "confidence_breakdown", "confidence"}      # an authorized answer is otherwise unchanged (Step 5: confidence and verdict projection)
+    assert {k for k in once["answer"] if once["answer"][k] != res["answer"].get(k)} <= {"sources_count", "confidence", "confidence_level"}
 
 
 # ── partial stays partial ────────────────────────────────────────────────────────────────────────────────────────────────────

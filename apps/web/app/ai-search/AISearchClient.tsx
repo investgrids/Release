@@ -200,9 +200,15 @@ export interface AnswerAvailability {
   /** Evidence items (events, news, policy items) LISTED in this response. 0 for an educational answer, which rests on no retrieved evidence. */
   evidence_count: number;
   /** Step 4C (additive): why the answer is not fully available; null when it is. */
-  reason?: "evidence_insufficient" | "retrieval_failed" | "retrieval_timeout" | "provider_capacity" | "generation_failed" | "time_budget_exhausted" | "claims_not_authorized" | "unsupported_subject" | "limited_evidence" | null;
+  reason?: "evidence_insufficient" | "retrieval_failed" | "retrieval_timeout" | "provider_capacity" | "generation_failed" | "time_budget_exhausted" | "claims_not_authorized" | "unsupported_subject" | "education_not_covered" | "limited_evidence" | null;
   /** Step 4C (additive): what an available answer rests on. */
   basis?: "retrieved_evidence" | "market_data" | "education" | "none";
+  /** Step 5 (additive): the final answer type. Research, partial research, education or product information, or unavailable. */
+  kind?: "research" | "partial_research" | "education" | "product_information" | "unavailable" | "temporarily_unavailable";
+  /** Step 5 (additive): what was actually answered. "partial" means narrowed research, or a product question asking for detail the methodology does not publish. */
+  scope?: "full" | "partial" | "none";
+  /** Step 5 (additive): true only when an authorized structured investment conclusion (a real rating) is present. */
+  conclusion_authorized?: boolean;
 }
 
 export interface SearchResult {

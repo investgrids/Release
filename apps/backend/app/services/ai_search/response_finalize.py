@@ -91,6 +91,7 @@ import asyncio
 
 import structlog
 
+from app.services.ai_search import public_contract
 from app.services.ai_search import market_pulse_safety, safety_gate
 from app.services.ai_search.aev2.assemble import assemble_aev2
 from app.services.ai_search.aev2.mode import get_aev2_mode, should_assemble, should_return_to_client
@@ -104,7 +105,7 @@ log = structlog.get_logger(__name__)
 # docstring. A set, not a single name, so a future internal-only
 # addition (e.g. a second attribution source) has one obvious place to
 # register rather than a new ad hoc strip somewhere else.
-_INTERNAL_ONLY_FIELDS = frozenset({"announcements", "_rejected_generation", "_engine_verdict_internal", "_retrieval_failures"})   # the second holds a withheld model generation: diagnostics only, never sent to a client
+_INTERNAL_ONLY_FIELDS = frozenset({"announcements", "_rejected_generation", "_engine_verdict_internal", "_retrieval_failures"}) | public_contract.INTERNAL_DIAGNOSTICS      # the diagnostics: Step 5   # the second holds a withheld model generation: diagnostics only, never sent to a client
 
 
 def _strip_internal_only_fields(result: dict) -> dict:
@@ -148,6 +149,8 @@ _PRE_RETRIEVAL_DEGRADED_REASONS = frozenset({
     # closest fit: there genuinely is no evidence to show, and it is not
     # a transient condition a retry would fix.
     "referential_no_context", "ambiguous_entity", "unsupported_entity",
+    # Step 5: an uncurated educational question is answered with "no reviewed explanation yet" before any retrieval or model call
+    "education_not_covered",
 })
 
 # Set by specialists/base.py's parse_specialist_json when the LLM
@@ -190,6 +193,7 @@ _AVAILABILITY_REASON = {
     "deadline_exceeded": "time_budget_exhausted",
     "claims_not_authorized": "claims_not_authorized",
     "referential_no_context": "unsupported_subject", "ambiguous_entity": "unsupported_subject", "unsupported_entity": "unsupported_subject",
+    "education_not_covered": "education_not_covered",
 }
 
 
@@ -345,6 +349,10 @@ def finalize_v3_response(
     # builds CoreMarketPulse here instead of CoreAnswer — same step, same
     # "build exactly once, unconditionally" discipline, never a second
     # finalization path that skips this. ────────────────────────────────
+    if not is_market_pulse:
+        # Step 5: the final public contract (public_contract.py): no answer confidence, no verdict fields without an authorized conclusion, internal evidence counters removed. Applied BEFORE the core is built so
+        # every presenter derives from the same conformant answer, and so cached or saved responses obey the same rule.
+        result = public_contract.project_result(result)
     core = from_market_pulse_response(result) if is_market_pulse else from_v3_response(result)
 
     # ── 3. Optional AEV2 assembly — a presenter over `core`, never over
@@ -373,7 +381,8 @@ def finalize_v3_response(
     # the specialist-degraded and the safety-gate-degraded shape — see
     # degraded_shape.py). Fire-and-forget — a prediction-store failure
     # must never affect the answer already being returned. ─────────────
-    if not is_market_pulse and not was_cached and not result.get("synthesis_incomplete"):
+    if not is_market_pulse and not was_cached and not result.get("synthesis_incomplete") and (result.get("investment_verdict") or {}).get("direction"):
+        # Step 5: only an AUTHORIZED direction is ever recorded as a prediction. The recorder defaults a missing direction to "sideways", so an answer with no conclusion used to be stored as a neutral prediction.
         from app.services.ai_search.prediction_recording import store_search_predictions
 
         breakdown = result.get("confidence_breakdown") or {}
@@ -398,6 +407,11 @@ def finalize_v3_response(
             result["answer"] = {**result["answer"], "sources_count": n}
         if isinstance(result.get("evidence_score"), dict):
             result["evidence_score"] = {**result["evidence_score"], "source_count": n}
+    if not is_market_pulse:
+        # Step 5: kind / scope / conclusion_authorized (the result-level rules ran before the canonical core was built, see below).
+        result = {**result, "answer_availability": public_contract.enrich_availability(result, result["answer_availability"])}
+    else:
+        result = {**result, "answer_availability": {**result["answer_availability"], "kind": "research", "scope": "full", "conclusion_authorized": False}}
 
     # ── 6. Strip internal-only attribution plumbing — the one point
     # every route, every cache-hit/fresh/mode combination, and both

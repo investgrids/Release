@@ -1,4 +1,8 @@
 """
+Step 5 update: the engine verdict is no longer produced at all. It rated from the public answer confidence, and that confidence was never measured (see postprocess.compute_confidence_breakdown), while inside
+the engine a missing direction, confidence, opportunity score and VIX each fall back to a constant. The scope table below is kept because the market-wide rule is what the verdict must obey if a measured
+confidence ever exists. Original (Step 3.4D-2.1) text follows.
+
 Step 3.4D-2.1: the deterministic engine verdict is a MARKET-WIDE read (market direction, confidence, VIX). It stays computed and available internally, but is public only for a market-wide / macro
 scope. Independent scope checks: company research, comparison, event impact, sector, macro. No provider call.
 """
@@ -36,16 +40,11 @@ def assemble(case):
 
 
 @pytest.mark.parametrize("case", CASES, ids=[c[0] for c in CASES])
-def test_engine_verdict_is_public_only_for_market_wide_scopes(real_assembly, case):
+def test_no_engine_verdict_is_produced_without_a_measured_confidence(real_assembly, case):
     res = assemble(case)
-    assert res["ui_mode"] == case[6], res["ui_mode"]
-    public = res["investment_verdict"]["engine_verdict"]
-    internal = res["_engine_verdict_internal"]
-    assert internal is not None and isinstance(internal, dict) and internal.get("rating")      # computed in every scope
-    if case[7]:
-        assert public == internal
-    else:
-        assert public is None
+    assert res["ui_mode"] == case[6], res["ui_mode"]                                           # routing and ui_mode are unchanged
+    assert res["investment_verdict"]["engine_verdict"] is None and res["_engine_verdict_internal"] is None
+    assert res["confidence_breakdown"]["final_confidence"] is None and res["answer"]["confidence"] is None
 
 
 @pytest.mark.parametrize("case", CASES, ids=[c[0] for c in CASES])

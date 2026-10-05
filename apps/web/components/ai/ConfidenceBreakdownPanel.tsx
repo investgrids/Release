@@ -3,12 +3,13 @@
 import { Gauge } from "lucide-react";
 
 export interface ConfidenceBreakdown {
-  evidence_quality: number;
-  market_confirmation: number;
-  historical_similarity: number;
-  data_freshness: number;
-  reasoning_confidence: number;
-  final_confidence: number;
+  // Step 5: the backend publishes no answer confidence, so every figure is null and level is "unscored". The fields stay for shape compatibility.
+  evidence_quality: number | null;
+  market_confirmation: number | null;
+  historical_similarity: number | null;
+  data_freshness: number | null;
+  reasoning_confidence: number | null;
+  final_confidence: number | null;
   level: string;
   reasons: string[];
 }
@@ -36,7 +37,8 @@ function barColor(v: number) {
  * computed and fabricating a split would misrepresent the real number.
  */
 export function ConfidenceBreakdownPanel({ breakdown }: { breakdown: ConfidenceBreakdown | null | undefined }) {
-  if (!breakdown) return null;
+  // No measured confidence means no panel. Never draw a null as 0%.
+  if (!breakdown || breakdown.final_confidence == null) return null;
 
   return (
     <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">

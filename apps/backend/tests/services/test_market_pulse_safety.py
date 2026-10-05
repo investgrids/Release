@@ -171,7 +171,7 @@ def test_finalize_v3_response_leaves_clean_market_pulse_unchanged():
     # 2026-09-23: the one intentional addition — see test_answer_availability.py for its own dedicated coverage (Step 4C added reason/basis inside it).
     assert result == {
         **_CLEAN_PULSE,
-        "answer_availability": {"state": "available", "evidence_retrieval_completed": True, "evidence_count": 3, "reason": None, "basis": "market_data"},
+        "answer_availability": {"state": "available", "evidence_retrieval_completed": True, "evidence_count": 3, "reason": None, "basis": "market_data", "kind": "research", "scope": "full", "conclusion_authorized": False},
     }
 
 

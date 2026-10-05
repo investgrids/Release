@@ -182,8 +182,8 @@ def test_a_conformant_generation_reaches_the_public_response_without_any_withhel
     parsed, _ = parse_specialist_json(conformant_raw(), QUERY)
     pipe["generation"] = (parsed, False)
     _raw, res, _ = run_pipeline("TCS vs Infosys, which is stronger? (3.4D-3 e2e)")
-    assert res["synthesis_incomplete"] is False and res["answer_authorization"]["authorized"] is True
-    assert res["structured_authorization"] == {"policy": "llm_structured_claims_withheld_unless_deterministically_authorized", "withheld": [], "state": "none_generated"}
+    assert res["synthesis_incomplete"] is False and _raw["answer_authorization"]["authorized"] is True
+    assert _raw["structured_authorization"] == {"policy": "llm_structured_claims_withheld_unless_deterministically_authorized", "withheld": [], "state": "none_generated"}
     assert res["conclusion_scope"]["authorized"] == "valuation_comparison" and res["conclusion_scope"]["partial"] is True
     assert res["investment_verdict"]["rating"] == "Not Applicable" and res["investment_verdict"]["direction"] is None and res["answer"]["sentiment"] is None
     assert res["scenarios"] == {} and res["investment_verdict"]["engine_verdict"] is None

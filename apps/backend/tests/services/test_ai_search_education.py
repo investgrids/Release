@@ -245,7 +245,8 @@ def test_end_to_end_the_curated_questions_make_no_model_call_and_pass_the_safety
     raw, res, cached = run_pipeline(q)
     assert pipe["specialist"] == 0 and cached is False
     assert res["education"]["topic"] == tid and res["degraded_reason"] is None and res["synthesis_incomplete"] is False
-    assert res["answer_availability"] == {"state": "available", "evidence_retrieval_completed": False, "evidence_count": 0, "reason": None, "basis": "education"}
+    assert res["answer_availability"] == {"state": "available", "evidence_retrieval_completed": False, "evidence_count": 0, "reason": None, "basis": "education",
+                                          "kind": "product_information" if tid == "marketripple_score" else "education", "scope": "full", "conclusion_authorized": False}
     assert res["answer"]["summary"] == ED.TOPICS[tid].summary                       # the safety gate did not rewrite or degrade the contract text
     assert res["investment_verdict"]["rating"] == "Not Applicable" and res["scenarios"] == {}
 

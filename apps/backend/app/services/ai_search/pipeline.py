@@ -27,6 +27,7 @@ from app.services.ai_search import evidence_sufficiency as suff_mod
 from app.services.ai_search import structured_authorization as struct_mod
 from app.services.ai_search.company_matching import filter_events_to_companies
 from app.services.ai_search.degraded_shape import build_degraded_shape
+from app.services.ai_search.evidence_filter import plan_for
 from app.services.ai_search import entities as entities_mod
 from app.services.ai_search import evidence as evidence_mod
 from app.services.ai_search import followups as followups_mod
@@ -57,7 +58,7 @@ def _degraded_shell(query: str, degraded_reason: str, summary: str) -> dict:
     top of this base.
     """
     return {
-        "query": query, "schema_version": SCHEMA_VERSION,
+        "query": query, "schema_version": SCHEMA_VERSION, "response_id": str(uuid.uuid4()),      # Step 5: every final response carries a response_id (feedback correlation)
         "synthesis_incomplete": True, "degraded_reason": degraded_reason,
         "answer": {
             "summary": summary, "bottom_line": summary,
@@ -81,6 +82,9 @@ def _degraded_shell(query: str, degraded_reason: str, summary: str) -> dict:
         "graph": {"nodes": [], "edges": []},
         "citations": [], "decision_intelligence": None,
         "confidence_data": {"level": "unscored", "score": None, "reasons": [], "breakdown": {}, "caveats": []},
+        # Step 5: the same unscored confidence fields as every other class
+        "confidence_breakdown": {"final_confidence": None, "level": "unscored"},
+        "confidence": {"status": "unscored", "score": None, "components": {"evidence_quality": None, "market_confirmation": None, "historical_similarity": None, "data_freshness": None}},
     }
 
 
@@ -187,6 +191,8 @@ STAGE_LABELS = {
     "education": "Answering from MarketRipple's own explanation",
     # Step 4C: emitted instead of "insufficient_evidence" when a source FAILED during retrieval, so the failure is never reported as an absence of evidence.
     "retrieval_incomplete": "The evidence search did not complete",
+    # Step 5: a definitional question with no reviewed explanation is answered with that fact, before any retrieval or model call.
+    "education_not_covered": "Checking for a reviewed explanation",
 }
 
 
@@ -317,6 +323,17 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
         yield "education", STAGE_LABELS["education"], None
         _ui = classify_ui_mode(specialist_kind="company", intent_data=intent_data, entities=entities, query=query)
         result = education_mod.build_response(query, _edu_topic, schema_version=SCHEMA_VERSION, ui_mode=_ui, intent=intent_data.get("intent", "general"))
+        result["context_used"] = context_used
+        yield "finalizing", STAGE_LABELS["finalizing"], result
+        return
+
+    # Step 5: every other definitional question (the evidence-free explanation plan) has no reviewed source to answer from. It used to reach a model with no evidence and no authorization; it now gets an honest
+    # "not covered yet" response. Current-data wording never gets here (plan_for refuses it the explanation plan).
+    if plan_for(query, intent_data, entities).kind == "explanation":
+        log.info("ai_search_v3.education_not_covered", query=query[:60])
+        yield "education_not_covered", STAGE_LABELS["education_not_covered"], None
+        _ui = classify_ui_mode(specialist_kind="company", intent_data=intent_data, entities=entities, query=query)
+        result = education_mod.build_not_covered_response(query, schema_version=SCHEMA_VERSION, ui_mode=_ui, intent=intent_data.get("intent", "general"))
         result["context_used"] = context_used
         yield "finalizing", STAGE_LABELS["finalizing"], result
         return
@@ -535,7 +552,7 @@ async def run_ai_search_v3(query: str, db: AsyncSession, session_context: dict |
         stages_seen.add(stage)
         if payload is not None:
             result = payload
-    was_cached = not stages_seen & {"reasoning", "insufficient_evidence", "education", "retrieval_incomplete"}
+    was_cached = not stages_seen & {"reasoning", "insufficient_evidence", "education", "retrieval_incomplete", "education_not_covered"}
     return result, was_cached
 
 
@@ -804,16 +821,19 @@ async def _assemble_response(
     # rating-override reconciliation (verdict_basis, tier-disagreement logic)
     # is intentionally NOT ported here — out of this item's stated scope.
     engine_verdict: dict | None = None
-    try:
-        from app.services.investment_verdict_engine import compute_investment_verdict as _compute_engine_verdict
-        engine_verdict = _compute_engine_verdict(
-            direction=(evidence.mie_state or {}).get("signals", {}).get("direction", "sideways"),
-            confidence_score=confidence_breakdown["final_confidence"],
-            opportunity_score=opportunity_score,
-            vix_level=evidence.vix_level,
-        )
-    except Exception as exc:
-        log.warning("ai_search_v3.engine_verdict_fail", exc=str(exc)[:120])
+    # Step 5: the engine rating needs a MEASURED confidence. None exists (see postprocess.compute_confidence_breakdown), and inside the engine a missing direction, confidence, opportunity score and VIX
+    # each fall back to a constant ("sideways", 0, 50, 15), so a rating computed without one would be a neutral conclusion manufactured from defaults. No engine rating is published instead.
+    if confidence_breakdown["final_confidence"] is not None:
+        try:
+            from app.services.investment_verdict_engine import compute_investment_verdict as _compute_engine_verdict
+            engine_verdict = _compute_engine_verdict(
+                direction=(evidence.mie_state or {}).get("signals", {}).get("direction", "sideways"),
+                confidence_score=confidence_breakdown["final_confidence"],
+                opportunity_score=opportunity_score,
+                vix_level=evidence.vix_level,
+            )
+        except Exception as exc:
+            log.warning("ai_search_v3.engine_verdict_fail", exc=str(exc)[:120])
 
     # P5 Stage 3, item 4 — real horizon only when the LLM didn't state one;
     # a real LLM-stated horizon is always kept as-is.
@@ -1042,6 +1062,7 @@ async def _assemble_response(
         specialist_kind == "comparison" and not is_multi_compare
         and isinstance(response.get("decision_intelligence"), dict)
         and (conclusion_scope or {}).get("partial") is not True      # Step 3.4D-2: a winner/preference needs the conclusion to be authorized, valuation-only evidence does not
+        and confidence_breakdown["final_confidence"] is not None     # Step 5: the pairwise engine rates both sides from a measured confidence; with none it would rate from defaults
     ):
         try:
             from app.services.decision_engine import compute_decision

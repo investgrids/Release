@@ -1,0 +1,1011 @@
+{
+  "ai_conclusion": {
+    "type": "dict",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "ai_reasoning_methods": {
+    "type": "list",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "answer": {
+    "type": "dict",
+    "nested": [
+      "bottom_line",
+      "confidence",
+      "confidence_level",
+      "immediate_impact",
+      "long_term",
+      "medium_term",
+      "opportunities",
+      "risks",
+      "sentiment",
+      "sources_count",
+      "summary",
+      "what_happened",
+      "what_priced_in",
+      "why_it_happened"
+    ],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "answer_availability": {
+    "type": "dict",
+    "nested": [
+      "basis",
+      "conclusion_authorized",
+      "evidence_count",
+      "evidence_retrieval_completed",
+      "kind",
+      "reason",
+      "scope",
+      "state"
+    ],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "citations": {
+    "type": "list",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "claim_sources": {
+    "type": "list",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02"
+    ]
+  },
+  "companies": {
+    "type": "list",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "company_suggestions": {
+    "type": "list",
+    "nested": [],
+    "in_classes": [
+      "13"
+    ]
+  },
+  "conclusion_scope": {
+    "type": "dict",
+    "nested": [
+      "authorized",
+      "coverage",
+      "missing",
+      "partial",
+      "reason",
+      "requested"
+    ],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "confidence": {
+    "type": "dict",
+    "nested": [
+      "components",
+      "score",
+      "status"
+    ],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "confidence_breakdown": {
+    "type": "dict",
+    "nested": [
+      "final_confidence",
+      "level"
+    ],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "confidence_data": {
+    "type": "dict",
+    "nested": [
+      "breakdown",
+      "caveats",
+      "level",
+      "reasons",
+      "score"
+    ],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "context_used": {
+    "type": "dict",
+    "nested": [
+      "companies",
+      "sectors"
+    ],
+    "in_classes": [
+      "01",
+      "02",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "decision_engine_v2": {
+    "type": "dict",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "decision_intelligence": {
+    "type": "dict",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "degraded_reason": {
+    "type": "NoneType",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "education": {
+    "type": "dict",
+    "nested": [
+      "advice_requested",
+      "authored_for_contract",
+      "beyond_published_detail",
+      "current_market_evidence",
+      "grounding",
+      "kind",
+      "source",
+      "title",
+      "topic"
+    ],
+    "in_classes": [
+      "11",
+      "12"
+    ]
+  },
+  "evidence_index": {
+    "type": "list",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02"
+    ]
+  },
+  "evidence_score": {
+    "type": "dict",
+    "nested": [
+      "checklist",
+      "source_count",
+      "stars"
+    ],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "follow_up_groups": {
+    "type": "list",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "follow_up_questions": {
+    "type": "list",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "graph": {
+    "type": "dict",
+    "nested": [
+      "edges",
+      "nodes"
+    ],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "historical_comparison": {
+    "type": "list",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "insights": {
+    "type": "list",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "intent": {
+    "type": "str",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "investment_verdict": {
+    "type": "dict",
+    "nested": [
+      "catalysts",
+      "confidence",
+      "direction",
+      "engine_verdict",
+      "horizon",
+      "opportunity_score",
+      "rating",
+      "risk_level",
+      "risks",
+      "suitable_for",
+      "top_picks"
+    ],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "key_drivers": {
+    "type": "list",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "market_chart": {
+    "type": "dict",
+    "nested": [
+      "labels",
+      "series"
+    ],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "market_impact_horizons": {
+    "type": "dict",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "monitoring": {
+    "type": "dict",
+    "nested": [
+      "items"
+    ],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "news": {
+    "type": "list",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "opportunity_risk_matrix": {
+    "type": "dict",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "policies": {
+    "type": "list",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "public_title": {
+    "type": "NoneType",
+    "nested": [],
+    "in_classes": [
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "query": {
+    "type": "str",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "related_events": {
+    "type": "list",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "response_id": {
+    "type": "str",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "ripple_chain": {
+    "type": "list",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "scenarios": {
+    "type": "dict",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "schema_version": {
+    "type": "str",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "sectors": {
+    "type": "list",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "source_attribution": {
+    "type": "list",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "specialist": {
+    "type": "str",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "switch_holding": {
+    "type": "NoneType",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "switch_target": {
+    "type": "NoneType",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "synthesis_incomplete": {
+    "type": "bool",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "timeline": {
+    "type": "list",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  },
+  "timeline_intelligence": {
+    "type": "dict",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "ui_mode": {
+    "type": "str",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "validation": {
+    "type": "dict",
+    "nested": [
+      "contradiction_flagged",
+      "omissions",
+      "repairs"
+    ],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "watch_subject": {
+    "type": "dict",
+    "nested": [
+      "company_name",
+      "subject_key",
+      "subject_label",
+      "subject_type"
+    ],
+    "in_classes": [
+      "01",
+      "02",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10"
+    ]
+  },
+  "what_to_monitor": {
+    "type": "list",
+    "nested": [],
+    "in_classes": [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13"
+    ]
+  }
+}

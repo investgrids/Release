@@ -610,6 +610,7 @@ def test_aev2_off_public_result_unaffected_by_internal_announcement_plumbing():
     prior_public_shape = {k: v for k, v in v3_response.items() if k != "announcements"}
     prior_public_shape["answer_availability"] = {
         "state": "available", "evidence_retrieval_completed": True, "evidence_count": 0, "reason": None, "basis": "retrieved_evidence",      # reason/basis: additive, Step 4C
+        "kind": "research", "scope": "full", "conclusion_authorized": False,                                          # kind/scope/conclusion_authorized: additive, Step 5
     }
 
     result = finalize_v3_response("q", dict(v3_response), was_cached=True)

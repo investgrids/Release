@@ -202,7 +202,7 @@ def test_cr2_with_zero_evidence_never_calls_a_specialist_and_invents_nothing(pip
         assert leaked not in text, leaked
     assert res["investment_verdict"]["rating"] == "Not Applicable" and res["answer"]["confidence"] is None
     assert res["timeline"] == [] and res["scenarios"] == {} and res["key_drivers"] == [] and res["companies"] == []
-    assert res["evidence_sufficiency"]["status"] == "INSUFFICIENT" and res["evidence_sufficiency"]["missing"] == ["current_company_evidence"]
+    assert raw["evidence_sufficiency"]["status"] == "INSUFFICIENT" and raw["evidence_sufficiency"]["missing"] == ["current_company_evidence"]
     assert res["public_title"] == "Not enough recent evidence"
     assert res["answer_availability"]["state"] == "no_verified_evidence"
 
@@ -212,7 +212,7 @@ def test_bel_with_an_unestablished_premise_never_calls_a_specialist(pipe):
     pipe["set_bundle"](b)
     raw, res, _ = run_pipeline("BEL just won a new defence order, what does this mean for the stock? (gate A case 2)")
     assert pipe["specialist"] == 0 and res["degraded_reason"] == "insufficient_evidence"
-    assert res["premise_check"]["status"] == "not_established" and res["evidence_sufficiency"]["kind"] == "event_impact"
+    assert raw["premise_check"]["status"] == "not_established" and raw["evidence_sufficiency"]["kind"] == "event_impact"
     assert res["investment_verdict"]["rating"] == "Not Applicable" and "confirmed" in res["answer"]["summary"]
 
 
@@ -220,7 +220,7 @@ def test_a_comparison_missing_one_side_never_calls_a_specialist(pipe):
     b = bundle("comparison", announcements=[ann("a1", "Tata Consultancy Services Limited has informed the Exchange regarding results", "TCS")], valuation={"TCS": {"pe": 15.1}})
     pipe["set_bundle"](b)
     raw, res, _ = run_pipeline("TCS vs Infosys, which is stronger? (gate A case 3)")
-    assert pipe["specialist"] == 0 and res["evidence_sufficiency"]["missing_entities"] == ["INFY"] and res["decision_intelligence"] is None
+    assert pipe["specialist"] == 0 and raw["evidence_sufficiency"]["missing_entities"] == ["INFY"] and res["decision_intelligence"] is None
 
 
 def test_insufficiency_responses_pass_the_recommendation_language_safety_gate(pipe):
@@ -266,7 +266,8 @@ def test_a_rejected_generation_never_leaks_into_the_public_response():
         assert leaked not in text, leaked
     assert public["investment_verdict"]["rating"] == "Not Applicable" and public["answer"]["confidence"] is None
     assert public["timeline"] == [] and public["scenarios"] == {} and public["key_drivers"] == []
-    assert public["answer_authorization"]["authorized"] is False and "claim_sources_missing" in public["answer_authorization"]["reasons"]
+    assert res["answer_authorization"]["authorized"] is False and "claim_sources_missing" in res["answer_authorization"]["reasons"]      # the internal gate record (Step 5: not part of the public response)
+    assert "answer_authorization" not in public
     assert public["public_title"] == "This analysis couldn't be verified" and safety_gate.find_v3_safety_violation(public) is None
     assert AA.REJECTED_GENERATIONS[-1]["generation"] is gen and AA.REJECTED_GENERATIONS[-1]["reasons"] == auth["reasons"]
 
@@ -347,7 +348,7 @@ def test_a_sufficient_question_reaches_the_specialist_and_an_unauthorized_genera
     raw, res, _ = run_pipeline("What is happening with TCS lately? (gate B case 1)")
     assert pipe["specialist"] == 1
     assert res["degraded_reason"] == "claims_not_authorized" and "_rejected_generation" not in res
-    assert res["answer_authorization"]["reasons"] == ["claim_sources_missing"] and res["investment_verdict"]["rating"] == "Not Applicable"
+    assert raw["answer_authorization"]["reasons"] == ["claim_sources_missing"] and res["investment_verdict"]["rating"] == "Not Applicable"
     assert "_rejected_generation" in raw      # kept internally, before the finalizer strips it
     assert res["answer_availability"]["state"] in ("limited_evidence", "no_verified_evidence")
 
@@ -359,7 +360,7 @@ def test_an_authorized_generation_is_assembled_and_carries_the_decision(pipe, mo
     pipe["set_bundle"](tcs_bundle())
     pipe["generation"] = (good_generation(), False)
     raw, res, _ = run_pipeline("What is happening with TCS lately? (gate B case 2)")
-    assert res["synthesis_incomplete"] is False and res["answer_authorization"]["authorized"] is True and res["evidence_sufficiency"]["status"] == "SUFFICIENT"
+    assert res["synthesis_incomplete"] is False and raw["answer_authorization"]["authorized"] is True and raw["evidence_sufficiency"]["status"] == "SUFFICIENT"
 
 
 def test_a_specialist_capacity_failure_is_not_reported_as_an_authorization_failure(pipe):

@@ -179,7 +179,7 @@ async def test_cache_hit_performs_zero_new_work_at_any_stage_boundary(monkeypatc
     first = await _run_fresh(query, _CLEAN_PARSED, was_degraded=False, aev2_mode="off", monkeypatch=monkeypatch)
     assert first["entity_calls"]["n"] == 1
     assert first["specialist_calls"]["n"] == 1
-    assert first["prediction_calls"]["n"] == 1, "fresh clean response should record exactly one prediction pass"
+    assert first["prediction_calls"]["n"] == 0, "Step 5: a clean response with no AUTHORIZED direction records no prediction (the LLM direction is withheld since 3.4D, and the recorder used to store 'sideways' instead)"
 
     # Second call, same exact query text — Layer 1 exact-key cache hit,
     # checked in _run_v3_steps BEFORE entity resolution even runs. Fresh
@@ -243,14 +243,14 @@ async def test_language_gate_rejection_records_zero_predictions_and_uses_shared_
     ).keys())
     # + answer_availability (2026-09-23) — attached by finalize_v3_response
     # AFTER build_degraded_shape runs, on every response including this one.
-    assert set(ctx["final"].keys()) == skeleton_keys | {"answer_availability"}
+    from app.services.ai_search.public_contract import INTERNAL_DIAGNOSTICS
+    assert set(ctx["final"].keys()) == (skeleton_keys - INTERNAL_DIAGNOSTICS) | {"answer_availability"}      # Step 5: internal diagnostics are not public
 
 
-async def test_fresh_clean_response_records_exactly_one_prediction(monkeypatch):
+async def test_fresh_clean_response_without_an_authorized_direction_records_no_prediction(monkeypatch):
     query = _unique_query("cleanpred")
     ctx = await _run_fresh(query, _CLEAN_PARSED, was_degraded=False, aev2_mode="off", monkeypatch=monkeypatch)
-    assert ctx["prediction_calls"]["n"] == 1
-    assert ctx["prediction_calls"]["args"] == [query]
+    assert ctx["prediction_calls"]["n"] == 0      # Step 5: no authorized direction means nothing to predict (an authorized direction still records exactly once: test_ai_search_final_contract.py)
 
 
 # ── Both presenters receive the same CoreAnswer; AEV2 never touches the
@@ -385,7 +385,7 @@ async def test_comparison_specialist_fresh_request_makes_exactly_one_call_at_eac
     assert evidence_calls["n"] == 1, "expected exactly 1 evidence-retrieval call"
     assert specialist_calls["n"] == 1, "expected exactly 1 comparison-specialist call"
     assert company_specialist_calls["n"] == 0, "the company specialist must not also run for a comparison-shaped query"
-    assert prediction_calls["n"] == 1, "fresh clean comparison response should still record exactly one prediction pass"
+    assert prediction_calls["n"] == 0, "Step 5: a comparison response with no authorized direction records no prediction"
 
 
 async def test_comparison_specialist_cache_hit_performs_zero_new_work(monkeypatch):

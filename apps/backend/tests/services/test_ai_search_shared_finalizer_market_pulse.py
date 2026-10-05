@@ -145,6 +145,6 @@ def test_legacy_market_pulse_response_unchanged_while_aev2_mode_is_off():
     result = finalize_v3_response("top gainers today", dict(_MP_RESULT))
     assert result == {
         **_MP_RESULT,
-        "answer_availability": {"state": "available", "evidence_retrieval_completed": True, "evidence_count": 0, "reason": None, "basis": "market_data"},
+        "answer_availability": {"state": "available", "evidence_retrieval_completed": True, "evidence_count": 0, "reason": None, "basis": "market_data", "kind": "research", "scope": "full", "conclusion_authorized": False},
     }
     assert "answer_experience_v2" not in result

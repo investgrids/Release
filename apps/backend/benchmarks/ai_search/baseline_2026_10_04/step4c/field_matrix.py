@@ -99,13 +99,8 @@ def saved(file: str, qid: str) -> dict:
     """A saved authorized live response, re-finalized through the CURRENT finalizer (the public-count and availability rules live there) and with the CURRENT confidence-copy rule applied to its reasons,
     so the matrix shows the present contract for it. The answer text, claims and verdict fields are the saved ones."""
     import copy
-    from app.services.ai_search.postprocess import public_confidence_reasons
     r = copy.deepcopy(json.loads((ART / file).read_text(encoding="utf-8"))["results"][qid]["response"])
-    dev = (r.get("evidence_score") or {}).get("development_count") or 0
-    for holder in (r.get("confidence_data"), r.get("confidence_breakdown")):
-        if isinstance(holder, dict) and isinstance(holder.get("reasons"), list):
-            holder["reasons"] = public_confidence_reasons(holder["reasons"], dev)
-    return finalize_v3_response(qid, r, x_admin_key=None, was_cached=True)
+    return finalize_v3_response(qid, r, x_admin_key=None, was_cached=True)      # (Step 5: the confidence copy rewrite this used to apply no longer exists; the finalizer enforces the public contract)
 
 
 CASES = [

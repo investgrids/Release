@@ -141,7 +141,7 @@ def test_an_overall_winner_sentence_fails_gate_b_when_scope_is_partial_end_to_en
         g["summary"] = g["bottom_line"] = "Infosys is the stronger company overall."
     pipe["generation"] = (authorized_prose_variant(overall), False)
     raw, res, _ = run_pipeline("TCS vs Infosys, which is stronger? (3.4D-2 overreach)")
-    assert res["degraded_reason"] == "claims_not_authorized" and "conclusion_scope_exceeded" in res["answer_authorization"]["reasons"]
+    assert res["degraded_reason"] == "claims_not_authorized" and "conclusion_scope_exceeded" in raw["answer_authorization"]["reasons"]
     assert res["investment_verdict"]["rating"] == "Not Applicable" and "stronger company overall" not in json.dumps(res).lower()
 
 
@@ -213,7 +213,7 @@ def test_saved_cc1_structured_claims_never_reach_public_output(real_assembly):
     # run with the exact saved query intent (comparison) through the real assembly and finalizer
     import app.services.ai_search.entities as entities_mod
     raw, res, _ = run_pipeline("TCS vs Infosys, which is stronger? (3.4D-2 structured)")
-    assert pipe["specialist"] == 1 and res["synthesis_incomplete"] is False and res["answer_authorization"]["authorized"] is True
+    assert pipe["specialist"] == 1 and res["synthesis_incomplete"] is False and raw["answer_authorization"]["authorized"] is True
     v = res["investment_verdict"]
     assert v["rating"] == "Not Applicable" and v["direction"] is None and v["top_picks"] == [] and v["catalysts"] == []
     assert v["rating"] != "Selectively Constructive" and v["direction"] != "bullish"
@@ -229,7 +229,7 @@ def test_saved_cc1_structured_claims_never_reach_public_output(real_assembly):
     for forbidden_number in ('"probability": 30', '"probability": 50', '"probability": 20', '"impact_score": 58', '"confidence": 86', '"confidence": 72'):
         assert forbidden_number not in blob, forbidden_number
     # what stays: the sourced prose and an honest account of what was withheld
-    assert res["structured_authorization"]["state"] == "unavailable" and "investment_verdict" in res["structured_authorization"]["withheld"]
+    assert raw["structured_authorization"]["state"] == "unavailable" and "investment_verdict" in raw["structured_authorization"]["withheld"]
     assert res["conclusion_scope"]["partial"] is True and res["conclusion_scope"]["authorized"] == "valuation_comparison"
     assert any("valuation comparison only" in c for c in res["confidence_data"]["caveats"])
     assert "P/E" in res["answer"]["summary"] or "13.3" in res["answer"]["summary"]
@@ -256,4 +256,4 @@ def test_degraded_responses_carry_the_new_keys_as_none(pipe):
     pipe["set_bundle"](cc1_bundle())
     pipe["generation"] = None
     _raw, res, _ = run_pipeline("TCS vs Infosys, which is stronger? (3.4D-2 degraded)")
-    assert res["degraded_reason"] == "capacity" and res["conclusion_scope"] is None and res["structured_authorization"] is None
+    assert res["degraded_reason"] == "capacity" and res["conclusion_scope"] is None and _raw["structured_authorization"] is None
