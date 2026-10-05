@@ -1,0 +1,753 @@
+{
+  "provider_keys_present": {
+    "groq_api_key": true,
+    "openrouter_api_key": true,
+    "mistral_api_key": false,
+    "gemini_api_key": false
+  },
+  "budgets": {
+    "ai_search_total_budget_seconds": 24.0,
+    "ai_search_finalization_reserve_seconds": 2.0,
+    "ai_search_classifier_budget_seconds": 3.0,
+    "ai_search_min_provider_attempt_seconds": 8.0,
+    "ai_search_provider_attempt_cap_seconds": 14.0
+  },
+  "background_news": {
+    "snapshot_items": 60,
+    "source_failures": {},
+    "consecutive_failures": 0,
+    "items_from_sources_outside_the_RSS_feeds": 0,
+    "yfinance_thread_done": true
+  },
+  "runs": [
+    {
+      "label": "SR2",
+      "question_id": "SR2",
+      "synthetic_slow_first_specialist_attempt": false,
+      "remaining_at_completion_s": 15.39,
+      "total_wall_s": 8.625,
+      "cached": false,
+      "specialist": "sector",
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "pipeline_timing_ms": {
+        "intent_detection_ms": 0.0,
+        "entity_detection_ms": 125.0,
+        "evidence_collection_ms": 6063.0,
+        "reasoning_ms": 1281.0,
+        "validation_ms": 110.0,
+        "assembly_ms": 0.0,
+        "total_ms": 8610.0
+      },
+      "gate_a": "SUFFICIENT",
+      "gate_a_kind": "sector_assessment",
+      "gate_b": {
+        "applicable": false,
+        "authorized": true,
+        "reasons": [],
+        "unsupported_figure_count": 0,
+        "factual_sentences": null
+      },
+      "synthesis_incomplete": true,
+      "retrieval": {
+        "ms": 6063,
+        "retrieval_failures": {},
+        "events": 10,
+        "news": 4,
+        "policies": 0
+      },
+      "news": {
+        "snapshot_state": "cold",
+        "ms": 1531.0,
+        "status": "ok",
+        "items": 60
+      },
+      "classifier": {
+        "invoked": true,
+        "start_s": 0.0,
+        "duration_s": 1.031,
+        "verdict": false,
+        "sub_budget_s": 3.0
+      },
+      "provider_attempts": [
+        {
+          "call": "classifier",
+          "tier": "groq-hq",
+          "model": "openai/gpt-oss-120b",
+          "start_s": 0.0,
+          "remaining_at_start_s": 3.0,
+          "usable_at_start_s": 3.0,
+          "attempt_budget_s": 3.0,
+          "synthetic_hang": false,
+          "duration_s": 0.375,
+          "outcome": "empty_response",
+          "reasons": [],
+          "stop_chain": false
+        },
+        {
+          "call": "classifier",
+          "tier": "groq-hq",
+          "model": "openai/gpt-oss-20b",
+          "start_s": 0.375,
+          "remaining_at_start_s": 2.625,
+          "usable_at_start_s": 2.625,
+          "attempt_budget_s": 2.625,
+          "synthetic_hang": false,
+          "duration_s": 0.469,
+          "outcome": "empty_response",
+          "reasons": [],
+          "stop_chain": false
+        },
+        {
+          "call": "classifier",
+          "tier": "groq-fast",
+          "model": "qwen/qwen3.8-27b",
+          "start_s": 0.844,
+          "remaining_at_start_s": 2.156,
+          "usable_at_start_s": 2.156,
+          "attempt_budget_s": 2.156,
+          "synthetic_hang": false,
+          "duration_s": 0.187,
+          "outcome": "success",
+          "reasons": [],
+          "stop_chain": false
+        },
+        {
+          "call": "specialist",
+          "tier": "groq-hq",
+          "model": "openai/gpt-oss-120b",
+          "start_s": 7.219,
+          "remaining_at_start_s": 16.781,
+          "usable_at_start_s": 14.781,
+          "attempt_budget_s": 14.0,
+          "synthetic_hang": false,
+          "duration_s": 0.094,
+          "outcome": "provider_failure",
+          "reasons": [
+            "429"
+          ],
+          "stop_chain": false
+        },
+        {
+          "call": "specialist",
+          "tier": "groq-hq",
+          "model": "openai/gpt-oss-20b",
+          "start_s": 7.313,
+          "remaining_at_start_s": 16.687,
+          "usable_at_start_s": 14.687,
+          "attempt_budget_s": 14.0,
+          "synthetic_hang": false,
+          "duration_s": 0.125,
+          "outcome": "provider_failure",
+          "reasons": [
+            "429"
+          ],
+          "stop_chain": false
+        },
+        {
+          "call": "specialist",
+          "tier": "groq-fast",
+          "model": "qwen/qwen3.8-27b",
+          "start_s": 7.438,
+          "remaining_at_start_s": 16.562,
+          "usable_at_start_s": 14.562,
+          "attempt_budget_s": 14.0,
+          "synthetic_hang": false,
+          "duration_s": 0.109,
+          "outcome": "provider_failure",
+          "reasons": [
+            "429"
+          ],
+          "stop_chain": false
+        },
+        {
+          "call": "specialist",
+          "tier": "openrouter-hq",
+          "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+          "start_s": 7.547,
+          "remaining_at_start_s": 16.453,
+          "usable_at_start_s": 14.453,
+          "attempt_budget_s": 14.0,
+          "synthetic_hang": false,
+          "duration_s": 0.453,
+          "outcome": "provider_failure",
+          "reasons": [
+            "429"
+          ],
+          "stop_chain": false
+        },
+        {
+          "call": "specialist",
+          "tier": "openrouter-hq",
+          "model": "nvidia/nemotron-3-super-120b-a12b:free",
+          "start_s": 8.0,
+          "remaining_at_start_s": 16.0,
+          "usable_at_start_s": 14.0,
+          "attempt_budget_s": 14.0,
+          "synthetic_hang": false,
+          "duration_s": 0.125,
+          "outcome": "provider_failure",
+          "reasons": [
+            "429"
+          ],
+          "stop_chain": false
+        },
+        {
+          "call": "specialist",
+          "tier": "openrouter-hq",
+          "model": "google/gemma-4-31b-it:free",
+          "start_s": 8.125,
+          "remaining_at_start_s": 15.875,
+          "usable_at_start_s": 13.875,
+          "attempt_budget_s": 13.875,
+          "synthetic_hang": false,
+          "duration_s": 0.11,
+          "outcome": "provider_failure",
+          "reasons": [
+            "429"
+          ],
+          "stop_chain": false
+        },
+        {
+          "call": "specialist",
+          "tier": "openrouter-small",
+          "model": "google/gemma-4-26b-a4b-it:free",
+          "start_s": 8.235,
+          "remaining_at_start_s": 15.765,
+          "usable_at_start_s": 13.765,
+          "attempt_budget_s": 13.765,
+          "synthetic_hang": false,
+          "duration_s": 0.078,
+          "outcome": "provider_failure",
+          "reasons": [
+            "429"
+          ],
+          "stop_chain": false
+        },
+        {
+          "call": "specialist",
+          "tier": "openrouter-small",
+          "model": "cohere/north-mini-code:free",
+          "start_s": 8.313,
+          "remaining_at_start_s": 15.687,
+          "usable_at_start_s": 13.687,
+          "attempt_budget_s": 13.687,
+          "synthetic_hang": false,
+          "duration_s": 0.093,
+          "outcome": "provider_failure",
+          "reasons": [
+            "429"
+          ],
+          "stop_chain": false
+        },
+        {
+          "call": "specialist",
+          "tier": "openrouter-small",
+          "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+          "start_s": 8.406,
+          "remaining_at_start_s": 15.594,
+          "usable_at_start_s": 13.594,
+          "attempt_budget_s": 13.594,
+          "synthetic_hang": false,
+          "duration_s": 0.094,
+          "outcome": "provider_failure",
+          "reasons": [
+            "429"
+          ],
+          "stop_chain": false
+        }
+      ],
+      "provider_chains": [
+        {
+          "call": "classifier",
+          "max_tokens": 5,
+          "start_s": 0.0,
+          "duration_s": 1.031,
+          "returned_text": true,
+          "chain_reasons": []
+        },
+        {
+          "call": "specialist_or_other",
+          "max_tokens": 6500,
+          "start_s": 7.219,
+          "duration_s": 1.281,
+          "returned_text": false,
+          "chain_reasons": [
+            {
+              "model": "openai/gpt-oss-120b",
+              "tier": "groq",
+              "reason": "429"
+            },
+            {
+              "model": "openai/gpt-oss-20b",
+              "tier": "groq",
+              "reason": "429"
+            },
+            {
+              "model": "qwen/qwen3.8-27b",
+              "tier": "groq",
+              "reason": "429"
+            },
+            {
+              "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+              "tier": "openrouter",
+              "reason": "429"
+            },
+            {
+              "model": "nvidia/nemotron-3-super-120b-a12b:free",
+              "tier": "openrouter",
+              "reason": "429"
+            },
+            {
+              "model": "google/gemma-4-31b-it:free",
+              "tier": "openrouter",
+              "reason": "429"
+            },
+            {
+              "model": "google/gemma-4-26b-a4b-it:free",
+              "tier": "openrouter",
+              "reason": "429"
+            },
+            {
+              "model": "cohere/north-mini-code:free",
+              "tier": "openrouter",
+              "reason": "429"
+            },
+            {
+              "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+              "tier": "openrouter",
+              "reason": "429"
+            }
+          ]
+        }
+      ],
+      "synthetic_injected_at_s": null
+    },
+    {
+      "label": "CC2",
+      "question_id": "CC2",
+      "synthetic_slow_first_specialist_attempt": false,
+      "remaining_at_completion_s": 22.812,
+      "total_wall_s": 1.188,
+      "cached": false,
+      "specialist": "comparison",
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "pipeline_timing_ms": {
+        "intent_detection_ms": 0.0,
+        "entity_detection_ms": 0.0,
+        "evidence_collection_ms": 1110.0,
+        "reasoning_ms": 0.0,
+        "validation_ms": 78.0,
+        "assembly_ms": 0.0,
+        "total_ms": 1188.0
+      },
+      "gate_a": "SUFFICIENT",
+      "gate_a_kind": "comparison",
+      "gate_b": {
+        "applicable": false,
+        "authorized": true,
+        "reasons": [],
+        "unsupported_figure_count": 0,
+        "factual_sentences": null
+      },
+      "synthesis_incomplete": true,
+      "retrieval": {
+        "ms": 1110,
+        "retrieval_failures": {},
+        "events": 0,
+        "news": 0,
+        "policies": 0
+      },
+      "news": {
+        "snapshot_state": "fresh",
+        "ms": 0.0,
+        "status": "ok",
+        "items": 60
+      },
+      "classifier": {
+        "invoked": true,
+        "start_s": 0.0,
+        "duration_s": 0.0,
+        "verdict": false,
+        "sub_budget_s": 3.0
+      },
+      "provider_attempts": [],
+      "provider_chains": [
+        {
+          "call": "classifier",
+          "max_tokens": 5,
+          "start_s": 0.0,
+          "duration_s": 0.0,
+          "returned_text": false,
+          "chain_reasons": [
+            {
+              "model": "openai/gpt-oss-120b",
+              "tier": "groq-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "openai/gpt-oss-20b",
+              "tier": "groq-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "qwen/qwen3.8-27b",
+              "tier": "groq-fast",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+              "tier": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-super-120b-a12b:free",
+              "tier": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "google/gemma-4-31b-it:free",
+              "tier": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "google/gemma-4-26b-a4b-it:free",
+              "tier": "openrouter-small",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "cohere/north-mini-code:free",
+              "tier": "openrouter-small",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+              "tier": "openrouter-small",
+              "reason": "already_exhausted"
+            }
+          ]
+        },
+        {
+          "call": "specialist_or_other",
+          "max_tokens": 7000,
+          "start_s": 1.11,
+          "duration_s": 0.0,
+          "returned_text": false,
+          "chain_reasons": [
+            {
+              "model": "openai/gpt-oss-120b",
+              "tier": "groq-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "openai/gpt-oss-20b",
+              "tier": "groq-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "qwen/qwen3.8-27b",
+              "tier": "groq-fast",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+              "tier": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-super-120b-a12b:free",
+              "tier": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "google/gemma-4-31b-it:free",
+              "tier": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "google/gemma-4-26b-a4b-it:free",
+              "tier": "openrouter-small",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "cohere/north-mini-code:free",
+              "tier": "openrouter-small",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+              "tier": "openrouter-small",
+              "reason": "already_exhausted"
+            }
+          ]
+        }
+      ],
+      "synthetic_injected_at_s": null
+    },
+    {
+      "label": "CR1",
+      "question_id": "CR1",
+      "synthetic_slow_first_specialist_attempt": false,
+      "remaining_at_completion_s": 9.985,
+      "total_wall_s": 14.015,
+      "cached": true,
+      "specialist": "company",
+      "degraded_reason": "retrieval_deadline_exceeded",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": false,
+        "evidence_count": 0
+      },
+      "pipeline_timing_ms": {
+        "intent_detection_ms": 15.0,
+        "entity_detection_ms": 0.0,
+        "total_ms": 14015.0
+      },
+      "gate_a": null,
+      "gate_a_kind": null,
+      "gate_b": null,
+      "synthesis_incomplete": true,
+      "retrieval": null,
+      "news": {
+        "snapshot_state": "fresh",
+        "ms": 0.0,
+        "status": "ok",
+        "items": 60
+      },
+      "classifier": {
+        "invoked": true,
+        "start_s": 0.0,
+        "duration_s": 0.0,
+        "verdict": false,
+        "sub_budget_s": 3.0
+      },
+      "provider_attempts": [],
+      "provider_chains": [
+        {
+          "call": "classifier",
+          "max_tokens": 5,
+          "start_s": 0.0,
+          "duration_s": 0.0,
+          "returned_text": false,
+          "chain_reasons": [
+            {
+              "model": "openai/gpt-oss-120b",
+              "tier": "groq-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "openai/gpt-oss-20b",
+              "tier": "groq-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "qwen/qwen3.8-27b",
+              "tier": "groq-fast",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+              "tier": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-super-120b-a12b:free",
+              "tier": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "google/gemma-4-31b-it:free",
+              "tier": "openrouter-hq",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "google/gemma-4-26b-a4b-it:free",
+              "tier": "openrouter-small",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "cohere/north-mini-code:free",
+              "tier": "openrouter-small",
+              "reason": "already_exhausted"
+            },
+            {
+              "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+              "tier": "openrouter-small",
+              "reason": "already_exhausted"
+            }
+          ]
+        }
+      ],
+      "synthetic_injected_at_s": null
+    },
+    {
+      "label": "SR2-slow-first-provider",
+      "question_id": "SR2",
+      "synthetic_slow_first_specialist_attempt": true,
+      "remaining_at_completion_s": 7.359,
+      "total_wall_s": 16.641,
+      "cached": false,
+      "specialist": "sector",
+      "degraded_reason": "deadline_exceeded",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "pipeline_timing_ms": {
+        "intent_detection_ms": 0.0,
+        "entity_detection_ms": 0.0,
+        "evidence_collection_ms": 563.0,
+        "reasoning_ms": 14016.0,
+        "validation_ms": 109.0,
+        "assembly_ms": 0.0,
+        "total_ms": 16641.0
+      },
+      "gate_a": "SUFFICIENT",
+      "gate_a_kind": "sector_assessment",
+      "gate_b": {
+        "applicable": false,
+        "authorized": true,
+        "reasons": [],
+        "unsupported_figure_count": 0,
+        "factual_sentences": null
+      },
+      "synthesis_incomplete": true,
+      "retrieval": {
+        "ms": 563,
+        "retrieval_failures": {},
+        "events": 10,
+        "news": 4,
+        "policies": 0
+      },
+      "news": {
+        "snapshot_state": "fresh",
+        "ms": 0.0,
+        "status": "ok",
+        "items": 60
+      },
+      "classifier": {
+        "invoked": true,
+        "start_s": 0.0,
+        "duration_s": 1.953,
+        "verdict": false,
+        "sub_budget_s": 3.0
+      },
+      "provider_attempts": [
+        {
+          "call": "classifier",
+          "tier": "groq-hq",
+          "model": "openai/gpt-oss-120b",
+          "start_s": 0.0,
+          "remaining_at_start_s": 3.0,
+          "usable_at_start_s": 3.0,
+          "attempt_budget_s": 3.0,
+          "synthetic_hang": false,
+          "duration_s": 0.469,
+          "outcome": "empty_response",
+          "reasons": [],
+          "stop_chain": false
+        },
+        {
+          "call": "classifier",
+          "tier": "groq-hq",
+          "model": "openai/gpt-oss-20b",
+          "start_s": 0.469,
+          "remaining_at_start_s": 2.531,
+          "usable_at_start_s": 2.531,
+          "attempt_budget_s": 2.531,
+          "synthetic_hang": false,
+          "duration_s": 1.266,
+          "outcome": "empty_response",
+          "reasons": [],
+          "stop_chain": false
+        },
+        {
+          "call": "classifier",
+          "tier": "groq-fast",
+          "model": "qwen/qwen3.8-27b",
+          "start_s": 1.735,
+          "remaining_at_start_s": 1.265,
+          "usable_at_start_s": 1.265,
+          "attempt_budget_s": 1.265,
+          "synthetic_hang": false,
+          "duration_s": 0.218,
+          "outcome": "success",
+          "reasons": [],
+          "stop_chain": false
+        },
+        {
+          "call": "specialist",
+          "tier": "groq-hq",
+          "model": "openai/gpt-oss-120b",
+          "start_s": 2.516,
+          "remaining_at_start_s": 21.484,
+          "usable_at_start_s": 19.484,
+          "attempt_budget_s": 14.0,
+          "synthetic_hang": true,
+          "duration_s": 14.016,
+          "outcome": "full_cap_timeout",
+          "reasons": [
+            "timeout"
+          ],
+          "stop_chain": false
+        },
+        {
+          "call": "specialist",
+          "tier": "groq-hq",
+          "model": "openai/gpt-oss-20b",
+          "start_s": 16.532,
+          "remaining_at_start_s": 7.468,
+          "usable_at_start_s": 5.468,
+          "attempt_budget_s": 5.468,
+          "synthetic_hang": false,
+          "duration_s": 0.0,
+          "outcome": "deadline_cancellation",
+          "reasons": [
+            "deadline"
+          ],
+          "stop_chain": true
+        }
+      ],
+      "provider_chains": [
+        {
+          "call": "classifier",
+          "max_tokens": 5,
+          "start_s": 0.0,
+          "duration_s": 1.953,
+          "returned_text": true,
+          "chain_reasons": []
+        },
+        {
+          "call": "specialist_or_other",
+          "max_tokens": 6500,
+          "start_s": 2.516,
+          "duration_s": 14.016,
+          "returned_text": false,
+          "chain_reasons": [
+            {
+              "model": "openai/gpt-oss-120b",
+              "tier": "groq-hq",
+              "reason": "timeout"
+            },
+            {
+              "model": "openai/gpt-oss-20b",
+              "tier": "groq-hq",
+              "reason": "deadline"
+            }
+          ]
+        }
+      ],
+      "synthetic_injected_at_s": 2.516
+    }
+  ]
+}
