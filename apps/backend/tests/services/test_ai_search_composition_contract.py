@@ -35,10 +35,9 @@ def test_the_composition_contract_is_in_every_claim_bearing_prompt_exactly_once(
 
 @pytest.mark.parametrize("fragment", [
     "observations first, synthesis second", "usually 3 to 5, fewer when the evidence holds fewer informative facts, none when it holds none",
-    "copied exactly into \"claim_sources\"", "prefer concrete, quantified, dated or directional items over generic market commentary", "when items point in different directions include both",
+    "with the ids of those items", "the system publishes your observations as the factual part of the answer", "prefer concrete, quantified, dated or directional items over generic market commentary", "when items point in different directions include both",
     "Do not pad", "do not state something because it is typical of the topic", "no new figure, date or event and no verdict, forecast, winner or recommendation",
-    "every factual sentence anywhere in your answer must be listed in \"claim_sources\"", "every \"claim_sources\" entry must be a sentence you actually wrote in the answer text",
-    "never list a claim you did not write and never write a fact you did not list",
+    "every factual sentence anywhere in your answer must be an observation or be listed in \"claim_sources\"", "never put a new fact in the summary or bottom line",
 ])
 def test_the_contract_states_the_demanded_properties(fragment):
     assert fragment in RULES, fragment
@@ -66,7 +65,7 @@ def test_the_contract_keeps_the_limits_that_stop_manufactured_conclusions():
 
 
 def test_the_schema_groups_describe_the_same_structure():
-    assert "OBSERVATIONS" in S.EVIDENCE_GROUP and "SYNTHESIS" in S.INVESTMENT_GROUP
+    assert '"observations"' in S.EVIDENCE_GROUP and "what_happened" not in S.EVIDENCE_GROUP and "SYNTHESIS" in S.INVESTMENT_GROUP
     low = S.INVESTMENT_GROUP.lower()
     assert '"rating"' not in low and '"direction"' not in low and "verdict_scale" not in low
 

@@ -20,6 +20,8 @@ EvidenceBundle and confidence_service.py, never trusted from raw LLM output.
 """
 from __future__ import annotations
 
+import re
+
 # 6-point Decision Engine v2 verdict scale (distinct from investment_verdict's
 # existing 8-label research-framed enum, which stays unchanged — see plan's
 # Open Risks §1 on the decision_engine_v2 vs decision_engine.py naming note).
@@ -51,6 +53,34 @@ def _present(block: dict) -> dict:
     return {k: v for k, v in block.items() if v not in (None, "", [], {})}
 
 
+def _obs_key(text: str) -> str:
+    return " ".join(re.sub(r"[^a-z0-9%.]+", " ", text.lower()).split())
+
+
+def render_observations(observations, legacy_what_happened, other_claims):
+    """Step 3.4G.6: factual observations are generated ONCE ({"text", "sources"}); code renders them into the public factual prose (`what_happened`) and into `claim_sources`, so a claim can never be
+    listed-but-unwritten or written-but-unlisted. Nothing is validated, repaired or dropped here beyond exact-duplicate merging: an observation with a wrong figure, an unknown source or no source
+    flows through unchanged and is rejected by Gate B exactly as before. `other_claims` are the model's claim_sources for factual sentences in OTHER fields; an entry that repeats an observation is merged
+    into it. Without an `observations` list (an older-shape response) the legacy `what_happened` prose and `claim_sources` pass through untouched."""
+    if not isinstance(observations, list):
+        return (legacy_what_happened if isinstance(legacy_what_happened, str) else ""), other_claims
+    merged: dict[str, dict] = {}
+    for o in observations:
+        text = o.get("text") if isinstance(o, dict) else None
+        if not isinstance(text, str) or not text.strip():
+            continue                                                  # carries no claim: nothing to render or list
+        src = o.get("sources")
+        src = [str(s) for s in src] if isinstance(src, list) else ([str(src)] if src else [])
+        k = _obs_key(text)
+        if k in merged:
+            merged[k]["sources"] += [s for s in src if s not in merged[k]["sources"]]
+        else:
+            merged[k] = {"claim": text.strip(), "sources": list(src)}
+    obs_claims = list(merged.values())
+    extra = [c for c in (other_claims if isinstance(other_claims, list) else []) if not (isinstance(c, dict) and isinstance(c.get("claim"), str) and _obs_key(c["claim"]) in merged)]
+    return " ".join(c["claim"] for c in obs_claims), obs_claims + extra
+
+
 def flatten_nested(nested: dict) -> dict:
     """Translates the nested LLM-facing schema back into the flat internal
     shape pipeline.py/validation.py/postprocess.py already expect — the one
@@ -65,6 +95,8 @@ def flatten_nested(nested: dict) -> dict:
     rsk = nested.get("risks") or {}
     ext = nested.get("extras") or {}
 
+    what_happened, claim_sources = render_observations(evd.get("observations"), evd.get("what_happened"), nested.get("claim_sources", []))
+
     flat = {
         "summary": inv.get("summary", ""),
         "bottom_line": inv.get("bottom_line", inv.get("summary", "")),
@@ -72,7 +104,7 @@ def flatten_nested(nested: dict) -> dict:
         "confidence": inv.get("confidence"),
         "confidence_self_rating": inv.get("confidence_self_rating"),
         "sentiment": inv.get("sentiment"),
-        "what_happened": evd.get("what_happened", ""),
+        "what_happened": what_happened,
         "why_it_happened": evd.get("why_it_happened", ""),
         "immediate_impact": evd.get("immediate_impact", ""),
         "medium_term": evd.get("medium_term", ""),
@@ -104,7 +136,7 @@ def flatten_nested(nested: dict) -> dict:
         },
         "follow_up_questions": ext.get("follow_up_questions", []),
         # claim-level source IDs the model attached to its factual sentences (see CLAIM_SOURCES_GROUP); validated against the evidence index in claim_sources.py
-        "claim_sources": nested.get("claim_sources", []),
+        "claim_sources": claim_sources,
         "timeline": tl.get("milestones", []),
         "insights": ext.get("insights", []),
         "scenarios": ext.get("scenarios", {}),
@@ -173,11 +205,11 @@ DECISION_GROUP_EXPLAIN_WHY_NOT = """,
 # Claim-level source IDs. The evidence lists in the prompt tag every item (E events, N news, P policies, A announcements, C context lines); the model must attach those IDs to
 # each factual sentence so a claim can be traced to the item that supports it and checked for eligibility.
 CLAIM_SOURCES_GROUP = """  "claim_sources": [
-    {"claim": "one factual sentence copied EXACTLY from your answer text", "sources": ["E1", "N2"]}
+    {"claim": "one factual sentence copied EXACTLY from a field of your answer other than the observations", "sources": ["E1", "N2"]}
   ],"""
 
 CLAIM_SOURCES_RULES = (
-    '- "claim_sources": every sentence anywhere in your answer text (summary, bottom_line, what_happened, why_it_happened, key_drivers explanations, risks, opportunities, companies reasons) that states a '
+    '- "claim_sources": every sentence in your answer text outside "evidence.observations" (summary, bottom_line, why_it_happened, key_drivers explanations, risks, opportunities, companies reasons) that states a '
     "fact, number, date, order, announcement, result or comparison of figures needs ONE entry: copy the sentence EXACTLY (character for character) and list the evidence IDs "
     "(E = event, N = news, P = policy, A = announcement, C = context line) from the lists above that support it. Use only IDs that appear above and never invent one. "
     "CANONICAL CLAIMS: state each fact once. If you need it in more than one field, repeat the IDENTICAL sentence word for word; never restate it in different words, and never combine two claims "
@@ -195,15 +227,15 @@ CLAIM_SOURCES_RULES = (
 # directions. It names no expected fact: the model chooses from the visible evidence ids, so it keeps working when live evidence changes.
 COMPOSITION_RULES = (
     '- COMPOSITION, observations first, synthesis second. '
-    '(1) OBSERVATIONS: in "evidence.what_happened" write the most decision-relevant facts that the evidence lists above actually state, as separate factual sentences: usually 3 to 5, fewer when the '
-    "evidence holds fewer informative facts, none when it holds none. Each sentence reports one fact from one or two listed items (a headline's reported fact, a live figure, a filing) and is copied exactly "
-    'into "claim_sources" with those ids. Choose by how informative an item is for THIS question: prefer concrete, quantified, dated or directional items over generic market commentary, and when items '
+    '(1) OBSERVATIONS: in "evidence.observations" list the most decision-relevant facts that the evidence lists above actually state, as separate entries: usually 3 to 5, fewer when the '
+    "evidence holds fewer informative facts, none when it holds none. Each entry is one factual sentence reporting one fact from one or two listed items (a headline's reported fact, a live figure, a filing) "
+    'with the ids of those items; the system publishes your observations as the factual part of the answer, so write each one only once and do not repeat it elsewhere. Choose by how informative an item is for THIS question: prefer concrete, quantified, dated or directional items over generic market commentary, and when items '
     "point in different directions include both. The lists are ordered by relevance. Do not pad, do not repeat a fact in different words, and do not state something because it is typical of the topic. "
     '(2) SYNTHESIS: "investment.summary" and "investment.bottom_line" answer the question using only those observations: one or two hedged sentences on what they collectively suggest (for example that '
     "the evidence is mixed or incomplete), with no new figure, date or event and no verdict, forecast, winner or recommendation. Refer to observations in words (for example "
     "'the earlier fall' or 'the positive external read-through'), not by repeating numbers. "
-    '(3) CONSISTENCY: every factual sentence anywhere in your answer must be listed in "claim_sources", and every "claim_sources" entry must be a sentence you actually wrote in the answer text: never '
-    "list a claim you did not write and never write a fact you did not list. "
+    '(3) CONSISTENCY: every factual sentence anywhere in your answer must be an observation or be listed in "claim_sources"; never put a new fact in the summary or bottom line, or in any other field, '
+    "that is not an observation. "
     "(4) LIMITS: in a comparison describe each side only as far as the evidence covers it and never name a winner; for a single company report what the evidence says, not an outlook it does not state; "
     "for a macro question state a causal link only if a listed item states it; if the evidence cannot answer the question, say so briefly instead of filling space with unrelated facts."
 )
@@ -217,7 +249,9 @@ def render_decision_group(is_comparison: bool = False) -> str:
     return ""       # Step 3.4D-3: no decision group in the model contract
 
 EVIDENCE_GROUP = """  "evidence": {
-    "what_happened": "OBSERVATIONS: the most decision-relevant facts the listed evidence states, as separate factual sentences (usually 3-5, fewer if the evidence holds fewer, none if none), each a verbatim claim_sources entry",
+    "observations": [
+      {"text": "one factual sentence stating one fact from the listed evidence", "sources": ["E1"]}
+    ],
     "why_it_happened": "1 sentence tied to the evidence, or empty",
     "key_drivers": [
       {"icon": "valuation", "title": "2-4 word driver name", "explanation": "1 sentence grounded in the evidence; no new numbers or dates"}

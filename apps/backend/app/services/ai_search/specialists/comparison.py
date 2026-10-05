@@ -416,7 +416,7 @@ JSON to fill and return:
 {decision_group}
 {CLAIM_SOURCES_GROUP}
   "evidence": {{
-    "what_happened": "", "why_it_happened": "",
+    "observations": [{{"text": "one factual sentence stating one fact from the listed evidence", "sources": ["E1"]}}], "why_it_happened": "",
     "key_drivers": [
       {{"icon": "valuation", "title": "2-4 word driver name", "explanation": "1 grounded sentence, no new numbers or dates"}}
     ]

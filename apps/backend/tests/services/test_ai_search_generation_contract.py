@@ -29,7 +29,7 @@ PROHIBITED_KEYS = ('"rating"', '"direction"', '"sentiment"', '"confidence"', '"c
                    '"immediate"', '"one_week"', '"one_to_three_months"', '"six_to_twelve_months"', '"one_to_three_years"', '"what_changes_the_view"', '"what_invalidates_the_thesis"',
                    '"explain_why_not"', '"best_for"', '"insights"', '"medium_term"', '"long_term"', '"what_priced_in"', '"immediate_impact"', '"horizon"', '"why"', '"money_flow"',
                    '"sector_leaders"', '"sector_laggards"')
-KEPT_KEYS = ('"claim_sources"', '"summary"', '"bottom_line"', '"what_happened"', '"key_drivers"', '"companies"', '"sectors"', '"risks"', '"opportunities"', '"milestones"', '"monitoring"')
+KEPT_KEYS = ('"claim_sources"', '"summary"', '"bottom_line"', '"observations"', '"key_drivers"', '"companies"', '"sectors"', '"risks"', '"opportunities"', '"milestones"', '"monitoring"')
 
 
 def _evidence():
