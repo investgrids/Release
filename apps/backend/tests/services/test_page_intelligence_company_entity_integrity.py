@@ -70,8 +70,9 @@ async def test_company_with_zero_real_coverage_never_borrows_another_companys_co
 
     try:
         result = await svc.get_company_intelligence(target_symbol)
+        assert result["confidence"]["score"] is None  # Step 6: unscored, never an invented number
         assert result["confidence"]["reasons"] == ["Insufficient data"]
-        assert result["confidence"]["score"] == 20
+        assert result["confidence"]["level"] == "unscored"
         assert result["market_story"] == ""
         # The real regression assertion: the unrelated company's real
         # headline text must never appear anywhere in the response.

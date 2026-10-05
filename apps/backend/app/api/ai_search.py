@@ -73,6 +73,13 @@ async def _bounded(steps):
             yield item
 
 
+@router.get("/search/suggestions")
+async def ai_search_suggestions():
+    """Today's example questions for the landing page, built from the live market (sector moves, live headlines) with no model call. See services/ai_search/suggestions.py."""
+    from app.services.ai_search.suggestions import get_suggestions
+    return await get_suggestions()
+
+
 @router.post("/search", response_model=SearchResponse)
 @limiter.limit("10/minute")
 async def ai_search(

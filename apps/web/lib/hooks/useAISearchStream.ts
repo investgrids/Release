@@ -112,6 +112,7 @@ export function useAISearchStream() {
       history: JSON.stringify(history.slice(0, 10)),
       ...(sessionContext ? { session_context: JSON.stringify(sessionContext) } : {}),
     });
+    let answered = false;
     const es = new EventSource(`${API}/api/ai/search/stream?${params.toString()}`);
     esRef.current = es;
 
@@ -136,6 +137,10 @@ export function useAISearchStream() {
           latencyMs: data.latency_ms ?? null, provider: data.provider ?? null,
         },
       }));
+      // The answer is the terminal payload. Close now so a server-side close before the "done" event can never make the browser reconnect and replay the answer.
+      answered = true;
+      cleanup();
+      setState(s => ({ ...s, loading: false, stage: "done" }));
     });
 
     es.addEventListener("done", () => {
@@ -156,6 +161,7 @@ export function useAISearchStream() {
     });
 
     es.onerror = () => {
+      if (answered) return;
       cleanup();
       setState(s => (s.result ? s : { ...s, loading: true })); // keep loading UI while we retry via blocking fetch
       fallbackToBlocking(query, history, sessionContext);

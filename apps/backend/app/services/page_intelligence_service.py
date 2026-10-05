@@ -199,7 +199,7 @@ def _wrap(ai: dict, conf: dict, ctype: str, cid: str) -> dict:
 
 
 def _fallback(ctype: str, cid: str = "") -> dict:
-    return _wrap({}, {"level": "Low", "score": 20, "reasons": ["Insufficient data"], "breakdown": {}}, ctype, cid)
+    return _wrap({}, {"level": "unscored", "score": None, "reasons": ["Insufficient data"], "breakdown": {}}, ctype, cid)
 
 
 async def _ai_call(ctype: str, cid: str, context_data: str, source_count: int = 0, similar: list | None = None) -> dict:
@@ -639,7 +639,7 @@ async def get_search_intelligence(query: str) -> dict:
             "market_story":       answer.get("summary", ""),
             "key_takeaway":       answer.get("immediate_impact", ""),
             "opportunities": [
-                {"title": o, "description": o, "companies": [], "horizon": "medium", "confidence": 65}
+                {"title": o, "description": o, "companies": [], "horizon": "medium", "confidence": None}
                 for o in _safe_list(answer.get("opportunities"))
             ],
             "risks": [
@@ -655,7 +655,7 @@ async def get_search_intelligence(query: str) -> dict:
                         "bearish" if c.get("impact_type") == "at_risk" else "neutral"
                     ),
                     "reason":     c.get("reason", ""),
-                    "confidence": c.get("confidence", 65),
+                    "confidence": c.get("confidence"),
                 }
                 for c in _safe_list(raw.get("companies"))[:6]
             ],
@@ -663,7 +663,7 @@ async def get_search_intelligence(query: str) -> dict:
                 {
                     "name":    s.get("name", ""),
                     "outlook": "positive" if s.get("positive") else "negative",
-                    "score":   s.get("score", 60),
+                    "score":   s.get("score"),
                     "reason":  s.get("outlook", ""),
                 }
                 for s in _safe_list(raw.get("sectors"))[:5]
@@ -672,7 +672,7 @@ async def get_search_intelligence(query: str) -> dict:
             "historical_context": "",
             "monitoring_points":  _safe_list(answer.get("risks"))[:4],
             "related_intelligence": [],
-            "confidence":  conf_d or {"level": "Medium", "score": 60, "reasons": [], "breakdown": {}},
+            "confidence":  conf_d or {"level": "unscored", "score": None, "reasons": [], "breakdown": {}},
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "context_type": "search",
             "context_id":   q,
