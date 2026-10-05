@@ -1,0 +1,1601 @@
+{
+  "mode": "live",
+  "model": "gpt-6-luna",
+  "cap": 1,
+  "model_requests_made": 1,
+  "stopped": null,
+  "results": {
+    "CR2": {
+      "id": "CR2",
+      "query": "How is 3M India doing as a business?",
+      "entities": {
+        "companies": [
+          "3MINDIA"
+        ],
+        "sectors": [],
+        "policies": []
+      },
+      "wall_s": 17.52,
+      "calls": [],
+      "model_calls": 0,
+      "expected_model_calls": 0,
+      "call_count_as_expected": true,
+      "response": {
+        "query": "How is 3M India doing as a business?",
+        "response_id": "23f7540a-092e-482d-a3c6-132be455bc34",
+        "schema_version": "v3.0",
+        "specialist": "company",
+        "degraded_reason": "insufficient_evidence",
+        "intent": "general",
+        "ui_mode": "direct_company_research",
+        "switch_holding": null,
+        "switch_target": null,
+        "synthesis_incomplete": true,
+        "answer": {
+          "summary": "MarketRipple doesn't currently have enough recent, company-specific evidence to assess 3M India's business performance reliably. It won't infer current financial strength, valuation, margins or outlook without supporting evidence.",
+          "bottom_line": "MarketRipple doesn't currently have enough recent, company-specific evidence to assess 3M India's business performance reliably. It won't infer current financial strength, valuation, margins or outlook without supporting evidence.",
+          "what_happened": "",
+          "why_it_happened": "",
+          "immediate_impact": "",
+          "medium_term": "",
+          "long_term": "",
+          "what_priced_in": "",
+          "risks": [],
+          "opportunities": [],
+          "confidence": null,
+          "confidence_level": "unscored",
+          "sentiment": "neutral",
+          "sources_count": 0
+        },
+        "key_drivers": [],
+        "insights": [],
+        "companies": [],
+        "sectors": [],
+        "related_events": [],
+        "news": [],
+        "policies": [],
+        "timeline": [],
+        "historical_comparison": [],
+        "ripple_chain": [],
+        "scenarios": {},
+        "monitoring": {
+          "items": []
+        },
+        "follow_up_questions": [],
+        "follow_up_groups": [],
+        "investment_verdict": {
+          "rating": "Not Applicable",
+          "direction": "neutral",
+          "confidence": null,
+          "horizon": null,
+          "top_picks": [],
+          "risks": [],
+          "catalysts": [],
+          "opportunity_score": null,
+          "risk_level": "",
+          "suitable_for": "",
+          "engine_verdict": null
+        },
+        "market_chart": {
+          "labels": [],
+          "series": []
+        },
+        "graph": {
+          "nodes": [],
+          "edges": []
+        },
+        "citations": [],
+        "decision_intelligence": null,
+        "confidence_data": {
+          "level": "unscored",
+          "score": null,
+          "reasons": [],
+          "breakdown": {},
+          "caveats": []
+        },
+        "decision_engine_v2": {},
+        "timeline_intelligence": {},
+        "opportunity_risk_matrix": {},
+        "ai_conclusion": {},
+        "evidence_score": {
+          "stars": null,
+          "checklist": {},
+          "source_count": 0,
+          "development_count": 0,
+          "corroborating_source_count": 0
+        },
+        "confidence_breakdown": {
+          "final_confidence": null,
+          "level": "unscored"
+        },
+        "confidence": {
+          "status": "unscored",
+          "score": null,
+          "components": {
+            "evidence_quality": null,
+            "market_confirmation": null,
+            "historical_similarity": null,
+            "data_freshness": null
+          }
+        },
+        "source_attribution": [],
+        "validation": {
+          "repairs": [],
+          "omissions": [],
+          "contradiction_flagged": false
+        },
+        "market_impact_horizons": {},
+        "what_to_monitor": [],
+        "ai_reasoning_methods": [],
+        "evidence_sufficiency": {
+          "status": "INSUFFICIENT",
+          "kind": "company_assessment",
+          "required": [
+            "current_company_evidence"
+          ],
+          "satisfied": [],
+          "missing": [
+            "current_company_evidence"
+          ],
+          "reason": "no_recent_company_evidence",
+          "missing_entities": [
+            "3MINDIA"
+          ],
+          "context": []
+        },
+        "premise_check": {
+          "status": "not_applicable",
+          "terms": []
+        },
+        "answer_authorization": null,
+        "public_title": "Not enough recent evidence",
+        "conclusion_scope": null,
+        "structured_authorization": null,
+        "timing": {
+          "intent_detection_ms": 16.0,
+          "entity_detection_ms": 16.0,
+          "evidence_collection_ms": 17453.0,
+          "total_ms": 17485.0
+        },
+        "context_used": {
+          "companies": [],
+          "sectors": []
+        },
+        "watch_subject": null,
+        "answer_availability": {
+          "state": "no_verified_evidence",
+          "evidence_retrieval_completed": true,
+          "evidence_count": 0
+        }
+      },
+      "gate_a": {
+        "status": "INSUFFICIENT",
+        "kind": "company_assessment",
+        "required": [
+          "current_company_evidence"
+        ],
+        "satisfied": [],
+        "missing": [
+          "current_company_evidence"
+        ],
+        "reason": "no_recent_company_evidence",
+        "missing_entities": [
+          "3MINDIA"
+        ],
+        "context": []
+      },
+      "premise_check": {
+        "status": "not_applicable",
+        "terms": []
+      },
+      "gate_b": null,
+      "claim_validation": null,
+      "claim_sources": null,
+      "degraded_reason": "insufficient_evidence",
+      "rejected_generation": [],
+      "evidence": {
+        "plan_kind": "company",
+        "filter_report": {
+          "plan": "company",
+          "events": {
+            "kept": 0,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "news": {
+            "kept": 0,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_undated": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "announcements": {
+            "kept": 0,
+            "dropped_stale": 0
+          },
+          "policies": {
+            "kept": 0,
+            "dropped_irrelevant": 0
+          },
+          "premise": {
+            "required": false,
+            "terms": [],
+            "supported": null,
+            "supporting": []
+          }
+        },
+        "events": [],
+        "news": [],
+        "announcements": [],
+        "policies": [],
+        "valuation": {},
+        "vix": 14.45,
+        "sector_rows": [],
+        "macro_indices": [],
+        "context_lines": [
+          "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+          "Company context for 3MINDIA (real, from Intelligence Graph): The Nifty 50 and Bank Nifty are slightly down, with the market trading in a tight range as investors await the RBI’s upcoming repo rate decision. The lack of sectoral movement suggests a cautious stance amid concerns ove · Mood: Cautious Bull"
+        ],
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        },
+        "index": [
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:1"
+          },
+          {
+            "id": "C2",
+            "kind": "context",
+            "title": "Company context for 3MINDIA (real, from Intelligence Graph): The Nifty 50 and Bank Nifty are slightly down, with the market trading in a tight range as investor",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:2"
+          }
+        ],
+        "historical": []
+      },
+      "outcome": "deterministic_refusal"
+    },
+    "EI1": {
+      "id": "EI1",
+      "query": "BEL just won a new defence order, what does this mean for the stock?",
+      "entities": {
+        "companies": [
+          "BEL"
+        ],
+        "sectors": [
+          "defence"
+        ],
+        "policies": []
+      },
+      "wall_s": 0.69,
+      "calls": [],
+      "model_calls": 0,
+      "expected_model_calls": 0,
+      "call_count_as_expected": true,
+      "response": {
+        "query": "BEL just won a new defence order, what does this mean for the stock?",
+        "response_id": "37aabe9c-beb5-49c9-829b-efa782f4ed06",
+        "schema_version": "v3.0",
+        "specialist": "company",
+        "degraded_reason": "insufficient_evidence",
+        "intent": "news_reaction",
+        "ui_mode": "event_impact",
+        "switch_holding": null,
+        "switch_target": null,
+        "synthesis_incomplete": true,
+        "answer": {
+          "summary": "MarketRipple's available recent evidence doesn't confirm the development described in the question (a order) for Bharat Electronics, so its impact can't be assessed as a confirmed development.",
+          "bottom_line": "MarketRipple's available recent evidence doesn't confirm the development described in the question (a order) for Bharat Electronics, so its impact can't be assessed as a confirmed development.",
+          "what_happened": "",
+          "why_it_happened": "",
+          "immediate_impact": "",
+          "medium_term": "",
+          "long_term": "",
+          "what_priced_in": "",
+          "risks": [],
+          "opportunities": [],
+          "confidence": null,
+          "confidence_level": "unscored",
+          "sentiment": "neutral",
+          "sources_count": 0
+        },
+        "key_drivers": [],
+        "insights": [],
+        "companies": [],
+        "sectors": [],
+        "related_events": [],
+        "news": [],
+        "policies": [],
+        "timeline": [],
+        "historical_comparison": [],
+        "ripple_chain": [],
+        "scenarios": {},
+        "monitoring": {
+          "items": []
+        },
+        "follow_up_questions": [],
+        "follow_up_groups": [],
+        "investment_verdict": {
+          "rating": "Not Applicable",
+          "direction": "neutral",
+          "confidence": null,
+          "horizon": null,
+          "top_picks": [],
+          "risks": [],
+          "catalysts": [],
+          "opportunity_score": null,
+          "risk_level": "",
+          "suitable_for": "",
+          "engine_verdict": null
+        },
+        "market_chart": {
+          "labels": [],
+          "series": []
+        },
+        "graph": {
+          "nodes": [],
+          "edges": []
+        },
+        "citations": [],
+        "decision_intelligence": null,
+        "confidence_data": {
+          "level": "unscored",
+          "score": null,
+          "reasons": [],
+          "breakdown": {},
+          "caveats": []
+        },
+        "decision_engine_v2": {},
+        "timeline_intelligence": {},
+        "opportunity_risk_matrix": {},
+        "ai_conclusion": {},
+        "evidence_score": {
+          "stars": null,
+          "checklist": {},
+          "source_count": 0,
+          "development_count": 0,
+          "corroborating_source_count": 0
+        },
+        "confidence_breakdown": {
+          "final_confidence": null,
+          "level": "unscored"
+        },
+        "confidence": {
+          "status": "unscored",
+          "score": null,
+          "components": {
+            "evidence_quality": null,
+            "market_confirmation": null,
+            "historical_similarity": null,
+            "data_freshness": null
+          }
+        },
+        "source_attribution": [],
+        "validation": {
+          "repairs": [],
+          "omissions": [],
+          "contradiction_flagged": false
+        },
+        "market_impact_horizons": {},
+        "what_to_monitor": [],
+        "ai_reasoning_methods": [],
+        "evidence_sufficiency": {
+          "status": "INSUFFICIENT",
+          "kind": "event_impact",
+          "required": [
+            "event_verification"
+          ],
+          "satisfied": [],
+          "missing": [
+            "event_verification"
+          ],
+          "reason": "event_premise_not_established",
+          "missing_entities": [
+            "BEL"
+          ],
+          "context": []
+        },
+        "premise_check": {
+          "status": "not_established",
+          "terms": [
+            "order"
+          ],
+          "supporting": []
+        },
+        "answer_authorization": null,
+        "public_title": "I couldn't verify the stated event",
+        "conclusion_scope": null,
+        "structured_authorization": null,
+        "timing": {
+          "intent_detection_ms": 0.0,
+          "entity_detection_ms": 63.0,
+          "evidence_collection_ms": 609.0,
+          "total_ms": 672.0
+        },
+        "context_used": {
+          "companies": [],
+          "sectors": []
+        },
+        "watch_subject": null,
+        "answer_availability": {
+          "state": "no_verified_evidence",
+          "evidence_retrieval_completed": true,
+          "evidence_count": 0
+        }
+      },
+      "gate_a": {
+        "status": "INSUFFICIENT",
+        "kind": "event_impact",
+        "required": [
+          "event_verification"
+        ],
+        "satisfied": [],
+        "missing": [
+          "event_verification"
+        ],
+        "reason": "event_premise_not_established",
+        "missing_entities": [
+          "BEL"
+        ],
+        "context": []
+      },
+      "premise_check": {
+        "status": "not_established",
+        "terms": [
+          "order"
+        ],
+        "supporting": []
+      },
+      "gate_b": null,
+      "claim_validation": null,
+      "claim_sources": null,
+      "degraded_reason": "insufficient_evidence",
+      "rejected_generation": [],
+      "evidence": {
+        "plan_kind": "company",
+        "filter_report": {
+          "plan": "company",
+          "events": {
+            "kept": 0,
+            "dropped_stale": 1,
+            "dropped_irrelevant": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "news": {
+            "kept": 0,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_undated": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "announcements": {
+            "kept": 0,
+            "dropped_stale": 2
+          },
+          "policies": {
+            "kept": 0,
+            "dropped_irrelevant": 0
+          },
+          "premise": {
+            "required": true,
+            "terms": [
+              "order"
+            ],
+            "supported": false,
+            "supporting": []
+          }
+        },
+        "events": [],
+        "news": [],
+        "announcements": [],
+        "policies": [],
+        "valuation": {},
+        "vix": 14.45,
+        "sector_rows": [],
+        "macro_indices": [],
+        "context_lines": [
+          "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)"
+        ],
+        "premise": {
+          "required": true,
+          "terms": [
+            "order"
+          ],
+          "supported": false,
+          "supporting": []
+        },
+        "index": [
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:1"
+          }
+        ],
+        "historical": []
+      },
+      "outcome": "deterministic_refusal"
+    },
+    "CC1": {
+      "id": "CC1",
+      "query": "TCS vs Infosys, which is stronger?",
+      "entities": {
+        "companies": [
+          "TCS",
+          "INFY"
+        ],
+        "sectors": [],
+        "policies": []
+      },
+      "wall_s": 32.78,
+      "calls": [
+        {
+          "provider": "openai-benchmark-project",
+          "model": "gpt-6-luna",
+          "max_completion_tokens": 7000,
+          "prompt_chars": 8066,
+          "approx_input_tokens": 2016,
+          "latency_ms": 25172,
+          "status": 200,
+          "limit_headers": {
+            "openai-processing-ms": "23250",
+            "x-ratelimit-limit-requests": "50",
+            "x-ratelimit-limit-tokens": "100000",
+            "x-ratelimit-remaining-requests": "49",
+            "x-ratelimit-remaining-tokens": "88237",
+            "x-ratelimit-reset-requests": "28m48s",
+            "x-ratelimit-reset-tokens": "84h41m36.96s",
+            "x-request-id": "req_6893f587bd0842598810a4b994e570ee"
+          },
+          "response_model": "gpt-6-luna",
+          "finish_reason": "stop",
+          "output_chars": 2214,
+          "usage": {
+            "prompt_tokens": 2004,
+            "completion_tokens": 2804,
+            "total_tokens": 4808
+          },
+          "reasoning_tokens": 2123,
+          "would_exceed_30s": false,
+          "raw_output": "{\n  \"investment\": {\n    \"summary\": \"TCS is listed at P/E 15.1 and P/B 6.85, versus Infosys at P/E 14.1 and P/B 4.54.\",\n    \"bottom_line\": \"TCS is listed at P/E 15.1 and P/B 6.85, versus Infosys at P/E 14.1 and P/B 4.54. Overall strength cannot be established because operating results, growth rates and margins are not available.\"\n  },\n  \"claim_sources\": [\n    {\n      \"claim\": \"TCS is listed at P/E 15.1 and P/B 6.85, versus Infosys at P/E 14.1 and P/B 4.54.\",\n      \"sources\": [\"C1\", \"C2\"]\n    },\n    {\n      \"claim\": \"The context lists TCS at P/E 15.1 and P/B 6.85.\",\n      \"sources\": [\"C1\"]\n    },\n    {\n      \"claim\": \"The context lists Infosys at P/E 14.1 and P/B 4.54.\",\n      \"sources\": [\"C2\"]\n    }\n  ],\n  \"evidence\": {\n    \"what_happened\": \"TCS is listed at P/E 15.1 and P/B 6.85, versus Infosys at P/E 14.1 and P/B 4.54.\",\n    \"why_it_happened\": \"The available evidence does not explain the valuation-multiple differences.\",\n    \"key_drivers\": [\n      {\n        \"icon\": \"valuation\",\n        \"title\": \"Valuation multiples\",\n        \"explanation\": \"The available evidence permits comparison of P/E and P/B only; growth rates, margins and operating results are not available.\"\n      }\n    ]\n  },\n  \"companies\": [\n    {\n      \"symbol\": \"TCS\",\n      \"name\": \"TCS\",\n      \"reason\": \"The context lists TCS at P/E 15.1 and P/B 6.85.\"\n    },\n    {\n      \"symbol\": \"INFY\",\n      \"name\": \"Infosys\",\n      \"reason\": \"The context lists Infosys at P/E 14.1 and P/B 4.54.\"\n    }\n  ],\n  \"sectors\": [],\n  \"timeline\": {\n    \"milestones\": []\n  },\n  \"risks\": {\n    \"risks\": [],\n    \"opportunities\": []\n  },\n  \"extras\": {\n    \"monitoring\": {\n      \"items\": [\n        {\n          \"label\": \"Reported growth and margins\",\n          \"importance\": \"material\",\n          \"why_it_matters\": \"Growth rates and margins are not available in the supplied evidence, so these data would add operating-performance context to the valuation comparison.\",\n          \"frequency\": \"Each results release\"\n        }\n      ]\n    },\n    \"follow_up_questions\": [\n      \"What are the latest reported growth rates and margins for TCS and Infosys?\",\n      \"Would you like a comparison using operating results if those figures are provided?\"\n    ]\n  }\n}"
+        }
+      ],
+      "model_calls": 1,
+      "expected_model_calls": 1,
+      "call_count_as_expected": true,
+      "response": {
+        "query": "TCS vs Infosys, which is stronger?",
+        "response_id": "947ed273-57ac-4d37-afa3-a30777e17896",
+        "schema_version": "v3.0",
+        "specialist": "comparison",
+        "intent": "compare",
+        "ui_mode": "company_comparison",
+        "switch_holding": "TCS",
+        "switch_target": "Infosys",
+        "degraded_reason": null,
+        "synthesis_incomplete": false,
+        "answer": {
+          "summary": "TCS is listed at P/E 15.1 and P/B 6.85, versus Infosys at P/E 14.1 and P/B 4.54.",
+          "bottom_line": "TCS is listed at P/E 15.1 and P/B 6.85, versus Infosys at P/E 14.1 and P/B 4.54. Overall strength cannot be established because operating results, growth rates and margins are not available.",
+          "what_happened": "TCS is listed at P/E 15.1 and P/B 6.85, versus Infosys at P/E 14.1 and P/B 4.54.",
+          "why_it_happened": "The available evidence does not explain the valuation-multiple differences.",
+          "immediate_impact": "",
+          "medium_term": "",
+          "long_term": "",
+          "what_priced_in": "",
+          "risks": [],
+          "opportunities": [],
+          "confidence": 42.5,
+          "confidence_level": "Medium",
+          "sentiment": null,
+          "sources_count": 4
+        },
+        "key_drivers": [
+          {
+            "icon": "valuation",
+            "title": "Valuation multiples",
+            "explanation": "The available evidence permits comparison of P/E and P/B only; growth rates, margins and operating results are not available.",
+            "confidence": null
+          }
+        ],
+        "insights": [],
+        "companies": [
+          {
+            "symbol": "TCS",
+            "name": "TCS",
+            "reason": "The context lists TCS at P/E 15.1 and P/B 6.85.",
+            "impact_type": null,
+            "impact_score": null,
+            "confidence": null,
+            "price": "2,075.00",
+            "change": "+1.19%",
+            "positive": true,
+            "price_fetched_at": "2026-10-05T02:05:54.969898+00:00",
+            "chart": [
+              2070.7,
+              2032.4,
+              2050.6,
+              2075.0
+            ],
+            "ripple_position": "Indirect Exposure",
+            "why_it_matters": "The context lists TCS at P/E 15.1 and P/B 6.85."
+          },
+          {
+            "symbol": "INFY",
+            "name": "Infosys",
+            "reason": "The context lists Infosys at P/E 14.1 and P/B 4.54.",
+            "impact_type": null,
+            "impact_score": null,
+            "confidence": null,
+            "price": "1,035.00",
+            "change": "+4.11%",
+            "positive": true,
+            "price_fetched_at": "2026-10-05T02:05:55.848580+00:00",
+            "chart": [
+              1003.2,
+              1015.4,
+              994.1,
+              1035.0
+            ],
+            "ripple_position": "Indirect Exposure",
+            "why_it_matters": "The context lists Infosys at P/E 14.1 and P/B 4.54."
+          }
+        ],
+        "sectors": [],
+        "related_events": [
+          {
+            "id": "evt-it-deal-slowdown-2026",
+            "slug": "us-enterprise-it-spending-contracts-for-second-consecutive-quarter-evt-it-d",
+            "title": "US enterprise IT spending contracts for second consecutive quarter",
+            "summary": "CIO surveys and enterprise software vendors report discretionary IT budget freezes. Indian IT majors with high US revenue exposure face near-term demand headwinds, though management guidance remains cautious.",
+            "category": "Global",
+            "impact_score": 7.4,
+            "confidence": 0.8,
+            "sectors": [
+              "IT",
+              "Technology"
+            ],
+            "companies": [
+              {
+                "symbol": "TCS",
+                "name": "Tata Consultancy Services",
+                "impact": "Negative"
+              },
+              {
+                "symbol": "INFY",
+                "name": "Infosys",
+                "impact": "Negative"
+              },
+              {
+                "symbol": "WIPRO",
+                "name": "Wipro",
+                "impact": "Negative"
+              }
+            ],
+            "date": "Jul 10, 2026",
+            "source": "",
+            "event_date": null,
+            "published_at": "2026-07-10T09:30:00"
+          }
+        ],
+        "news": [
+          {
+            "id": "live-3053ed810c02",
+            "headline": "Top stocks to watch and why today: Ola, HDFC Bank, Nykaa, Infosys shares in focus on Monday, 5 Oct | Full list",
+            "summary": "Top stocks to watch on 5 October, 2026: Ola Electric Mobility, HDFC Bank, Nykaa, Bajaj Housing Finance are among the shares that will remain in focus on Monday.",
+            "source": "Livemint",
+            "published_at": "5m ago",
+            "impact_score": 7.0,
+            "url": "https://www.livemint.com/market/stock-market-news/top-stocks-to-watch-and-why-today-ola-hdfc-bank-nykaa-infosys-shares-in-focus-on-monday-5-oct-full-list-11791163751403.html"
+          },
+          {
+            "id": "live-9cb4aeeb13c9",
+            "headline": "Largecaps bear brunt of selloff as 84% of Nifty50 stocks slip below 200-DMAs",
+            "summary": "The Indian stock market is facing notable turmoil, with a pronounced selloff impacting major players like Tata Motors and Infosys. Currently, a staggering 84% of Nifty 50 stocks are underperforming th",
+            "source": "Economic Times",
+            "published_at": "1h ago",
+            "impact_score": 8.5,
+            "url": "https://economictimes.indiatimes.com/markets/stocks/news/largecaps-bear-brunt-of-selloff-as-84-of-nifty-50-stocks-slip-below-200-dma/articleshow/134683107.cms"
+          },
+          {
+            "id": "live-02d040b05505",
+            "headline": "Stocks in news: HDFC Bank, Infosys, Yes Bank, Hindustan Zinc and RVNL",
+            "summary": "Indian equities continued their downward trend due to rising global bond yields and high crude oil prices. The Nifty 50 fell by 198.50 points, while the BSE Sensex decreased by 570.59 points. Key comp",
+            "source": "Economic Times",
+            "published_at": "1h ago",
+            "impact_score": 7.0,
+            "url": "https://economictimes.indiatimes.com/markets/stocks/news/stocks-in-news-hdfc-bank-infosys-yes-bank-hindustan-zinc-and-rvnl/articleshow/134678258.cms"
+          }
+        ],
+        "policies": [],
+        "timeline": [],
+        "historical_comparison": [],
+        "ripple_chain": [],
+        "scenarios": {},
+        "monitoring": {
+          "items": [
+            {
+              "label": "Reported growth and margins",
+              "importance": "material",
+              "why_it_matters": "Growth rates and margins are not available in the supplied evidence, so these data would add operating-performance context to the valuation comparison.",
+              "frequency": "Each results release"
+            }
+          ]
+        },
+        "follow_up_questions": [
+          "What are the latest reported growth rates and margins for TCS and Infosys?",
+          "Would you like a comparison using operating results if those figures are provided?"
+        ],
+        "investment_verdict": {
+          "rating": "Not Applicable",
+          "direction": null,
+          "confidence": 42.5,
+          "horizon": "1-3 months",
+          "top_picks": [],
+          "risks": [],
+          "catalysts": [],
+          "opportunity_score": null,
+          "risk_level": "",
+          "suitable_for": "",
+          "engine_verdict": null
+        },
+        "market_chart": {
+          "labels": [],
+          "series": []
+        },
+        "graph": {
+          "nodes": [
+            {
+              "id": "q",
+              "label": "TCS vs Infosys, which is str…",
+              "type": "query",
+              "x": 0,
+              "y": 0
+            },
+            {
+              "id": "co-TCS",
+              "label": "TCS",
+              "type": "company",
+              "x": 0,
+              "y": 130,
+              "impact_score": null
+            },
+            {
+              "id": "co-INFY",
+              "label": "INFY",
+              "type": "company",
+              "x": 170,
+              "y": 130,
+              "impact_score": null
+            },
+            {
+              "id": "comp-WIPRO",
+              "label": "WIPRO",
+              "type": "competitor",
+              "x": 0,
+              "y": 260
+            }
+          ],
+          "edges": [
+            {
+              "id": "q->co-TCS",
+              "source": "q",
+              "target": "co-TCS",
+              "label": "involves"
+            },
+            {
+              "id": "q->co-INFY",
+              "source": "q",
+              "target": "co-INFY",
+              "label": "involves"
+            },
+            {
+              "id": "co-TCS->comp-WIPRO",
+              "source": "co-TCS",
+              "target": "comp-WIPRO",
+              "label": "competes_with"
+            },
+            {
+              "id": "co-INFY->comp-WIPRO",
+              "source": "co-INFY",
+              "target": "comp-WIPRO",
+              "label": "competes_with"
+            }
+          ]
+        },
+        "citations": [
+          "Economic Times",
+          "Livemint"
+        ],
+        "decision_intelligence": {},
+        "confidence_data": {
+          "level": "Medium",
+          "score": 42.5,
+          "reasons": [
+            "10 trusted sources",
+            "Calibrated from 102 verified predictions (57% historical accuracy)"
+          ],
+          "breakdown": {
+            "evidence_quality": 52.5,
+            "market_confirmation": 0.0,
+            "historical_similarity": 0.0,
+            "data_freshness": 100.0,
+            "reasoning_confidence": 50.0
+          },
+          "caveats": [
+            "This is a valuation comparison only. MarketRipple doesn't have current operating evidence (results, growth, margins, orders) for Tata Consultancy Services Ltd and Infosys Ltd, so it doesn't conclude which company is stronger overall."
+          ]
+        },
+        "decision_engine_v2": {},
+        "timeline_intelligence": {},
+        "opportunity_risk_matrix": {},
+        "ai_conclusion": {},
+        "evidence_score": {
+          "stars": 4,
+          "checklist": {
+            "real_time_price_data": true,
+            "government_data": false,
+            "historical_precedent": false,
+            "company_filings": true,
+            "live_market_events": true
+          },
+          "source_count": 4,
+          "development_count": 10,
+          "corroborating_source_count": 10
+        },
+        "confidence_breakdown": {
+          "evidence_quality": 52.5,
+          "market_confirmation": 0.0,
+          "historical_similarity": 0.0,
+          "data_freshness": 100.0,
+          "reasoning_confidence": 50.0,
+          "final_confidence": 42.5,
+          "level": "Medium",
+          "reasons": [
+            "10 trusted sources",
+            "Calibrated from 102 verified predictions (57% historical accuracy)"
+          ]
+        },
+        "confidence": {
+          "status": "scored",
+          "score": 33.4,
+          "components": {
+            "evidence_quality": 52.5,
+            "market_confirmation": 0.0,
+            "historical_similarity": 0.0,
+            "data_freshness": 100.0
+          }
+        },
+        "source_attribution": [
+          "event:evt-it-deal-slowdown-2026",
+          "news:live-3053ed810c02",
+          "news:live-9cb4aeeb13c9",
+          "news:live-02d040b05505"
+        ],
+        "evidence_index": [
+          {
+            "id": "E1",
+            "kind": "event",
+            "title": "US enterprise IT spending contracts for second consecutive quarter",
+            "date": "2026-07-10T09:30:00",
+            "source": "",
+            "companies": [
+              "TCS",
+              "INFY",
+              "WIPRO"
+            ]
+          },
+          {
+            "id": "N1",
+            "kind": "news",
+            "title": "Top stocks to watch and why today: Ola, HDFC Bank, Nykaa, Infosys shares in focus on Monday, 5 Oct | Full list",
+            "date": "5m ago",
+            "source": "Livemint",
+            "companies": []
+          },
+          {
+            "id": "N2",
+            "kind": "news",
+            "title": "Largecaps bear brunt of selloff as 84% of Nifty50 stocks slip below 200-DMAs",
+            "date": "1h ago",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "N3",
+            "kind": "news",
+            "title": "Stocks in news: HDFC Bank, Infosys, Yes Bank, Hindustan Zinc and RVNL",
+            "date": "1h ago",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "A1",
+            "kind": "announcement",
+            "title": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+            "date": "2026-10-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "TCS"
+            ]
+          },
+          {
+            "id": "A2",
+            "kind": "announcement",
+            "title": "Tata Consultancy Services Limited has informed the Exchange regarding a press release dated October 01, 2026, titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+            "date": "2026-10-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "TCS"
+            ]
+          },
+          {
+            "id": "A3",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange regarding 'Infosys and Columbia University Launch Strategic Collaboration Across Deep Research to Drive Innovation and Unlock Business Value'.",
+            "date": "2026-10-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ]
+          },
+          {
+            "id": "A4",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange regarding 'Investor Conference'.",
+            "date": "2026-09-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ]
+          },
+          {
+            "id": "A5",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange regarding Allotment of 175865  Shares.",
+            "date": "2026-08-24T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ]
+          },
+          {
+            "id": "A6",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange about change in Management",
+            "date": "2026-08-24T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ]
+          },
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "TCS: P/E 15.1, P/B 6.85, 52W 1976.8-3350.0",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": []
+          },
+          {
+            "id": "C2",
+            "kind": "context",
+            "title": "INFY: P/E 14.1, P/B 4.54, 52W 980.4-1728.0",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": []
+          },
+          {
+            "id": "C3",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": []
+          }
+        ],
+        "claim_sources": [
+          {
+            "claim": "TCS is listed at P/E 15.1 and P/B 6.85, versus Infosys at P/E 14.1 and P/B 4.54.",
+            "sources": [
+              "C1",
+              "C2"
+            ],
+            "scope": "company",
+            "company": "TCS",
+            "status": "ok",
+            "problems": [],
+            "ineligible": []
+          },
+          {
+            "claim": "The context lists TCS at P/E 15.1 and P/B 6.85.",
+            "sources": [
+              "C1"
+            ],
+            "scope": "company",
+            "company": "TCS",
+            "status": "ok",
+            "problems": [],
+            "ineligible": []
+          },
+          {
+            "claim": "The context lists Infosys at P/E 14.1 and P/B 4.54.",
+            "sources": [
+              "C2"
+            ],
+            "scope": "company",
+            "company": "INFY",
+            "status": "ok",
+            "problems": [],
+            "ineligible": []
+          }
+        ],
+        "claim_validation": {
+          "status": "ok",
+          "summary": {
+            "claims": 3,
+            "ok": 3,
+            "problems": 0,
+            "uncovered_factual_sentences": 0
+          },
+          "uncovered": []
+        },
+        "premise_check": {
+          "status": "not_applicable",
+          "terms": []
+        },
+        "validation": {
+          "repairs": [],
+          "omissions": [],
+          "contradiction_flagged": false
+        },
+        "market_impact_horizons": {},
+        "what_to_monitor": [],
+        "ai_reasoning_methods": [],
+        "follow_up_groups": [
+          {
+            "key": "compare",
+            "label": "Compare Further",
+            "icon": "compare",
+            "items": [
+              {
+                "text": "Compare TCS vs WIPRO",
+                "query": "Compare TCS vs Wipro Ltd",
+                "difficulty": "intermediate"
+              },
+              {
+                "text": "Compare TCS vs HCLTECH",
+                "query": "Compare TCS vs HCL Technologies Ltd",
+                "difficulty": "intermediate"
+              }
+            ]
+          },
+          {
+            "key": "portfolio",
+            "label": "Portfolio Decisions",
+            "icon": "portfolio",
+            "items": [
+              {
+                "text": "Should I switch TCS to INFY?",
+                "query": "Should I switch from TCS to Infosys?",
+                "difficulty": "beginner"
+              },
+              {
+                "text": "Should I add TCS to my portfolio?",
+                "query": "Should I add TCS to my portfolio?",
+                "difficulty": "beginner"
+              }
+            ]
+          },
+          {
+            "key": "deeper",
+            "label": "Go Deeper",
+            "icon": "deeper",
+            "items": [
+              {
+                "text": "Show quarterly earnings trend",
+                "query": "Show TCS's quarterly earnings trend",
+                "difficulty": "intermediate"
+              },
+              {
+                "text": "Explain valuation",
+                "query": "Explain TCS's current valuation",
+                "difficulty": "intermediate"
+              }
+            ]
+          },
+          {
+            "key": "horizon",
+            "label": "Different Horizons",
+            "icon": "horizon",
+            "items": [
+              {
+                "text": "TCS vs INFY for 1 Month",
+                "query": "TCS vs Infosys for 1 month",
+                "difficulty": "beginner"
+              }
+            ]
+          },
+          {
+            "key": "ripple",
+            "label": "Explore Ripple",
+            "icon": "ripple",
+            "items": [
+              {
+                "text": "Explore WIPRO",
+                "query": "What is the impact of WIPRO?",
+                "difficulty": "intermediate"
+              }
+            ]
+          }
+        ],
+        "conclusion_scope": {
+          "requested": "overall_strength",
+          "authorized": "valuation_comparison",
+          "partial": true,
+          "missing": [
+            "operating_evidence_TCS",
+            "operating_evidence_INFY"
+          ],
+          "reason": "overall_strength_needs_operating_evidence_for_every_company",
+          "coverage": {
+            "TCS": {
+              "valuation": true,
+              "operating": false
+            },
+            "INFY": {
+              "valuation": true,
+              "operating": false
+            }
+          }
+        },
+        "structured_authorization": {
+          "policy": "llm_structured_claims_withheld_unless_deterministically_authorized",
+          "withheld": [],
+          "state": "none_generated"
+        },
+        "evidence_sufficiency": {
+          "status": "SUFFICIENT",
+          "kind": "comparison",
+          "required": [
+            "evidence_for_TCS",
+            "evidence_for_INFY"
+          ],
+          "satisfied": [
+            "evidence_for_TCS",
+            "evidence_for_INFY"
+          ],
+          "missing": [],
+          "reason": null,
+          "missing_entities": [],
+          "context": [
+            "TCS: US enterprise IT spending contracts for second consecutive quarter",
+            "TCS: Tata Consultancy Services Limited has informed the Exchange regarding a press re",
+            "TCS: valuation data",
+            "INFY: US enterprise IT spending contracts for second consecutive quarter",
+            "INFY: Top stocks to watch and why today: Ola, HDFC Bank, Nykaa, Infosys shares in focu"
+          ]
+        },
+        "answer_authorization": {
+          "applicable": true,
+          "authorized": true,
+          "reasons": [],
+          "unsupported_figure_count": 0,
+          "factual_sentences": 3
+        },
+        "timing": {
+          "intent_detection_ms": 0.0,
+          "entity_detection_ms": 78.0,
+          "evidence_collection_ms": 1703.0,
+          "reasoning_ms": 25188.0,
+          "validation_ms": 265.0,
+          "assembly_ms": 5547.0,
+          "total_ms": 32781.0
+        },
+        "context_used": {
+          "companies": [],
+          "sectors": []
+        },
+        "watch_subject": null,
+        "answer_availability": {
+          "state": "available",
+          "evidence_retrieval_completed": true,
+          "evidence_count": 4
+        }
+      },
+      "gate_a": {
+        "status": "SUFFICIENT",
+        "kind": "comparison",
+        "required": [
+          "evidence_for_TCS",
+          "evidence_for_INFY"
+        ],
+        "satisfied": [
+          "evidence_for_TCS",
+          "evidence_for_INFY"
+        ],
+        "missing": [],
+        "reason": null,
+        "missing_entities": [],
+        "context": [
+          "TCS: US enterprise IT spending contracts for second consecutive quarter",
+          "TCS: Tata Consultancy Services Limited has informed the Exchange regarding a press re",
+          "TCS: valuation data",
+          "INFY: US enterprise IT spending contracts for second consecutive quarter",
+          "INFY: Top stocks to watch and why today: Ola, HDFC Bank, Nykaa, Infosys shares in focu"
+        ]
+      },
+      "premise_check": {
+        "status": "not_applicable",
+        "terms": []
+      },
+      "gate_b": {
+        "applicable": true,
+        "authorized": true,
+        "reasons": [],
+        "unsupported_figure_count": 0,
+        "factual_sentences": 3
+      },
+      "claim_validation": {
+        "status": "ok",
+        "summary": {
+          "claims": 3,
+          "ok": 3,
+          "problems": 0,
+          "uncovered_factual_sentences": 0
+        },
+        "uncovered": []
+      },
+      "claim_sources": [
+        {
+          "claim": "TCS is listed at P/E 15.1 and P/B 6.85, versus Infosys at P/E 14.1 and P/B 4.54.",
+          "sources": [
+            "C1",
+            "C2"
+          ],
+          "scope": "company",
+          "company": "TCS",
+          "status": "ok",
+          "problems": [],
+          "ineligible": []
+        },
+        {
+          "claim": "The context lists TCS at P/E 15.1 and P/B 6.85.",
+          "sources": [
+            "C1"
+          ],
+          "scope": "company",
+          "company": "TCS",
+          "status": "ok",
+          "problems": [],
+          "ineligible": []
+        },
+        {
+          "claim": "The context lists Infosys at P/E 14.1 and P/B 4.54.",
+          "sources": [
+            "C2"
+          ],
+          "scope": "company",
+          "company": "INFY",
+          "status": "ok",
+          "problems": [],
+          "ineligible": []
+        }
+      ],
+      "degraded_reason": null,
+      "rejected_generation": [],
+      "evidence": {
+        "plan_kind": "comparison",
+        "filter_report": {
+          "plan": "comparison",
+          "events": {
+            "kept": 1,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "news": {
+            "kept": 3,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_undated": 0,
+            "dropped_tips": 1,
+            "dropped_single_company_filing": 0
+          },
+          "announcements": {
+            "kept": 6,
+            "dropped_stale": 0
+          },
+          "policies": {
+            "kept": 0,
+            "dropped_irrelevant": 0
+          },
+          "premise": {
+            "required": false,
+            "terms": [],
+            "supported": null,
+            "supporting": []
+          }
+        },
+        "events": [
+          {
+            "id": "evt-it-deal-slowdown-2026",
+            "title": "US enterprise IT spending contracts for second consecutive quarter",
+            "summary": "CIO surveys and enterprise software vendors report discretionary IT budget freezes. Indian IT majors with high US revenue exposure face near-term demand headwinds, though management guidance remains cautious.",
+            "date": "2026-07-10T09:30:00",
+            "source": "",
+            "companies": [
+              "TCS",
+              "INFY",
+              "WIPRO"
+            ]
+          }
+        ],
+        "news": [
+          {
+            "id": "live-3053ed810c02",
+            "title": "Top stocks to watch and why today: Ola, HDFC Bank, Nykaa, Infosys shares in focus on Monday, 5 Oct | Full list",
+            "summary": "Top stocks to watch on 5 October, 2026: Ola Electric Mobility, HDFC Bank, Nykaa, Bajaj Housing Finance are among the shares that will remain in focus on Monday.",
+            "date": "5m ago",
+            "source": "Livemint"
+          },
+          {
+            "id": "live-9cb4aeeb13c9",
+            "title": "Largecaps bear brunt of selloff as 84% of Nifty50 stocks slip below 200-DMAs",
+            "summary": "The Indian stock market is facing notable turmoil, with a pronounced selloff impacting major players like Tata Motors and Infosys. Currently, a staggering 84% of Nifty 50 stocks are underperforming th",
+            "date": "1h ago",
+            "source": "Economic Times"
+          },
+          {
+            "id": "live-02d040b05505",
+            "title": "Stocks in news: HDFC Bank, Infosys, Yes Bank, Hindustan Zinc and RVNL",
+            "summary": "Indian equities continued their downward trend due to rising global bond yields and high crude oil prices. The Nifty 50 fell by 198.50 points, while the BSE Sensex decreased by 570.59 points. Key comp",
+            "date": "1h ago",
+            "source": "Economic Times"
+          }
+        ],
+        "announcements": [
+          {
+            "id": "ann_nse-3e08b3c13a",
+            "title": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+            "category": null,
+            "date": "2026-10-01T00:00:00"
+          },
+          {
+            "id": "ann_nse-d5bed2f533",
+            "title": "Tata Consultancy Services Limited has informed the Exchange regarding a press release dated October 01, 2026, titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+            "category": null,
+            "date": "2026-10-01T00:00:00"
+          },
+          {
+            "id": "ann_nse-ffc7721042",
+            "title": "Infosys Limited has informed the Exchange regarding 'Infosys and Columbia University Launch Strategic Collaboration Across Deep Research to Drive Innovation and Unlock Business Value'.",
+            "category": null,
+            "date": "2026-10-01T00:00:00"
+          },
+          {
+            "id": "ann_nse-ca93723168",
+            "title": "Infosys Limited has informed the Exchange regarding 'Investor Conference'.",
+            "category": null,
+            "date": "2026-09-01T00:00:00"
+          },
+          {
+            "id": "ann_nse-600f534235",
+            "title": "Infosys Limited has informed the Exchange regarding Allotment of 175865  Shares.",
+            "category": null,
+            "date": "2026-08-24T00:00:00"
+          },
+          {
+            "id": "ann_nse-6ca57a1d3e",
+            "title": "Infosys Limited has informed the Exchange about change in Management",
+            "category": null,
+            "date": "2026-08-24T00:00:00"
+          }
+        ],
+        "policies": [],
+        "valuation": {
+          "TCS": {
+            "pe": 15.1,
+            "pb": 6.85,
+            "52w_high": 3350.0,
+            "52w_low": 1976.8
+          },
+          "INFY": {
+            "pe": 14.1,
+            "pb": 4.54,
+            "52w_high": 1728.0,
+            "52w_low": 980.4
+          }
+        },
+        "vix": 14.45,
+        "sector_rows": [],
+        "macro_indices": [],
+        "context_lines": [
+          "TCS: P/E 15.1, P/B 6.85, 52W 1976.8-3350.0",
+          "INFY: P/E 14.1, P/B 4.54, 52W 980.4-1728.0",
+          "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)"
+        ],
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        },
+        "index": [
+          {
+            "id": "E1",
+            "kind": "event",
+            "title": "US enterprise IT spending contracts for second consecutive quarter",
+            "summary": "CIO surveys and enterprise software vendors report discretionary IT budget freezes. Indian IT majors with high US revenue exposure face near-term demand headwinds, though management guidance remains c",
+            "date": "2026-07-10T09:30:00",
+            "source": "",
+            "companies": [
+              "TCS",
+              "INFY",
+              "WIPRO"
+            ],
+            "ref": "event:evt-it-deal-slowdown-2026"
+          },
+          {
+            "id": "N1",
+            "kind": "news",
+            "title": "Top stocks to watch and why today: Ola, HDFC Bank, Nykaa, Infosys shares in focus on Monday, 5 Oct | Full list",
+            "summary": "Top stocks to watch on 5 October, 2026: Ola Electric Mobility, HDFC Bank, Nykaa, Bajaj Housing Finance are among the shares that will remain in focus on Monday.",
+            "date": "5m ago",
+            "source": "Livemint",
+            "companies": [],
+            "ref": "news:live-3053ed810c02"
+          },
+          {
+            "id": "N2",
+            "kind": "news",
+            "title": "Largecaps bear brunt of selloff as 84% of Nifty50 stocks slip below 200-DMAs",
+            "summary": "The Indian stock market is facing notable turmoil, with a pronounced selloff impacting major players like Tata Motors and Infosys. Currently, a staggering 84% of Nifty 50 stocks are underperforming th",
+            "date": "1h ago",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "news:live-9cb4aeeb13c9"
+          },
+          {
+            "id": "N3",
+            "kind": "news",
+            "title": "Stocks in news: HDFC Bank, Infosys, Yes Bank, Hindustan Zinc and RVNL",
+            "summary": "Indian equities continued their downward trend due to rising global bond yields and high crude oil prices. The Nifty 50 fell by 198.50 points, while the BSE Sensex decreased by 570.59 points. Key comp",
+            "date": "1h ago",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "news:live-02d040b05505"
+          },
+          {
+            "id": "A1",
+            "kind": "announcement",
+            "title": "Tata Consultancy Services Limited has informed the Exchange about Schedule of meet",
+            "date": "2026-10-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "TCS"
+            ],
+            "ref": "announcement:ann_nse-3e08b3c13a"
+          },
+          {
+            "id": "A2",
+            "kind": "announcement",
+            "title": "Tata Consultancy Services Limited has informed the Exchange regarding a press release dated October 01, 2026, titled \"Best Buy s Global Capability Center in India to transition to TCS\".",
+            "date": "2026-10-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "TCS"
+            ],
+            "ref": "announcement:ann_nse-d5bed2f533"
+          },
+          {
+            "id": "A3",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange regarding 'Infosys and Columbia University Launch Strategic Collaboration Across Deep Research to Drive Innovation and Unlock Business Value'.",
+            "date": "2026-10-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ],
+            "ref": "announcement:ann_nse-ffc7721042"
+          },
+          {
+            "id": "A4",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange regarding 'Investor Conference'.",
+            "date": "2026-09-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ],
+            "ref": "announcement:ann_nse-ca93723168"
+          },
+          {
+            "id": "A5",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange regarding Allotment of 175865  Shares.",
+            "date": "2026-08-24T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ],
+            "ref": "announcement:ann_nse-600f534235"
+          },
+          {
+            "id": "A6",
+            "kind": "announcement",
+            "title": "Infosys Limited has informed the Exchange about change in Management",
+            "date": "2026-08-24T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "INFY"
+            ],
+            "ref": "announcement:ann_nse-6ca57a1d3e"
+          },
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "TCS: P/E 15.1, P/B 6.85, 52W 1976.8-3350.0",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:1"
+          },
+          {
+            "id": "C2",
+            "kind": "context",
+            "title": "INFY: P/E 14.1, P/B 4.54, 52W 980.4-1728.0",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:2"
+          },
+          {
+            "id": "C3",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:3"
+          }
+        ],
+        "historical": []
+      },
+      "model_result": {
+        "status": 200,
+        "classification": null,
+        "finish_reason": "stop",
+        "latency_ms": 25172,
+        "usage": {
+          "prompt_tokens": 2004,
+          "completion_tokens": 2804,
+          "total_tokens": 4808
+        },
+        "reasoning_tokens": 2123,
+        "would_exceed_30s": false
+      },
+      "outcome": "generation_authorized"
+    }
+  }
+}
