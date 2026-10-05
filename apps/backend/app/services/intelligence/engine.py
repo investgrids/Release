@@ -612,6 +612,17 @@ def _derive_biggest_risk(story: Optional[dict], events: list[dict]) -> Optional[
     The most urgent bearish event currently on the radar, or — if none —
     the AI market story's own risk narrative. Never fabricated: returns None
     if neither real source has anything to say.
+
+    `source` (2026-09-22, Market Pulse AEV2 audit): an explicit
+    discriminant — "tracked_event" for a real EventTriage row (event_id
+    is that row's own real Event.id, from read_top_events; published_at
+    is its real triaged_at timestamp), "ai_synthesis" for the story-
+    narrative fallback. Previously this distinction only existed
+    implicitly (headline is None only on the fallback branch) — callers
+    downstream (the AEV2 risk_context discriminated union) must render
+    these two states with different trust labels ("Verified market
+    risk" vs "AI-identified consideration") and must never infer which
+    one they have from an incidental null check.
     """
     bearish = sorted(
         (e for e in events if e.get("sentiment") == "bearish"),
@@ -620,6 +631,9 @@ def _derive_biggest_risk(story: Optional[dict], events: list[dict]) -> Optional[
     if bearish:
         top = bearish[0]
         return {
+            "source":     "tracked_event",
+            "event_id":   top.get("id"),
+            "published_at": top.get("triaged_at"),
             "headline":   top.get("headline"),
             "reason":     top.get("one_liner") or top.get("headline"),
             "sectors":    top.get("sectors") or [],
@@ -628,6 +642,7 @@ def _derive_biggest_risk(story: Optional[dict], events: list[dict]) -> Optional[
         }
     if story and story.get("risk"):
         return {
+            "source":     "ai_synthesis",
             "headline":   None,
             "reason":     story["risk"],
             "sectors":    [],

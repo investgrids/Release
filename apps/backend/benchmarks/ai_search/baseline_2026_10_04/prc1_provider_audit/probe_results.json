@@ -1,0 +1,281 @@
+{
+  "requests_made": 10,
+  "real_prompt_approx_input_tokens": 2315,
+  "real_max_tokens": 6500,
+  "results": {
+    "groq:openai/gpt-oss-120b": {
+      "state": "OUTPUT_EMPTY",
+      "evidence": "HTTP 200 but no content (finish_reason=length); likely output budget consumed before any answer",
+      "steps": [
+        {
+          "max_tokens": 5,
+          "approx_input_tokens": 8,
+          "latency_ms": 453,
+          "status": 200,
+          "limit_headers": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "999",
+            "x-ratelimit-remaining-tokens": "7917",
+            "x-ratelimit-reset-requests": "1m26.4s",
+            "x-ratelimit-reset-tokens": "622ms"
+          },
+          "finish_reason": "length",
+          "output_chars": 0,
+          "prompt_tokens": 78,
+          "completion_tokens": 5,
+          "total_tokens": 83,
+          "would_exceed_app_read_timeout": false,
+          "empty_content": true,
+          "step": "S1"
+        }
+      ]
+    },
+    "groq:openai/gpt-oss-20b": {
+      "state": "OUTPUT_EMPTY",
+      "evidence": "HTTP 200 but no content (finish_reason=length); likely output budget consumed before any answer",
+      "steps": [
+        {
+          "max_tokens": 5,
+          "approx_input_tokens": 8,
+          "latency_ms": 453,
+          "status": 200,
+          "limit_headers": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "998",
+            "x-ratelimit-remaining-tokens": "7917",
+            "x-ratelimit-reset-requests": "2m52.8s",
+            "x-ratelimit-reset-tokens": "622ms"
+          },
+          "finish_reason": "length",
+          "output_chars": 0,
+          "prompt_tokens": 78,
+          "completion_tokens": 5,
+          "total_tokens": 83,
+          "would_exceed_app_read_timeout": false,
+          "empty_content": true,
+          "step": "S1"
+        }
+      ]
+    },
+    "groq:qwen/qwen3.8-27b": {
+      "state": "REQUEST_LIMITED",
+      "evidence": "HTTP 429 after smaller requests succeeded; provider text names a size/token limit: Rate limit reached for model `qwen/qwen3.8-27b` in organization `org_<redacted>` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199586, Requested 652. Please try again in 1m42.816s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing",
+      "steps": [
+        {
+          "max_tokens": 5,
+          "approx_input_tokens": 8,
+          "latency_ms": 110,
+          "status": 200,
+          "limit_headers": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "999",
+            "x-ratelimit-remaining-tokens": "7976",
+            "x-ratelimit-reset-requests": "1m26.4s",
+            "x-ratelimit-reset-tokens": "180ms"
+          },
+          "finish_reason": "stop",
+          "output_chars": 2,
+          "prompt_tokens": 19,
+          "completion_tokens": 2,
+          "total_tokens": 21,
+          "would_exceed_app_read_timeout": false,
+          "empty_content": false,
+          "step": "S1"
+        },
+        {
+          "max_tokens": 64,
+          "approx_input_tokens": 551,
+          "latency_ms": 47,
+          "status": 429,
+          "limit_headers": {
+            "retry-after": "103",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "999",
+            "x-ratelimit-remaining-tokens": "8000",
+            "x-ratelimit-reset-requests": "1m26.4s",
+            "x-ratelimit-reset-tokens": "1ms",
+            "x-should-retry": "false"
+          },
+          "error": {
+            "type": "tokens",
+            "code": "rate_limit_exceeded",
+            "message": "Rate limit reached for model `qwen/qwen3.8-27b` in organization `org_<redacted>` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199586, Requested 652. Please try again in 1m42.816s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing"
+          },
+          "step": "S2"
+        }
+      ]
+    },
+    "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free": {
+      "state": "QUOTA_EXHAUSTED",
+      "evidence": "provider text names a daily/quota/credit limit: Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day",
+      "steps": [
+        {
+          "max_tokens": 5,
+          "approx_input_tokens": 8,
+          "latency_ms": 516,
+          "status": 429,
+          "limit_headers": {
+            "x-ratelimit-limit": "50",
+            "x-ratelimit-remaining": "0",
+            "x-ratelimit-reset": "1791158400000"
+          },
+          "error": {
+            "type": "None",
+            "code": "429",
+            "message": "Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day",
+            "metadata_headers": {
+              "X-RateLimit-Limit": "50",
+              "X-RateLimit-Remaining": "0",
+              "X-RateLimit-Reset": "1791158400000"
+            }
+          },
+          "step": "S1"
+        }
+      ]
+    },
+    "openrouter:nvidia/nemotron-3-super-120b-a12b:free": {
+      "state": "QUOTA_EXHAUSTED",
+      "evidence": "provider text names a daily/quota/credit limit: Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day",
+      "steps": [
+        {
+          "max_tokens": 5,
+          "approx_input_tokens": 8,
+          "latency_ms": 47,
+          "status": 429,
+          "limit_headers": {
+            "x-ratelimit-limit": "50",
+            "x-ratelimit-remaining": "0",
+            "x-ratelimit-reset": "1791158400000"
+          },
+          "error": {
+            "type": "None",
+            "code": "429",
+            "message": "Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day",
+            "metadata_headers": {
+              "X-RateLimit-Limit": "50",
+              "X-RateLimit-Remaining": "0",
+              "X-RateLimit-Reset": "1791158400000"
+            }
+          },
+          "step": "S1"
+        }
+      ]
+    },
+    "openrouter:google/gemma-4-31b-it:free": {
+      "state": "QUOTA_EXHAUSTED",
+      "evidence": "provider text names a daily/quota/credit limit: Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day",
+      "steps": [
+        {
+          "max_tokens": 5,
+          "approx_input_tokens": 8,
+          "latency_ms": 31,
+          "status": 429,
+          "limit_headers": {
+            "x-ratelimit-limit": "50",
+            "x-ratelimit-remaining": "0",
+            "x-ratelimit-reset": "1791158400000"
+          },
+          "error": {
+            "type": "None",
+            "code": "429",
+            "message": "Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day",
+            "metadata_headers": {
+              "X-RateLimit-Limit": "50",
+              "X-RateLimit-Remaining": "0",
+              "X-RateLimit-Reset": "1791158400000"
+            }
+          },
+          "step": "S1"
+        }
+      ]
+    },
+    "openrouter:google/gemma-4-26b-a4b-it:free": {
+      "state": "QUOTA_EXHAUSTED",
+      "evidence": "provider text names a daily/quota/credit limit: Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day",
+      "steps": [
+        {
+          "max_tokens": 5,
+          "approx_input_tokens": 8,
+          "latency_ms": 46,
+          "status": 429,
+          "limit_headers": {
+            "x-ratelimit-limit": "50",
+            "x-ratelimit-remaining": "0",
+            "x-ratelimit-reset": "1791158400000"
+          },
+          "error": {
+            "type": "None",
+            "code": "429",
+            "message": "Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day",
+            "metadata_headers": {
+              "X-RateLimit-Limit": "50",
+              "X-RateLimit-Remaining": "0",
+              "X-RateLimit-Reset": "1791158400000"
+            }
+          },
+          "step": "S1"
+        }
+      ]
+    },
+    "openrouter:cohere/north-mini-code:free": {
+      "state": "QUOTA_EXHAUSTED",
+      "evidence": "provider text names a daily/quota/credit limit: Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day",
+      "steps": [
+        {
+          "max_tokens": 5,
+          "approx_input_tokens": 8,
+          "latency_ms": 47,
+          "status": 429,
+          "limit_headers": {
+            "x-ratelimit-limit": "50",
+            "x-ratelimit-remaining": "0",
+            "x-ratelimit-reset": "1791158400000"
+          },
+          "error": {
+            "type": "None",
+            "code": "429",
+            "message": "Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day",
+            "metadata_headers": {
+              "X-RateLimit-Limit": "50",
+              "X-RateLimit-Remaining": "0",
+              "X-RateLimit-Reset": "1791158400000"
+            }
+          },
+          "step": "S1"
+        }
+      ]
+    },
+    "openrouter:nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": {
+      "state": "QUOTA_EXHAUSTED",
+      "evidence": "provider text names a daily/quota/credit limit: Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day",
+      "steps": [
+        {
+          "max_tokens": 5,
+          "approx_input_tokens": 8,
+          "latency_ms": 360,
+          "status": 429,
+          "limit_headers": {
+            "x-ratelimit-limit": "50",
+            "x-ratelimit-remaining": "0",
+            "x-ratelimit-reset": "1791158400000"
+          },
+          "error": {
+            "type": "None",
+            "code": "429",
+            "message": "Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day",
+            "metadata_headers": {
+              "X-RateLimit-Limit": "50",
+              "X-RateLimit-Remaining": "0",
+              "X-RateLimit-Reset": "1791158400000"
+            }
+          },
+          "step": "S1"
+        }
+      ]
+    }
+  }
+}

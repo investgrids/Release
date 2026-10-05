@@ -21,6 +21,8 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.ai_search import cache as cache_mod
+from app.services.ai_search import evidence_filter
+from app.services.ai_search import evidence_ranking
 from app.services.evidence_clustering.dedup import cluster_evidence
 from app.services.evidence_clustering.evidence import (
     DETERMINISTIC,
@@ -42,6 +44,10 @@ from app.services.ai_search.regexes import (
     _VIX_TRIGGER,
 )
 from app.services.ai_search.retrieval import (
+    POOL_ANNOUNCEMENTS,
+    POOL_EVENTS_TAGGED,
+    POOL_EVENTS_TOPIC,
+    POOL_NEWS_WINDOW,
     _infer_historical_category,
     _infer_historical_sectors,
     _search_events,
@@ -51,6 +57,15 @@ from app.services.ai_search.retrieval import (
 )
 
 log = structlog.get_logger(__name__)
+
+
+# Step 3.4G.2: how many of each ranked list a specialist PROMPT actually shows. This is the single source of truth: the prompt builders slice with it, and the evidence index and Gate B's corpus
+# are cut to the same slices, so  retrieved ⊃ selected ⊃ model-visible = claim-authorizable.  Internal traces (rank_trace, filter_report) keep everything.
+PROMPT_VISIBLE = {
+    "company": {"events": 5, "news": 5, "policies": 3},
+    "sector": {"events": 6, "news": 5, "policies": 4},
+    "comparison": {"events": 4, "news": 4, "policies": 0},      # pairwise and multi-entity comparison prompts
+}
 
 
 @dataclass
@@ -74,6 +89,18 @@ class EvidenceBundle:
     # Ordered, human-readable evidence lines — the *view* of this bundle used
     # for prompt injection (mirrors V2's extra_context string exactly).
     context_lines: list[str] = field(default_factory=list)
+    # Step 2: what the retrieval plan fetched and what the date/relevance checks dropped (see evidence_filter.py). Internal; never part of the public response.
+    plan_kind: str | None = None
+    filter_report: dict = field(default_factory=dict)
+    premise: dict = field(default_factory=dict)
+    # Step 3.4G.1: per-item ranking components for the selected pools (internal, never in the public response) and how many announcements were dropped as stale before ranking.
+    rank_trace: dict = field(default_factory=dict)
+    ann_stale: int = 0
+    # Step 3.4G.3: sources whose retrieval RAISED, as {source: exception class}. Empty means every source ran; a source absent here that returned [] genuinely matched nothing.
+    # Internal only (also copied into filter_report), never part of the public response.
+    retrieval_failures: dict = field(default_factory=dict)
+    # Which specialist prompt this bundle is rendered into (set by the pipeline right after routing). When set, index() and the authorization corpus expose ONLY what that prompt shows.
+    prompt_kind: str | None = None
 
     # Phase 5E.5: real developments, not raw row count. Populated by
     # collect() via the shared evidence_clustering primitive (5E.3) —
@@ -134,8 +161,79 @@ class EvidenceBundle:
     def deduped_announcements(self) -> list[dict]:
         return [a for a in self.announcements if not self._is_redundant("announcement", a.get("id"))]
 
+    def _cap(self, kind: str) -> int | None:
+        caps = PROMPT_VISIBLE.get(self.prompt_kind or "")
+        return None if caps is None else caps[kind]
+
+    def visible_events(self) -> list[dict]:
+        rows, n = self.deduped_events(), self._cap("events")
+        return rows if n is None else rows[:n]
+
+    def visible_news(self) -> list[dict]:
+        rows, n = self.deduped_news(), self._cap("news")
+        return rows if n is None else rows[:n]
+
+    def visible_policies(self) -> list[dict]:
+        n = self._cap("policies")
+        return self.policies if n is None else self.policies[:n]
+
+    def visible_text(self) -> str:
+        """The evidence text the model was shown, for Gate B's figure/date check. Only what the prompt renders: titles/headlines (summaries and item dates are NOT shown), the event category and
+        score, the announcement block (subject, category, date), every context line, and, for the sector prompt, the live sector rows."""
+        parts: list[str] = []
+        for e in self.visible_events():
+            parts += [str(e.get("category") or ""), str(e.get("title") or ""), f"{float(e.get('impact_score') or 0):.0f}"]
+        for n in self.visible_news():
+            parts.append(str(n.get("headline") or ""))
+        for p in self.visible_policies():
+            parts += [str(p.get("title") or ""), str(p.get("ministry") or "")]
+        parts.append(self.to_context_text())
+        if self.prompt_kind == "sector":
+            parts += [f"{s.get('name')} {s.get('value')}" for s in (self.sector_rows or [])[:12]]
+        return " ".join(parts)
+
     def to_context_text(self) -> str:
-        return "\n\n".join(self.context_lines)
+        """Context lines tagged [C1], [C2]... plus the announcement block tagged [A1]... Built AFTER the age/relevance filter, so nothing the filter dropped can reach the prompt
+        through free text (announcement lines used to be written into context_lines before filtering)."""
+        parts = [f"[C{i}] {line}" for i, line in enumerate(self.context_lines, 1)]
+        block = self.announcements_block()
+        if block:
+            parts.append(block)
+        return "\n\n".join(parts)
+
+    def announcements_block(self) -> str:
+        rows = self.deduped_announcements()
+        if not rows:
+            return ""
+        return "Recent filed announcements (real, from NSE):\n" + "\n".join(
+            f"- [A{i}] {a.get('symbol') + ': ' if a.get('symbol') else ''}{a.get('subject', '')} ({a.get('category') or 'filing'}, {str(a.get('announcement_date', ''))[:10]})"
+            for i, a in enumerate(rows[:8], 1))
+
+    def index(self) -> list[dict]:
+        """Stable evidence IDs for THIS answer. E = events, N = news, P = policies, A = announcements, C = context lines, in the same order the prompt lists them, so an ID
+        in the prompt and an ID in claim_sources always mean the same item."""
+        out: list[dict] = []
+        for i, e in enumerate(self.visible_events(), 1):
+            out.append({"id": f"E{i}", "kind": "event", "title": e.get("title"), "summary": (e.get("summary") or "")[:200], "date": e.get("event_date") or e.get("published_at") or e.get("date"), "source": e.get("source"),
+                        "companies": [c.get("symbol") for c in (e.get("companies") or []) if isinstance(c, dict)], "ref": f"event:{e.get('id')}"})
+        for i, n in enumerate(self.visible_news(), 1):
+            out.append({"id": f"N{i}", "kind": "news", "title": n.get("headline"), "summary": (n.get("summary") or "")[:200], "date": n.get("published_at"), "source": n.get("source"), "companies": [], "ref": f"news:{n.get('id')}"})
+        for i, p in enumerate(self.visible_policies(), 1):
+            out.append({"id": f"P{i}", "kind": "policy", "title": p.get("title"), "summary": (p.get("summary") or "")[:200], "date": None, "source": p.get("ministry"), "companies": [], "ref": f"policy:{p.get('id')}"})
+        for i, a in enumerate(self.deduped_announcements()[:8], 1):
+            out.append({"id": f"A{i}", "kind": "announcement", "title": a.get("subject"), "date": a.get("announcement_date"), "source": "NSE",
+                        "companies": [a["symbol"]] if a.get("symbol") else [], "ref": f"announcement:{a.get('id')}"})
+        for i, line in enumerate(self.context_lines, 1):
+            out.append({"id": f"C{i}", "kind": "context", "title": line[:160], "date": None, "source": "MarketRipple data", "companies": [], "ref": f"context:{i}"})
+        return out
+
+    def premise_notice(self) -> str:
+        """Prompt text for a question that asserts an event nothing in the evidence confirms; empty otherwise."""
+        p = self.premise or {}
+        if p.get("required") and not p.get("supported"):
+            return ("\n\nVERIFICATION NOTE: the question describes an event (" + ", ".join(p.get("terms") or []) + "), but none of the retrieved evidence confirms it. "
+                    "Say plainly that the event could not be verified from MarketRipple's data. Do not state its size, value, timing, counterparties or effects as fact.")
+        return ""
 
     def to_source_ids(self) -> list[str]:
         """Stable evidence IDs for source-attribution tagging."""
@@ -297,20 +395,58 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
     async def _policies_factory():
         return await _search_policies(db, query, entities=entities)
 
-    # P1 fix: `entities` was already a parameter of this function (used below
-    # for valuation lookups) but wasn't reaching these two calls — they ran
-    # query-independent, identical to V2's pre-fix behavior.
-    events, news, policies = await asyncio.gather(
-        _search_events(db, query, entities=entities), _search_news(db, query, entities=entities),
-        cache_mod.component("policy", policy_sig, _policies_factory),
-        return_exceptions=True,
-    )
-    bundle.events = events if isinstance(events, list) else []
-    bundle.news = news if isinstance(news, list) else []
-    bundle.policies = policies if isinstance(policies, list) else []
+    # Step 2 (baseline fix): WHAT to fetch depends on the question type, see evidence_filter.plan_for.
+    plan = evidence_filter.plan_for(query, intent_data, entities)
+    bundle.plan_kind = plan.kind
+    companies = [c for c in (entities.get("companies") or []) if c]
 
-    if _VALUATION_TRIGGERS.search(query):
-        co_syms = [c.upper() for c in entities.get("companies", [])[:2]]
+    async def _events_task():
+        if plan.events == "none":
+            return []
+        if plan.events == "tagged":
+            # Per company, so a comparison gets evidence for EACH side instead of whichever company has the higher-impact events.
+            out, seen = [], set()
+            for sym in companies[:3]:
+                for ev in await _search_events(db, query, limit=POOL_EVENTS_TAGGED, entities={"companies": [sym]}, tagged_only=True, pool_by_recency=True):
+                    if ev["id"] not in seen:
+                        seen.add(ev["id"])
+                        out.append(ev)
+            return out
+        return await _search_events(db, query, limit=POOL_EVENTS_TOPIC, entities=entities, terms=evidence_filter.topic_search_terms(query, entities) or None, pool_by_recency=True)
+
+    async def _news_task():
+        if plan.news == "none":
+            return []
+        if plan.news == "entity":
+            return await _search_news(db, query, limit=20, entities=entities, entity_terms=evidence_filter.company_terms(companies), live_window=POOL_NEWS_WINDOW)
+        return await _search_news(db, query, limit=20, entities=entities, entity_terms=evidence_filter.topic_search_terms(query, entities) or None, live_window=POOL_NEWS_WINDOW)
+
+    async def _policies_task():
+        if not plan.policies:
+            return []
+        return await cache_mod.component("policy", policy_sig, _policies_factory)
+
+    # Step 3.4G.3: these three lookups share ONE AsyncSession, and a session must never run two operations at once: on the first use of a cold connection pool the concurrent gather raised
+    # "provisioning a new connection; concurrent operations are not permitted", return_exceptions swallowed it, and a whole source silently became []. They now run one after another
+    # (one connection, no extra pool pressure; these are local queries, so the cost is milliseconds), each guarded so that a failing source:
+    #   - is logged by NAME and exception CLASS only (no query text, no message),
+    #   - is recorded in bundle.retrieval_failures so "the source failed" is never confused with "nothing matched",
+    #   - leaves the other sources' evidence intact.
+    async def _guarded(name: str, task) -> list:
+        try:
+            rows = await task()
+            return rows if isinstance(rows, list) else []
+        except Exception as exc:                                                   # noqa: BLE001: any failure of one source must not kill the request
+            bundle.retrieval_failures[name] = type(exc).__name__
+            log.warning("ai_search_v3.evidence_source_failed", source=name, error_class=type(exc).__name__)
+            return []
+
+    bundle.events = await _guarded("events", _events_task)
+    bundle.news = await _guarded("news", _news_task)
+    bundle.policies = await _guarded("policies", _policies_task)
+
+    if plan.valuation_for or _VALUATION_TRIGGERS.search(query):
+        co_syms = [c.upper() for c in (plan.valuation_for or entities.get("companies", [])[:2])]
         if co_syms:
             try:
                 bundle.valuation = await loop.run_in_executor(None, _fetch_valuation_sync, co_syms)
@@ -519,6 +655,7 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
         except Exception:
             pass
 
+    ann_syms: set[str] = set()
     if intent_data.get("intent") == "general" and not intent_data.get("is_comparison") and len(entities.get("companies") or []) == 1:
         try:
             from app.services.intelligence.engine import get_symbol_context
@@ -527,7 +664,7 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
 
             async def _company_intel_factory():
                 raw_ctx, raw_ann = await asyncio.gather(
-                    get_symbol_context(sym), get_recent_announcements(sym, limit=5), return_exceptions=True,
+                    get_symbol_context(sym), get_recent_announcements(sym, limit=POOL_ANNOUNCEMENTS), return_exceptions=True,
                 )
                 return {
                     "ctx": raw_ctx if not isinstance(raw_ctx, BaseException) else None,
@@ -536,6 +673,7 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
 
             intel = await cache_mod.component("company", sym, _company_intel_factory)
             ctx, ann = intel.get("ctx"), intel.get("ann")
+            ann_syms.add(sym)
             if isinstance(ctx, dict) and ctx.get("story"):
                 story_val = ctx["story"]
                 story_text = story_val.get("text") if isinstance(story_val, dict) else str(story_val)
@@ -546,11 +684,11 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
                         block += f" · Mood: {ctx['market_mood']}"
                     bundle.context_lines.append(block)
             if isinstance(ann, list) and ann:
-                bundle.announcements = ann
-                ann_txt = "; ".join(
-                    f"{a.get('subject', '')} ({a.get('category', '')}, {a.get('announcement_date', '')})" for a in ann[:5]
-                )
-                bundle.context_lines.append(f"Recent real filed announcements for {sym}: {ann_txt}")
+                # Step 3.4G.1: a 60-row recency pool, ranked (substantive and question-relevant before administrative recency), then the original budget of 5.
+                sel, tr, stale = evidence_ranking.rank_announcements([{**a, "symbol": sym} for a in ann], query, entities, plan, 5)
+                bundle.announcements = sel                                   # rendered after the filter (announcements_block), not as an unfiltered context line
+                bundle.ann_stale += stale
+                bundle.rank_trace.setdefault("announcements", []).extend({**t, "company": sym} for t in tr)
 
             # Phase 6F — Development Memory. Shared builder with V2 (see
             # app/services/development_memory/ai_search_context.py's own
@@ -571,11 +709,35 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
                 ann = await get_recent_announcements(sym, limit=8)
                 results_ann = [a for a in ann if any(k in (a.get("category", "") or "").lower() for k in ("result", "financial"))]
                 if results_ann:
-                    bundle.results_announcements.extend(results_ann)
-                    lines = "; ".join(f"{a['subject']} ({a['announcement_date']})" for a in results_ann[:3])
-                    bundle.context_lines.append(f"Real filed results announcements for {sym}: {lines}")
+                    bundle.results_announcements.extend({**a, "symbol": sym} for a in results_ann)   # merged into announcements below and rendered after the filter
         except Exception:
             pass
+
+    # Step 2: recent filed announcements for every company the plan names (comparisons and event/company questions used to get none unless intent was "general"
+    # with exactly one company).
+    for sym in plan.announcements_for:
+        if sym in ann_syms:
+            continue
+        try:
+            from app.services.company_announcements_service import get_recent_announcements
+            rows = await get_recent_announcements(sym, limit=POOL_ANNOUNCEMENTS)
+        except Exception:
+            rows = []
+        have = {str(a.get("id")) for a in (bundle.announcements or [])}
+        cand = [{**r, "symbol": sym} for r in rows if str(r.get("id")) not in have]
+        sel, tr, stale = evidence_ranking.rank_announcements(cand, query, entities, plan, 8)      # Step 3.4G.1: ranked pool, same budget of 8 per company
+        bundle.announcements = (bundle.announcements or []) + sel
+        bundle.ann_stale += stale
+        bundle.rank_trace.setdefault("announcements", []).extend({**t, "company": sym} for t in tr)
+
+    # results announcements are announcements too: one list, one age filter, one rendering path
+    have = {str(a.get("id")) for a in (bundle.announcements or [])}
+    bundle.announcements = (bundle.announcements or []) + [r for r in bundle.results_announcements if str(r.get("id")) not in have]
+
+    # Step 2: date and relevance checks BEFORE the evidence reaches the prompt or the response.
+    bundle.filter_report = evidence_filter.filter_bundle(bundle, plan, query, entities)
+    bundle.filter_report["retrieval_failures"] = dict(bundle.retrieval_failures)       # internal diagnostics: distinguishes "source failed" from "zero matching evidence"
+    log.info("ai_search_v3.evidence_filtered", plan=plan.kind, report=bundle.filter_report)
 
     await _apply_clustering(db, bundle)
     return bundle

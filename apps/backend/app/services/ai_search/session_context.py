@@ -46,6 +46,33 @@ _GENERIC_STOP = {
 }
 
 
+# "Indian" starts 8 company names (Indian Bank, Indian Hotels, IOB...) so it forms an ambiguity family, but "Indian banks", "the Indian market", "Indian IT
+# exporters" use it as a plain adjective and name no company. Without this a macro question like "What happens to Indian banks if the RBI cuts the repo rate?"
+# was answered with a company picker (Step 1 baseline, MP1/MP3/GE2). Narrow on purpose: only "indian" followed by a market/sector noun is skipped, so
+# "Compare with Indian" still asks, and "Indian Hotels" / "Indian Bank" still resolve through the exact company match.
+_ADJECTIVE_FAMILIES = {"indian"}
+_ADJECTIVE_USE_RE = re.compile(
+    r"(?<![A-Za-z])indian\s+(?:markets?|banks|stocks|equit(?:y|ies)|economy|companies|investors|exporters|importers|firms|industry|industries|sectors?|consumers|"
+    r"rupee|shares|bonds?|corporates|households|IT|pharma|auto|equity)(?![A-Za-z])",
+    re.IGNORECASE,
+)
+
+
+_EXPLAIN_OPENING_RE = re.compile(r"^\s*(?:what\s+(?:is|are|does|do)|explain|define|how\s+(?:does|do|should\s+i|to))", re.IGNORECASE)
+
+
+def referential_has_antecedent(query: str) -> bool:
+    """True when a pronoun sits inside a self-contained explanation question that already names its subject before the pronoun ("What is a P/E ratio and how
+    should I read it?": "it" is the ratio). Such a question needs no session context, so it must not be answered with "this looks like a follow-up".
+    Deliberately narrow: a bare "What is it?" or "How does it work?" has no content word before the pronoun and stays referential, and "What about its main
+    competitor?" is not an explanation opening at all."""
+    m = _REFERENTIAL_RE.search(query)
+    if not m or not _EXPLAIN_OPENING_RE.match(query):
+        return False
+    from app.services.ai_search.evidence_filter import content_words
+    return bool(content_words(query[:m.start()]))
+
+
 def _group_prefixes() -> dict[str, list[dict]]:
     """Groups the real universe by first significant word of company name —
     families with 3+ real members are genuinely ambiguous if a user names
@@ -120,6 +147,8 @@ def check_ambiguous_group(query: str, entities: dict) -> dict | None:
         if not candidates:
             continue
         if word in resolved_name_words:
+            continue
+        if word in _ADJECTIVE_FAMILIES and _ADJECTIVE_USE_RE.search(query):
             continue
         distinguishing_present = any(
             any(w.lower() in words for w in re.sub(r"[.,()&]", " ", c["name"]).split()[1:] if w.lower() not in _GENERIC_STOP and len(w) >= 3)

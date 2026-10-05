@@ -24,3 +24,15 @@ async def require_admin_key(x_admin_key: str | None = Header(default=None)) -> N
         raise HTTPException(status_code=503, detail="Admin endpoint not configured")
     if not x_admin_key or not hmac.compare_digest(x_admin_key, settings.admin_api_key):
         raise HTTPException(status_code=401, detail="Missing or invalid X-Admin-Key")
+
+
+def has_valid_admin_key(x_admin_key: str | None) -> bool:
+    """Non-raising sibling of require_admin_key — for a caller that must
+    keep serving the rest of its response regardless of the key (e.g.
+    AEV2's canary mode: the endpoint stays public, only one optional
+    field is gated), not a whole-endpoint lockout. Same comparison, same
+    fail-closed posture (no key configured -> never valid), just no
+    HTTPException."""
+    if not settings.admin_api_key or not x_admin_key:
+        return False
+    return hmac.compare_digest(x_admin_key, settings.admin_api_key)

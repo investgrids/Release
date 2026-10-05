@@ -1,0 +1,528 @@
+{
+  "query": "What is the outlook for Kotak Mahindra Bank?",
+  "entities": {
+    "companies": [
+      "KOTAKBANK"
+    ],
+    "sectors": [],
+    "policies": []
+  },
+  "plan": {
+    "kind": "company",
+    "events": "tagged",
+    "news": "entity",
+    "age_key": "company"
+  },
+  "retrieval_failures": {},
+  "universe": {
+    "events_tagged_to_symbol": 0,
+    "events_mentioning_kotak_by_name": [
+      {
+        "title": "Kotak Mahindra Bank Limited has informed the Exchange about General Updates.",
+        "tagged": true,
+        "date": "2026-08-24",
+        "source": "NSE",
+        "single_company_filing": false
+      },
+      {
+        "title": "Kotak Mahindra Bank Limited has informed the Exchange about General Updates",
+        "tagged": true,
+        "date": "2026-08-18",
+        "source": "NSE",
+        "single_company_filing": false
+      },
+      {
+        "title": "Four Indian private banks eye dollar debt before RBI swap window deadline, bankers say",
+        "tagged": true,
+        "date": "2026-08-18",
+        "source": "Economic Times",
+        "single_company_filing": false
+      },
+      {
+        "title": "Kotak Mahindra Bank Limited has informed the Exchange regarding Grant of 347410  Options.",
+        "tagged": true,
+        "date": "2026-08-17",
+        "source": "NSE",
+        "single_company_filing": false
+      },
+      {
+        "title": "Kotak Mahindra Bank Limited has informed the Exchange about Investor Presentation",
+        "tagged": true,
+        "date": "2026-08-17",
+        "source": "NSE",
+        "single_company_filing": false
+      },
+      {
+        "title": "Kotak Mahindra Bank Limited has informed the Exchange about Schedule of meet",
+        "tagged": true,
+        "date": "2026-08-13",
+        "source": "NSE",
+        "single_company_filing": false
+      }
+    ],
+    "db_news_mentioning_kotak": [
+      {
+        "headline": "Sensex Today Trades Lower | Nifty Below 24,050 | Kotak Mahindra & HCL Tech Top Losers - Equitymaster",
+        "published_at": "6m ago",
+        "age_days": 0.004166666666666667
+      },
+      {
+        "headline": "Kotak Mahindra Bank shares fall 3% after CEO's surprise exit. What Nomura, Jefferies said",
+        "published_at": "9m ago",
+        "age_days": 0.00625
+      },
+      {
+        "headline": "HDFC Bank overhang eases, Kotak CEO exit creates fresh uncertainty: What Pranav Gundlapalle is watching now",
+        "published_at": "25m ago",
+        "age_days": 0.017361111111111112
+      },
+      {
+        "headline": "Kotak Mahindra Bank, HDFC Bank, DCX Systems, among buzzing stocks as SENSEX falls over 350 pts, NIFTY below 24",
+        "published_at": "1h ago",
+        "age_days": 0.041666666666666664
+      },
+      {
+        "headline": "HDFC Bank, Axis Bank, ICICI, Kotak shares rise up to 3% ahead of Q1 earnings; Nifty Bank gains 500 pts. What t",
+        "published_at": "2026-07-17",
+        "age_days": 80.37655900471064
+      },
+      {
+        "headline": "Q1 Results: HDFC Bank, ICICI Bank, Axis Bank Among 20+ Companies Reporting Earnings On July 18",
+        "published_at": "2026-07-17",
+        "age_days": 80.37655900471064
+      },
+      {
+        "headline": "Q1 Results Live Updates: Axis Bank Profit Surges 23%; HDFC Bank, ICICI Bank, Kotak Mahindra Bank In Focus",
+        "published_at": "2026-07-18",
+        "age_days": 79.37655900471064
+      },
+      {
+        "headline": "Kotak Mahindra Bank Q1 Results: Net profit climbs 26% YoY to Rs 4,123 crore; NII rises 9%",
+        "published_at": "2026-07-18",
+        "age_days": 79.37655900471064
+      },
+      {
+        "headline": "Kotak Mahindra Bank Q1 Results 2026: Net profit rises over 22% to  ₹5,480 crore",
+        "published_at": "2026-07-18",
+        "age_days": 79.37655900471064
+      },
+      {
+        "headline": "Kotak Mahindra Bank Q1 Results: Net Profit Up 26%, Asset Quality Improves — Check Key Numbers",
+        "published_at": "2026-07-18",
+        "age_days": 79.37655900471064
+      },
+      {
+        "headline": "Kotak Mahindra Bank Q1 Results 2026: Net profit rises 22.5% to  ₹5,480 crore",
+        "published_at": "2026-07-18",
+        "age_days": 79.37655900471064
+      },
+      {
+        "headline": "Kotak Mahindra Bank New CEO Appointment Soon Within RBI Timeline, Says Ashok Vaswani",
+        "published_at": "2026-07-18",
+        "age_days": 79.37655900471064
+      },
+      {
+        "headline": "Banks Q1 Scorecard: ICICI, Axis, Kotak To HDFC Bank — Profit, NII, NPAs At A Glance",
+        "published_at": "2026-07-19",
+        "age_days": 78.37655900471064
+      },
+      {
+        "headline": "Stocks in news: ICICI Bank, YES Bank, Kotak Bank, RIL, Axis Bank",
+        "published_at": "2026-07-20",
+        "age_days": 77.37655900471064
+      },
+      {
+        "headline": "India's private banks draw thinner margins on tepid credit growth",
+        "published_at": "2026-07-21",
+        "age_days": 76.37655900471064
+      },
+      {
+        "headline": "ICICI Bank wins analysts’ vote after Q1 show; HDFC Bank, Axis, Kotak &amp; Yes Bank face scrutiny",
+        "published_at": "2026-07-21",
+        "age_days": 76.37655900471064
+      },
+      {
+        "headline": "InMobi IPO: SoftBank-backed Indian ad tech firm appoints JPMorgan, Jefferies for its upcoming IPO worth $1 bil",
+        "published_at": "2026-07-22",
+        "age_days": 75.37655900471064
+      },
+      {
+        "headline": "Kotak Mahindra Bank taps HSBC and CTBC for $600-million overseas loan",
+        "published_at": "2026-07-28",
+        "age_days": 69.37655900471064
+      },
+      {
+        "headline": "Dhoot Transmission IPO priced at Rs 829-871",
+        "published_at": "2026-08-05",
+        "age_days": 61.37655900471064
+      },
+      {
+        "headline": "15 Stocks For August: ICICI Bank, Bharti Airtel, Eternal Among Axis Securities' Top Picks; Upside Up To 28% — ",
+        "published_at": "2026-08-05",
+        "age_days": 61.37655900471064
+      },
+      {
+        "headline": "Earnings growth to play larger role in determining portfolio returns than valuation re-rating: Nilesh Shah",
+        "published_at": "2026-08-13",
+        "age_days": 53.37655900471064
+      },
+      {
+        "headline": "Fintech startup Navi said to hire banks for $315 million IPO",
+        "published_at": "2026-08-13",
+        "age_days": 53.37655900471064
+      },
+      {
+        "headline": "Kotak Mahindra Bank Limited has informed the Exchange about Schedule of meet",
+        "published_at": "2026-08-13",
+        "age_days": 53.37655900471064
+      },
+      {
+        "headline": "Quest Global said to pick banks for $1 billion India IPO",
+        "published_at": "2026-08-14",
+        "age_days": 52.37655900471064
+      },
+      {
+        "headline": "Kotak Mahindra Bank Limited has informed the Exchange about Investor Presentation",
+        "published_at": "2026-08-17",
+        "age_days": 49.37655900471064
+      },
+      {
+        "headline": "Kotak Mahindra Bank Limited has informed the Exchange regarding Grant of 347410  Options.",
+        "published_at": "2026-08-17",
+        "age_days": 49.37655900471064
+      },
+      {
+        "headline": "ICICI Bank raises $750 million as Indian banks tap dollar bond market",
+        "published_at": "2026-08-17",
+        "age_days": 49.37655900471064
+      },
+      {
+        "headline": "Four Indian private banks eye dollar debt before RBI swap window deadline, bankers say",
+        "published_at": "2026-08-18",
+        "age_days": 48.37655900471065
+      },
+      {
+        "headline": "Kotak Mahindra Bank Limited has informed the Exchange about General Updates",
+        "published_at": "2026-08-18",
+        "age_days": 48.37655900471065
+      },
+      {
+        "headline": "Bank stocks to buy: Goldman Sachs remains bullish on 6 private bank stocks. Do you own any?",
+        "published_at": "2026-08-22",
+        "age_days": 44.37655900471065
+      },
+      {
+        "headline": "Buy or sell: Gift Nifty signals gap-up start | Vaishali Parekh recommends three stocks to buy today — 24 Augus",
+        "published_at": "2026-08-24",
+        "age_days": 42.37655900471065
+      },
+      {
+        "headline": "Kotak Mahindra Bank Limited has informed the Exchange about General Updates.",
+        "published_at": "2026-08-24",
+        "age_days": 42.37655900471065
+      },
+      {
+        "headline": "Prasol Chemicals mobilises Rs 150 cr from anchor investors ahead of IPO",
+        "published_at": "2026-09-07",
+        "age_days": 28.37655900471065
+      },
+      {
+        "headline": "Only 9% up since last MD but Jefferies sees 10% more in Kotak Mahindra Bank shares after Anup Saha's appointme",
+        "published_at": "2026-10-02",
+        "age_days": 3.3765590047106486
+      }
+    ],
+    "live_feed_items_mentioning_kotak": [
+      {
+        "rank": 1,
+        "headline": "HDFC Bank, YES Bank, AU SFB: Bank stocks jump; Bank Nifty up over 1% - Q2 business updates, share price rally explained",
+        "summary": "Nifty Bank jumped 1.4% in morning trade to an intraday high of 55,192.65, with HDFC Bank, ICICI Bank, Kotak Mahindra Bank, Axis Bank, YES Bank, and AU Small Finance Bank among top gainers. Some of them, however, slipped ",
+        "published_at": "9m ago",
+        "filter_fate": "kept"
+      },
+      {
+        "rank": 39,
+        "headline": "Kotak Mahindra Bank Primed For Next Leg Of Growth As Street Cheers Anup Saha's Elevation",
+        "summary": "Street analysts view his deep domain expertise in analytics-driven consumer finance and high-yielding credit portfolios as an ideal catalyst for Kotak Mahindra Bank's next phase of transformation and growth reacceleratio",
+        "published_at": "1h ago",
+        "filter_fate": "kept"
+      }
+    ],
+    "announcements_total_in_db": 4,
+    "announcements_all": [
+      {
+        "subject": "Kotak Mahindra Bank Limited has informed the Exchange about General Updates.",
+        "category": null,
+        "date": "2026-08-24",
+        "description": "Kotak Mahindra Bank Limited has informed the Exchange about General Updates.",
+        "ai_summary": ""
+      },
+      {
+        "subject": "Kotak Mahindra Bank Limited has informed the Exchange about General Updates",
+        "category": null,
+        "date": "2026-08-18",
+        "description": "Kotak Mahindra Bank Limited has informed the Exchange about General Updates",
+        "ai_summary": ""
+      },
+      {
+        "subject": "Investor Presentation",
+        "category": "Kotak Mahindra Bank Limited has informed the Exchange about Investor Presentation",
+        "date": "2026-08-17",
+        "description": "",
+        "ai_summary": ""
+      },
+      {
+        "subject": "Kotak Mahindra Bank Limited has informed the Exchange about Investor Presentation",
+        "category": null,
+        "date": "2026-08-17",
+        "description": "Kotak Mahindra Bank Limited has informed the Exchange about Investor Presentation",
+        "ai_summary": ""
+      }
+    ]
+  },
+  "bundle": {
+    "events": [],
+    "news": [
+      {
+        "kind": "news",
+        "title": "Kotak Mahindra Bank Primed For Next Leg Of Growth As Street Cheers Anup Saha's Elevation",
+        "tags": [],
+        "tips": false,
+        "summary_NOT_visible_to_model": "Street analysts view his deep domain expertise in analytics-driven consumer finance and high-yielding credit portfolios as an ideal catalyst for Kotak Mahindra Bank's next phase of transformation and ",
+        "published_at": "1h ago",
+        "source": "NDTV Profit"
+      },
+      {
+        "kind": "news",
+        "title": "HDFC Bank, YES Bank, AU SFB: Bank stocks jump; Bank Nifty up over 1% - Q2 business updates, share price rally explained",
+        "tags": [],
+        "tips": false,
+        "summary_NOT_visible_to_model": "Nifty Bank jumped 1.4% in morning trade to an intraday high of 55,192.65, with HDFC Bank, ICICI Bank, Kotak Mahindra Bank, Axis Bank, YES Bank, and AU Small Finance Bank among top gainers. Some of the",
+        "published_at": "9m ago",
+        "source": "Livemint"
+      }
+    ],
+    "announcements": [
+      {
+        "kind": "announcement",
+        "title": "Kotak Mahindra Bank Limited has informed the Exchange about Investor Presentation",
+        "tags": [],
+        "tips": false,
+        "category": null,
+        "date": "2026-08-17"
+      },
+      {
+        "kind": "announcement",
+        "title": "Kotak Mahindra Bank Limited has informed the Exchange about General Updates.",
+        "tags": [
+          "administrative"
+        ],
+        "tips": false,
+        "category": null,
+        "date": "2026-08-24"
+      }
+    ],
+    "context_lines_full_text": [
+      "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+      "Company context for KOTAKBANK (real, from Intelligence Graph): The Nifty 50 and Bank Nifty are slightly down, with the market trading in a tight range as investors await the RBI’s upcoming repo rate decision. The lack of sectoral movement suggests a cautious stance amid concerns ove · Mood: Cautious Bull",
+      "DEVELOPMENT MEMORY (real, from Market Ripple's Intelligence Brain)\n\nDevelopment: Kotak Mahindra Bank Limited has informed the Exchange about General Updates.\nReconciliation: no_signal (confidence: 28%)"
+    ],
+    "rank_trace": {
+      "announcements": [
+        {
+          "id": "ann_nse-1f4227024a",
+          "title": "Kotak Mahindra Bank Limited has informed the Exchange about Investor Presentation",
+          "rank": 1,
+          "selected": true,
+          "duplicate_deferred": false,
+          "score": 0.7778,
+          "coverage": 1.0,
+          "recency": 0.451,
+          "substance": 0.9,
+          "impact": 0.3,
+          "company": "KOTAKBANK"
+        },
+        {
+          "id": "ann_nse-832c55abf1",
+          "title": "Kotak Mahindra Bank Limited has informed the Exchange about General Updates.",
+          "rank": 2,
+          "selected": true,
+          "duplicate_deferred": false,
+          "score": 0.6623,
+          "coverage": 1.0,
+          "recency": 0.529,
+          "substance": 0.0,
+          "impact": 0.3,
+          "company": "KOTAKBANK"
+        },
+        {
+          "id": "ann_nse-2b07ee166a",
+          "title": "Kotak Mahindra Bank Limited has informed the Exchange about General Updates",
+          "rank": 3,
+          "selected": false,
+          "duplicate_deferred": true,
+          "score": 0.6455,
+          "coverage": 1.0,
+          "recency": 0.462,
+          "substance": 0.0,
+          "impact": 0.3,
+          "company": "KOTAKBANK"
+        },
+        {
+          "id": "ann_7b7d794b751e10aa_nse",
+          "title": "Investor Presentation",
+          "rank": 4,
+          "selected": false,
+          "duplicate_deferred": true,
+          "score": 0.612,
+          "coverage": 0.667,
+          "recency": 0.454,
+          "substance": 0.9,
+          "impact": 0.3,
+          "company": "KOTAKBANK"
+        }
+      ],
+      "events": [],
+      "news": [
+        {
+          "id": "live-5bb11d985ce9",
+          "title": "Kotak Mahindra Bank Primed For Next Leg Of Growth As Street Cheers Anup Saha's Elevation",
+          "rank": 1,
+          "selected": true,
+          "duplicate_deferred": false,
+          "score": 0.9547,
+          "coverage": 1.0,
+          "recency": 0.999,
+          "substance": 0.9,
+          "impact": 0.7
+        },
+        {
+          "id": "live-98dd66bc838d",
+          "title": "HDFC Bank, YES Bank, AU SFB: Bank stocks jump; Bank Nifty up over 1% - Q2 business updates, share price rally ",
+          "rank": 2,
+          "selected": true,
+          "duplicate_deferred": false,
+          "score": 0.8865,
+          "coverage": 0.833,
+          "recency": 1.0,
+          "substance": 0.9,
+          "impact": 0.85
+        }
+      ]
+    },
+    "index": [
+      {
+        "id": "N1",
+        "kind": "news",
+        "title": "Kotak Mahindra Bank Primed For Next Leg Of Growth As Street Cheers Anup Saha's Elevation"
+      },
+      {
+        "id": "N2",
+        "kind": "news",
+        "title": "HDFC Bank, YES Bank, AU SFB: Bank stocks jump; Bank Nifty up over 1% - Q2 business updates, share price rally explained"
+      },
+      {
+        "id": "A1",
+        "kind": "announcement",
+        "title": "Kotak Mahindra Bank Limited has informed the Exchange about Investor Presentation"
+      },
+      {
+        "id": "A2",
+        "kind": "announcement",
+        "title": "Kotak Mahindra Bank Limited has informed the Exchange about General Updates."
+      },
+      {
+        "id": "C1",
+        "kind": "context",
+        "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 5"
+      },
+      {
+        "id": "C2",
+        "kind": "context",
+        "title": "Company context for KOTAKBANK (real, from Intelligence Graph): The Nifty 50 and Bank Nifty are slightly down, with the market trading in a t"
+      },
+      {
+        "id": "C3",
+        "kind": "context",
+        "title": "DEVELOPMENT MEMORY (real, from Market Ripple's Intelligence Brain)\n\nDevelopment: Kotak Mahindra Bank Limited has informed the Exchange about"
+      }
+    ]
+  },
+  "model_visible_evidence_section": "DB Events: None\nNews: - [N1] Kotak Mahindra Bank Primed For Next Leg Of Growth As Street Cheers Anup Saha's Elevation\n- [N2] HDFC Bank, YES Bank, AU SFB: Bank stocks jump; Bank Nifty up over 1% - Q2 business updates, share price rally explained\nPolicies: None\n\n",
+  "gate_a": {
+    "status": "SUFFICIENT",
+    "satisfied": [
+      "current_company_evidence"
+    ],
+    "context": [
+      "Kotak Mahindra Bank Primed For Next Leg Of Growth As Street Cheers Anup Saha's Elevation",
+      "HDFC Bank, YES Bank, AU SFB: Bank stocks jump; Bank Nifty up over 1% - Q2 business updates, share pr",
+      "Kotak Mahindra Bank Limited has informed the Exchange about Investor Presentation"
+    ],
+    "items": [
+      {
+        "kind": "news",
+        "title": "Kotak Mahindra Bank Primed For Next Leg Of Growth As Street Cheers Anup Saha's Elevation",
+        "counts_as_company_evidence": true,
+        "administrative": false
+      },
+      {
+        "kind": "news",
+        "title": "HDFC Bank, YES Bank, AU SFB: Bank stocks jump; Bank Nifty up over 1% - Q2 business updates, share price rally ",
+        "counts_as_company_evidence": true,
+        "administrative": false
+      },
+      {
+        "kind": "announcement",
+        "title": "Kotak Mahindra Bank Limited has informed the Exchange about Investor Presentation",
+        "counts_as_company_evidence": true,
+        "administrative": false
+      },
+      {
+        "kind": "announcement",
+        "title": "Kotak Mahindra Bank Limited has informed the Exchange about General Updates.",
+        "counts_as_company_evidence": false,
+        "administrative": true
+      }
+    ]
+  },
+  "gate_a_counterfactuals": {
+    "without_Investor_Presentation": {
+      "status": "SUFFICIENT",
+      "context": [
+        "Kotak Mahindra Bank Primed For Next Leg Of Growth As Street Cheers Anup Saha's Elevation",
+        "HDFC Bank, YES Bank, AU SFB: Bank stocks jump; Bank Nifty up over 1% - Q2 business updates, share pr"
+      ]
+    },
+    "without_all_announcements": {
+      "status": "SUFFICIENT",
+      "context": [
+        "Kotak Mahindra Bank Primed For Next Leg Of Growth As Street Cheers Anup Saha's Elevation",
+        "HDFC Bank, YES Bank, AU SFB: Bank stocks jump; Bank Nifty up over 1% - Q2 business updates, share pr"
+      ]
+    },
+    "without_news": {
+      "status": "SUFFICIENT",
+      "context": [
+        "Kotak Mahindra Bank Limited has informed the Exchange about Investor Presentation"
+      ]
+    },
+    "only_the_Primed_for_growth_headline": {
+      "status": "SUFFICIENT",
+      "context": [
+        "Kotak Mahindra Bank Primed For Next Leg Of Growth As Street Cheers Anup Saha's Elevation"
+      ]
+    },
+    "only_General_Updates_and_wrap_news": {
+      "status": "SUFFICIENT",
+      "context": [
+        "HDFC Bank, YES Bank, AU SFB: Bank stocks jump; Bank Nifty up over 1% - Q2 business updates, share pr"
+      ]
+    },
+    "nothing_at_all": {
+      "status": "INSUFFICIENT",
+      "context": []
+    }
+  },
+  "provider_calls_made": 0
+}

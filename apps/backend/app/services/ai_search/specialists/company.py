@@ -15,6 +15,7 @@ schema.py's module docstring) per the Phase 1C reliability fix.
 from __future__ import annotations
 
 from app.services.ai_search.schema import (
+    CLAIM_SOURCES_GROUP,
     EVIDENCE_GROUP,
     EXTRAS_GROUP,
     MONITORING_COUNT_NOTE,
@@ -23,7 +24,8 @@ from app.services.ai_search.schema import (
     render_decision_group,
     render_investment_group,
 )
-from app.services.ai_search.specialists.base import PRIORITY_INSTRUCTIONS, parse_specialist_json, research_framing_rules
+from app.services.ai_search.evidence import PROMPT_VISIBLE
+from app.services.ai_search.specialists.base import PRIORITY_INSTRUCTIONS, premise_note, parse_specialist_json, research_framing_rules
 
 SPECIALIST_SYSTEM = (
     "You are a senior Indian equity market analyst at an institutional fund. "
@@ -47,9 +49,10 @@ def build_prompt(query: str, evidence, intent_data: dict, entities: dict) -> str
     # both tables independently recorded it (see EvidenceBundle.
     # deduped_events/deduped_news's docstring). Citations still read
     # evidence.events/evidence.news directly, unaffected.
-    evs = "\n".join(f"- [{e['category']}] {e['title']} (score:{e['impact_score']:.0f})" for e in evidence.deduped_events()[:5]) or "None"
-    nws = "\n".join(f"- {a['headline']}" for a in evidence.deduped_news()[:5]) or "None"
-    pols = "\n".join(f"- {p['title']} [{p['ministry']}]" for p in evidence.policies[:3]) or "None"
+    # Every item carries its evidence ID (E/N/P) so the model can cite it in claim_sources; the IDs match EvidenceBundle.index().
+    evs = "\n".join(f"- [E{i}] [{e['category']}] {e['title']} (score:{e['impact_score']:.0f})" for i, e in enumerate(evidence.deduped_events()[:PROMPT_VISIBLE["company"]["events"]], 1)) or "None"
+    nws = "\n".join(f"- [N{i}] {a['headline']}" for i, a in enumerate(evidence.deduped_news()[:PROMPT_VISIBLE["company"]["news"]], 1)) or "None"
+    pols = "\n".join(f"- [P{i}] {p['title']} [{p['ministry']}]" for i, p in enumerate(evidence.policies[:PROMPT_VISIBLE["company"]["policies"]], 1)) or "None"
     extra_context = evidence.to_context_text()
 
     # Phase 1.7 — when session context merged in companies the query text
@@ -78,21 +81,19 @@ def build_prompt(query: str, evidence, intent_data: dict, entities: dict) -> str
 DB Events: {evs}
 News: {nws}
 Policies: {pols}
-
+{premise_note(evidence)}
 {PRIORITY_INSTRUCTIONS}
 Return ONLY this JSON (no fences, no extra keys):
 {{
 {investment_group}
 {decision_group}
+{CLAIM_SOURCES_GROUP}
 {EVIDENCE_GROUP}
   "companies": [
-    {{"symbol": "SYMBOL1", "name": "Full Company Name", "impact_type": "beneficiary", "impact_score": 90, "confidence": 85, "reason": "specific 1-line reason tied to the query"}},
-    {{"symbol": "SYMBOL2", "name": "Full Company Name", "impact_type": "beneficiary", "impact_score": 85, "confidence": 80, "reason": "specific 1-line reason"}},
-    {{"symbol": "SYMBOL3", "name": "Full Company Name", "impact_type": "neutral", "impact_score": 65, "confidence": 60, "reason": "specific 1-line reason"}}
+    {{"symbol": "SYMBOL1", "name": "Full Company Name", "reason": "1 grounded sentence tied to the query"}}
   ],
   "sectors": [
-    {{"name": "Most Relevant Sector", "score": 90, "confidence": 85, "outlook": "Strong Growth", "positive": true, "explanation": "1 sentence"}},
-    {{"name": "Second Sector", "score": 70, "confidence": 65, "outlook": "Moderate", "positive": true, "explanation": "1 sentence"}}
+    {{"name": "Most Relevant Sector", "explanation": "1 grounded sentence"}}
   ],
 {TIMELINE_GROUP}
 {RISKS_GROUP}
@@ -103,7 +104,7 @@ CRITICAL RULES:
 {research_framing_rules(_OUTLOOK_LABELS)}
 {MONITORING_COUNT_NOTE}
 - "evidence.key_drivers[].icon" must be ONE lowercase keyword from: procurement, policy, manufacturing, export, valuation, risk, demand, technology, capex, regulation, earnings, supply-chain, currency, commodity, credit.
-- "extras.insights" titles must be SPECIFIC to the query "{query}". Use real NSE symbols, actual rupee amounts, and genuine Indian market context throughout.{_commodity_safety_note(query)}{_intent_overlay(intent_data, extra_context)}{session_note}"""
+- Ground every fact, figure and date in the evidence above; do not use outside knowledge to supply company facts, dates, financial figures, events or forecasts.{_commodity_safety_note(query)}{_intent_overlay(intent_data, extra_context)}{session_note}"""
 
 
 async def run(query: str, evidence, intent_data: dict, entities: dict) -> tuple[dict, bool]:

@@ -1,0 +1,581 @@
+{
+  "_meta": {
+    "reviewer": "Claude (automated review against saved evidence)",
+    "status": "PROVIDER-CAPACITY BLOCKER: 0 of 18 real answers across run 1 and run 2; every answer-level check is UNVERIFIED.",
+    "mapping": {
+      "directness": "addresses_question",
+      "factual claims": "claims_source_eligible",
+      "numbers": "numbers_supported",
+      "citations": "citations",
+      "source freshness": "dates_and_recency",
+      "score consistency": "score_and_rank"
+    },
+    "runs": {
+      "run1": {
+        "questions_attempted": 18,
+        "pipeline_model_calls": 6,
+        "successful_model_calls": 1,
+        "successful_answers": 0,
+        "capacity_degraded": 18,
+        "skipped_by_circuit": 15,
+        "cap": 40,
+        "unused_budget": 34
+      },
+      "run2": {
+        "questions_attempted": 18,
+        "pipeline_model_calls": 6,
+        "successful_model_calls": 1,
+        "successful_answers": 0,
+        "capacity_degraded": 18,
+        "skipped_by_circuit": 15,
+        "cap": 34,
+        "unused_budget": 28
+      },
+      "note": "The one successful call per run was CR1's market-pulse classifier (max 5 tokens), not an answer. Every specialist call failed within about 3 s. A separate 5-token probe before run 1 also succeeded and shows nothing about full-answer capacity."
+    }
+  },
+  "CR1": {
+    "addresses_question": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "numbers_supported": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "claims_source_eligible": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "dates_and_recency": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "citations": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "score_and_rank": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "insufficient_evidence_honesty": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "retrieval_side_note": "Bundle = 4 announcements, all Kotak Mahindra Bank's own (registered name; 17-24 Aug, 41-48 days old, inside the 90-day window); no events, no news. The Kotak Institutional Equities research-note trap seen in the Step 2 rerun is NOT in this run's bundle (live news changed), so the trap was not exercised here."
+  },
+  "CR2": {
+    "addresses_question": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "numbers_supported": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "claims_source_eligible": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "dates_and_recency": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "citations": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "score_and_rank": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "insufficient_evidence_honesty": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "retrieval_side_note": "Bundle is EMPTY (no events, news, announcements, policies, valuation). Retrieval invented nothing and 3M India is resolved correctly. Whether the answer states 'insufficient recent evidence' is UNVERIFIED."
+  },
+  "CR3": {
+    "addresses_question": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "numbers_supported": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "claims_source_eligible": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "dates_and_recency": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "citations": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "score_and_rank": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "insufficient_evidence_honesty": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ]
+  },
+  "EI1": {
+    "addresses_question": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "numbers_supported": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "claims_source_eligible": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "dates_and_recency": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "citations": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "score_and_rank": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "insufficient_evidence_honesty": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "retrieval_side_note": "Bundle is NOT empty: one news item, 'Top 3 stocks to buy: HDFC Bank, Infosys, BEL by Ganesh Dongre ...' (32m ago). It names BEL but says nothing about an order, so nothing in the bundle supports the premise 'BEL just won a new defence order'. The empty-evidence honesty check (evidence_total == 0) would NOT apply to this case, a gap in the gate's definition, not changed in this baseline."
+  },
+  "EI2": {
+    "addresses_question": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "numbers_supported": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "claims_source_eligible": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "dates_and_recency": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "citations": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "score_and_rank": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "insufficient_evidence_honesty": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ]
+  },
+  "EI3": {
+    "addresses_question": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "numbers_supported": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "claims_source_eligible": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "dates_and_recency": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "citations": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "score_and_rank": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "insufficient_evidence_honesty": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ]
+  },
+  "SR1": {
+    "addresses_question": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "numbers_supported": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "claims_source_eligible": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "dates_and_recency": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "citations": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "score_and_rank": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "insufficient_evidence_honesty": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ]
+  },
+  "SR2": {
+    "addresses_question": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "numbers_supported": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "claims_source_eligible": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "dates_and_recency": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "citations": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "score_and_rank": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "insufficient_evidence_honesty": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "retrieval_side_note": "Bundle still contains two Tera Software filings (events, 11 Aug, 54 days old: 'Tera Software Limited has informed the Exchange ...') next to legitimate sector items (TCS/Infosys/Wipro earnings previews, Accenture read-through, Nifty IT -11% in September). The lexical trap IS live in retrieval; whether the answer uses the Tera filings for a sector claim is UNVERIFIED (the gate's checker flags exactly that, proven on fixtures)."
+  },
+  "SR3": {
+    "addresses_question": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "numbers_supported": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "claims_source_eligible": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "dates_and_recency": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "citations": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "score_and_rank": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "insufficient_evidence_honesty": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ]
+  },
+  "MP1": {
+    "addresses_question": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "numbers_supported": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "claims_source_eligible": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "dates_and_recency": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "citations": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "score_and_rank": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "insufficient_evidence_honesty": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ]
+  },
+  "MP2": {
+    "addresses_question": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "numbers_supported": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "claims_source_eligible": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "dates_and_recency": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "citations": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "score_and_rank": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "insufficient_evidence_honesty": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ]
+  },
+  "MP3": {
+    "addresses_question": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "numbers_supported": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "claims_source_eligible": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "dates_and_recency": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "citations": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "score_and_rank": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "insufficient_evidence_honesty": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ]
+  },
+  "CC1": {
+    "addresses_question": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "numbers_supported": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "claims_source_eligible": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "dates_and_recency": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "citations": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "score_and_rank": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "insufficient_evidence_honesty": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ]
+  },
+  "CC2": {
+    "addresses_question": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "numbers_supported": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "claims_source_eligible": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "dates_and_recency": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "citations": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "score_and_rank": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "insufficient_evidence_honesty": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ]
+  },
+  "CC3": {
+    "addresses_question": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "numbers_supported": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "claims_source_eligible": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "dates_and_recency": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "citations": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "score_and_rank": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "insufficient_evidence_honesty": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ]
+  },
+  "GE1": {
+    "addresses_question": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "numbers_supported": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "claims_source_eligible": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "dates_and_recency": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "citations": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "score_and_rank": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "insufficient_evidence_honesty": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ]
+  },
+  "GE2": {
+    "addresses_question": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "numbers_supported": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "claims_source_eligible": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "dates_and_recency": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "citations": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "score_and_rank": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "insufficient_evidence_honesty": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ]
+  },
+  "GE3": {
+    "addresses_question": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "numbers_supported": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "claims_source_eligible": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "dates_and_recency": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "citations": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "score_and_rank": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ],
+    "insufficient_evidence_honesty": [
+      "UNVERIFIED",
+      "No real answer exists: run 1 and run 2 both ended capacity-degraded for this question (provider-capacity blocker). Nothing to review, so nothing is passed."
+    ]
+  }
+}

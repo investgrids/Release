@@ -7,12 +7,25 @@ ai_search_service.py during P5 Stage 1 (2026-08-06), zero behavior change.
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 
 from app.services.ai_search.regexes import _COMMODITY_NAMES, _COMMODITY_TICKERS
 
 
 def _enrich_sync(companies: list[dict]) -> list[dict]:
-    """Add live prices synchronously (runs in executor)."""
+    """Add live prices synchronously (runs in executor).
+
+    `price_fetched_at` (added 2026-09-21, AEV2 Build 1): an ISO-8601 UTC
+    timestamp, set ONLY in the real-quote branch below — additive, and
+    read by nothing in V2/V3's own rendering today, so this cannot change
+    V3's existing output. AEV2's price-movement grouping needs to show
+    provenance ("as of fetch time") for a live Yahoo Finance number
+    without AEV2 fetching anything itself; this is where that fetch
+    actually happens (once, in the one canonical pipeline), so this is
+    the one place that can honestly timestamp it. Deliberately absent
+    (not a guessed/default value) on the failure branches — "no
+    timestamp" is how AEV2 tells "no live data" apart from "positive by
+    a stale/default value" (see aev2/price_movement.py)."""
     from app.services.market_data import _fetch_quote, _fmt_price, _fetch_history
     enriched = []
     for c in companies:
@@ -25,6 +38,7 @@ def _enrich_sync(companies: list[dict]) -> list[dict]:
                 c["price"]    = _fmt_price(q["price"])
                 c["change"]   = f"{'+' if q['positive'] else ''}{q['pct']:.2f}%"
                 c["positive"] = q["positive"]
+                c["price_fetched_at"] = datetime.now(timezone.utc).isoformat()
                 # Tiny sparkline (5d daily)
                 hist = _fetch_history(f"{sym_base}.NS", "5d", "1d")
                 c["chart"] = [h["value"] for h in (hist or [])][-5:]

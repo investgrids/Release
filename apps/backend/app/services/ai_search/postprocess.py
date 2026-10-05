@@ -17,6 +17,8 @@ since that mechanism is untouched and doesn't need a typed wrapper.
 """
 from __future__ import annotations
 
+import re
+
 from datetime import datetime, timezone
 
 
@@ -84,80 +86,68 @@ def _freshness_score(evidence) -> float:
 
 
 async def compute_confidence_breakdown(evidence, parsed: dict, mie_state: dict | None = None) -> dict:
-    """The 6-part breakdown: evidence_quality / market_confirmation /
-    historical_similarity / data_freshness / reasoning_confidence /
-    final_confidence. final_confidence is V2's own calculate_confidence()
-    total_score verbatim — the other 5 are a readable view over the same
-    engine's internal signals (see module docstring).
+    """The public answer-confidence breakdown. Step 5 decision: **there is no public answer confidence**, so this is always the unscored shape.
 
-    Also applies historical calibration to `result` before extracting
-    final_confidence/level/reasons below — V3 previously never did this
-    (confirmed live: the primary user-facing pipeline was silently
-    outside the prediction->outcome->calibration feedback loop V2
-    participates in on every search). Shared with V2 via
-    prediction_recording.py's apply_calibration() — same thresholds,
-    same >=10-verified-predictions guard, not a new algorithm."""
-    from app.services.ai_search.prediction_recording import apply_calibration, get_search_calibration
-    from app.services.confidence_service import ConfidenceFactors, calculate_confidence
+    The number it used to return (for example 42.5 / "Medium") was not a measured property of the answer. Its inputs were: a model self-rating that is no longer requested and silently defaulted to 5 of 10
+    (the "reasoning_confidence 50"); a market-confirmation and a historical-similarity score that are 0 both when nothing confirms and when nothing was retrieved; a calibration line quoting the accuracy of
+    PAST stored predictions, which says nothing about this answer; and a source term built from a development count. Filling the gaps with constants and blending the result into one figure is what the
+    contract forbids, and no replacement formula is invented here.
 
-    mie_state = mie_state or {}
-    signals = mie_state.get("signals", {})
-    macro_aligned = False
-    macro_reason = ""
-    sentiment = (parsed.get("sentiment") or "neutral").lower()
-    mie_dir = signals.get("direction", "")
-    if (mie_dir == "up" and sentiment == "bullish") or (mie_dir == "down" and sentiment == "bearish"):
-        macro_aligned = True
-        macro_reason = signals.get("top_theme", "")
-
-    hist_accuracy = (
-        sum(h.get("confidence", 80) for h in evidence.similar_historical) / (100.0 * len(evidence.similar_historical))
-        if evidence.similar_historical else 0.0
-    )
-    vix = float(evidence.vix_level or 0)
-    vix_regime = "very_high" if vix > 25 else "high" if vix > 18 else "low" if 0 < vix < 12 else "normal"
-
-    # Phase 5E.5: development_count (independent developments), not raw
-    # row count — see EvidenceBundle.development_count's docstring and
-    # compute_evidence_score above for the full rationale. This is the
-    # number ConfidenceFactors.source_count's own docstring already
-    # claimed to represent ("number of distinct news/event sources") —
-    # this fix makes that claim true rather than changing what it means.
-    factors = ConfidenceFactors(
-        source_count=evidence.development_count,
-        corroborating_source_count=evidence.corroborating_source_count,
-        historical_count=len(evidence.similar_historical),
-        historical_accuracy=hist_accuracy,
-        macro_aligned=macro_aligned,
-        macro_reason=macro_reason,
-        ai_certainty=int(parsed.get("confidence_self_rating", 5) or 5),
-        vix_level=vix,
-        volatility_regime=vix_regime,
-    )
-    result = calculate_confidence(factors)
-    cal_data = await get_search_calibration()
-    apply_calibration(result, cal_data)
-    bd = result.breakdown
-
-    # Normalize each raw point-scale to a 0-100 % of its own max (see
-    # confidence_service.py's own comments for these maxes: sources 15,
-    # historical 25, market_confirmation 20, company_sensitivity 10,
-    # sector_confirmation 15, ai_certainty 10).
-    evidence_quality = round(
-        min(100, (bd.get("sources", 0) + bd.get("company_sensitivity", 0) + bd.get("sector_confirmation", 0)) / 40 * 100), 1
-    )
-    market_confirmation = round(min(100, bd.get("market_confirmation", 0) / 20 * 100), 1)
-    historical_similarity = round(min(100, bd.get("historical", 0) / 25 * 100), 1)
-    reasoning_confidence = round(min(100, bd.get("ai_certainty", 0) / 10 * 100), 1)
-    data_freshness = _freshness_score(evidence)
-
+    What genuinely describes the evidence stays separate and is named for what it is: `evidence_score` (stars and checklist, how much of the expected evidence was retrieved) and
+    `answer_availability.evidence_count`. Evidence strength is not answer confidence, a prediction probability, or recommendation conviction, and none of those exists in this response.
+    Signature unchanged for its callers; the arguments are intentionally unused."""
     return {
-        "evidence_quality": evidence_quality,
-        "market_confirmation": market_confirmation,
-        "historical_similarity": historical_similarity,
-        "data_freshness": data_freshness,
-        "reasoning_confidence": reasoning_confidence,
-        "final_confidence": result.total_score,
-        "level": result.level,
-        "reasons": result.reasons,
+        "evidence_quality": None, "market_confirmation": None, "historical_similarity": None, "data_freshness": None, "reasoning_confidence": None,
+        "final_confidence": None, "level": "unscored", "reasons": [],
+    }
+
+
+# ── AEV2 confidence contract — the ONE place the approved formula's
+# arithmetic lives (review, 2026-09-21: a first frontend build recomputed
+# this same weighted sum in React, creating a second scoring path that
+# could drift from aev2/confidence.py's own copy; correction moved the
+# canonical formula here instead, a module with no aev2/ dependency, so
+# both aev2/confidence.py's compute_aev2_confidence AND every V3 response
+# — regardless of AEV2 mode — can share it without violating aev2/'s own
+# import-isolation rule, which forbids the reverse direction (aev2
+# modules importing pipeline/provider machinery), not this one).
+#
+# Fixed weights, exactly the closed specification aev2/confidence.py's
+# own docstring documents in full: 0.35 evidence_quality + 0.25
+# market_confirmation + 0.25 historical_similarity + 0.15 data_freshness.
+# A missing component contributes zero and weights are never
+# renormalized; all 4 missing -> unscored. See that module's docstring
+# for the full missing-component rationale — this is the same rule,
+# just factored out so it has exactly one implementation.
+_CONFIDENCE_CONTRACT_WEIGHTS: dict[str, float] = {
+    "evidence_quality": 0.35,
+    "market_confirmation": 0.25,
+    "historical_similarity": 0.25,
+    "data_freshness": 0.15,
+}
+
+
+def build_confidence_contract(breakdown: dict | None) -> dict:
+    """The frontend-facing confidence contract: `{status, score,
+    components}`. The frontend only formats this — it never recomputes
+    weighting, decides what "unscored" means, or rounds a score itself.
+
+    `breakdown` is the same dict `compute_confidence_breakdown` above (or
+    CoreAnswer.confidence_breakdown) already produces; this function does
+    no evidence counting of its own, so there is nowhere for a duplicate
+    source/company count to be double-scored."""
+    breakdown = breakdown or {}
+    components = {
+        name: (float(breakdown[name]) if breakdown.get(name) is not None else None)
+        for name in _CONFIDENCE_CONTRACT_WEIGHTS
+    }
+    available = {name: value for name, value in components.items() if value is not None}
+    score = (
+        round(sum(value * _CONFIDENCE_CONTRACT_WEIGHTS[name] for name, value in available.items()), 1)
+        if available else None
+    )
+    return {
+        "status": "unscored" if score is None else "scored",
+        "score": score,
+        "components": components,
     }

@@ -15,14 +15,17 @@ generic boilerplate more than almost any other category.
 from __future__ import annotations
 
 from app.services.ai_search.schema import (
+    CLAIM_SOURCES_GROUP,
     EXTRAS_GROUP,
     MONITORING_COUNT_NOTE,
     TIMELINE_GROUP,
     render_decision_group,
     render_investment_group,
 )
+from app.services.ai_search.evidence import PROMPT_VISIBLE
 from app.services.ai_search.specialists.base import (
     PRIORITY_INSTRUCTIONS,
+    premise_note,
     degraded_response,
     parse_specialist_json,
     research_framing_rules,
@@ -76,6 +79,7 @@ def _build_multi_compare_prompt(query: str, evidence, entities: dict) -> str:
     case; everything else matches it exactly."""
     from app.services.ai_search.regexes import _OUTLOOK_LABELS
     from app.services.ai_search.schema import (
+        CLAIM_SOURCES_GROUP,
         EVIDENCE_GROUP,
         RISKS_GROUP,
         TIMELINE_GROUP,
@@ -89,8 +93,8 @@ def _build_multi_compare_prompt(query: str, evidence, entities: dict) -> str:
     display_names = (names if names else symbols)[:3]  # capped tighter than other blocks' usual 6 -- see token-budget note above
     entity_list = ", ".join(display_names)
 
-    evs = "\n".join(f"- {e['title']}" for e in evidence.deduped_events()[:4]) or "None"
-    nws = "\n".join(f"- {a['headline']}" for a in evidence.deduped_news()[:4]) or "None"
+    evs = "\n".join(f"- [E{i}] {e['title']}" for i, e in enumerate(evidence.deduped_events()[:PROMPT_VISIBLE["comparison"]["events"]], 1)) or "None"
+    nws = "\n".join(f"- [N{i}] {a['headline']}" for i, a in enumerate(evidence.deduped_news()[:PROMPT_VISIBLE["comparison"]["news"]], 1)) or "None"
     extra_context = evidence.to_context_text()
     ctx_block = f"\nCONTEXT:\n{extra_context}\n" if extra_context else ""
 
@@ -101,7 +105,7 @@ def _build_multi_compare_prompt(query: str, evidence, entities: dict) -> str:
         for name in display_names
     )
     companies_rows = ",\n".join(
-        f'    {{"symbol": "", "name": "{name}", "impact_type": "neutral", "impact_score": 65, "confidence": 60, "reason": ""}}'
+        f'    {{"symbol": "", "name": "{name}", "reason": ""}}'
         for name in display_names
     )
 
@@ -114,42 +118,32 @@ QUERY: "{query}"
 COMPANIES TO ANALYZE (all {len(display_names)}, not just one or two): {entity_list}
 MARKET NEWS: {nws}
 RELATED EVENTS: {evs}
+{premise_note(evidence)}
 
 INSTRUCTIONS:
-- This is a MULTI-ENTITY comparison ({len(display_names)} companies), not a two-way one. Provide a parallel
-  analysis of EACH company in "decision_intelligence.entity_analyses" — do not silently drop any of
-  them or only discuss two.
-- Do NOT invent pairwise head-to-head framing (no "X beats Y") — a genuine dimension-by-dimension
-  comparison across {len(display_names)} entities isn't what this response computes; parallel individual
-  analyses are.
+- This is a MULTI-ENTITY comparison ({len(display_names)} companies). Cover EACH company in "companies" with a grounded one-sentence reason; do not silently drop any.
+- Do not name a winner, rank the companies or give a preference. Describe only what the evidence covers for each.
 
 {PRIORITY_INSTRUCTIONS}
 Return ONLY this JSON (no fences, no extra keys):
 {{
 {investment_group}
 {decision_group}
+{CLAIM_SOURCES_GROUP}
 {EVIDENCE_GROUP}
   "companies": [
 {companies_rows}
   ],
   "sectors": [
-    {{"name": "Most Relevant Sector", "score": 65, "confidence": 60, "outlook": "Moderate", "positive": true, "explanation": "1 sentence"}}
+    {{"name": "Most Relevant Sector", "explanation": "1 sentence"}}
   ],
 {TIMELINE_GROUP}
 {RISKS_GROUP}
-  "decision_intelligence": {{
-    "intent": "compare_multi", "context_complete": true, "missing_context": [],
-    "decision_summary": "1-2 sentences: what distinguishes each company from the others on the metric that matters most for this query",
-    "entity_analyses": [
-{analysis_rows}
-    ]
-  }}
 }}
 
 CRITICAL RULES:
 {research_framing_rules(_OUTLOOK_LABELS)}
-- Use the real NSE ticker for each company's "symbol" field, in both "companies" and
-  "decision_intelligence.entity_analyses"."""
+- Use the real NSE ticker for each company's "symbol" field in "companies"."""
 
 
 # Step 2B (6G Cutover Gate) — multi-compare degraded-provider resilience.
@@ -193,10 +187,8 @@ Return ONLY this compact JSON (no fences, no extra keys, no additional fields):
   "entity_analyses": {{
 {rows}
   }},
-  "comparison_summary": "1-2 sentences: what distinguishes each company on the metric that matters most",
-  "best_for": "which of {entity_list} looks strongest right now, and one reason why",
-  "key_tradeoffs": ["", ""],
-  "confidence": 55
+  "comparison_summary": "1-2 sentences: what the evidence shows for each company; no winner, ranking or preference",
+  "key_tradeoffs": ["", ""]
 }}
 
 RULES:
@@ -378,8 +370,8 @@ def build_prompt(query: str, evidence, intent_data: dict, entities: dict) -> str
     b_label = entity_label(target, target_is_commodity, target_is_sector)
 
     # Phase 5E.5: deduped views — see specialists/company.py's comment.
-    evs = "\n".join(f"- {e['title']}" for e in evidence.deduped_events()[:4]) or "None"
-    nws = "\n".join(f"- {a['headline']}" for a in evidence.deduped_news()[:4]) or "None"
+    evs = "\n".join(f"- [E{i}] {e['title']}" for i, e in enumerate(evidence.deduped_events()[:PROMPT_VISIBLE["comparison"]["events"]], 1)) or "None"
+    nws = "\n".join(f"- [N{i}] {a['headline']}" for i, a in enumerate(evidence.deduped_news()[:PROMPT_VISIBLE["comparison"]["news"]], 1)) or "None"
     extra_context = evidence.to_context_text()
     ctx_block = f"\nCONTEXT:\n{extra_context}\n" if extra_context else ""
 
@@ -407,66 +399,38 @@ ENTITY B (target/second): {b_label}
 HORIZON: {horizon} | RISK TOLERANCE: {risk}
 MARKET NEWS: {nws}
 RELATED EVENTS: {evs}
+{premise_note(evidence)}
 
 INSTRUCTIONS:
-- Fill every string field with real, specific analysis about {holding} and {target}. Name real numbers (valuation multiples, growth rates, margins) wherever you have a basis to estimate them.
+- Fill every string field with real, specific analysis about {holding} and {target}. Use only valuation multiples, growth rates, margins and other numbers that appear in the evidence above; where a number is not in the evidence, say it is not available rather than estimating it.
 - This is a RESEARCH platform, not an advisory one. Never say Buy/Sell/Hold/Strong Buy/Strong Sell/Accumulate/Reduce anywhere.
 - Entity A symbol hint: {symbol_hint(holding, holding_is_commodity, holding_is_sector)}
 - Entity B symbol hint: {symbol_hint(target, target_is_commodity, target_is_sector)}
 - Use the entity name exactly as given in "entity" field (e.g. "{holding}", "{target}").
-- "advantage" in comparison rows must be "holding", "target", or "neutral".
-- "winner" must be "holding", "target", or "neither" (use "neither" only if genuinely a toss-up).
+- Do not name a winner or give a preference. Compare only on the dimensions the evidence above actually covers (for example valuation multiples), and say plainly which dimensions it does not cover.
 
 {PRIORITY_INSTRUCTIONS}
 JSON to fill and return:
 {{
 {investment_group}
 {decision_group}
+{CLAIM_SOURCES_GROUP}
   "evidence": {{
-    "what_happened": "", "why_it_happened": "", "immediate_impact": "", "medium_term": "", "long_term": "",
-    "what_priced_in": "1-2 sentences: how much of this trade-off is already reflected in current prices for {holding} and {target}?",
+    "observations": [{{"text": "one factual sentence stating one fact from the listed evidence", "sources": ["E1"]}}], "why_it_happened": "",
     "key_drivers": [
-      {{"icon": "valuation", "title": "2-4 word driver name", "explanation": "1 sentence mechanism behind this trade-off", "confidence": 85}},
-      {{"icon": "risk", "title": "2-4 word driver name", "explanation": "1 sentence mechanism", "confidence": 76}}
+      {{"icon": "valuation", "title": "2-4 word driver name", "explanation": "1 grounded sentence, no new numbers or dates"}}
     ]
   }},
   "companies": [
-    {{"symbol": "", "name": "{holding}", "impact_type": "neutral", "impact_score": 70, "confidence": 68, "reason": ""}},
-    {{"symbol": "", "name": "{target}", "impact_type": "neutral", "impact_score": 70, "confidence": 68, "reason": ""}}
+    {{"symbol": "", "name": "{holding}", "reason": ""}},
+    {{"symbol": "", "name": "{target}", "reason": ""}}
   ],
   "sectors": [
-    {{"name": "", "score": 65, "confidence": 62, "outlook": "Moderate", "positive": true, "explanation": "1 sentence"}}
+    {{"name": "", "explanation": "1 sentence"}}
   ],
 {TIMELINE_GROUP}
   "risks": {{
-    "risks": ["", "", ""], "opportunities": ["", ""],
-    "opportunity_matrix": {{"high": ["item"], "medium": ["item"], "low": ["item"]}},
-    "risk_matrix": {{"high": ["item"], "medium": ["item"], "low": ["item"]}}
-  }},
-  "decision_intelligence": {{
-    "intent": "{intent}", "context_complete": true, "missing_context": [], "decision_summary": "",
-    "winner": "<holding | target | neither>",
-    "best_investor_type": {{"holding": "e.g. Conservative / income-focused investors", "target": "e.g. Aggressive / growth-focused investors"}},
-    "holding_analysis": {{
-      "entity": "{holding}", "symbol": "", "sector": "", "thesis": "",
-      "strengths": ["", "", ""], "risks": ["", "", ""], "catalysts": ["", ""],
-      "near_term_outlook": "neutral", "confidence": 65
-    }},
-    "target_analysis": {{
-      "entity": "{target}", "symbol": "", "sector": "", "thesis": "",
-      "strengths": ["", "", ""], "risks": ["", "", ""], "catalysts": ["", ""],
-      "near_term_outlook": "neutral", "confidence": 65
-    }},
-    "comparison": [
-{comp_rows}
-    ],
-    "tradeoff": {{
-      "reasons_to_switch": ["", "", ""], "reasons_to_hold": ["", "", ""],
-      "risks_of_switching": ["", ""], "risks_of_holding": ["", ""], "when_to_wait": ""
-    }},
-    "decision_framework": {{
-      "supports_switch": ["", "", ""], "argues_against": ["", ""], "key_unknowns": ["", ""], "ai_stance": ""
-    }}
+    "risks": [""], "opportunities": [""]
   }},
 {EXTRAS_GROUP}
 }}

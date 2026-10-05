@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.event import Event, GovernmentPolicy
 from app.db.models_legacy import NewsArticle as NewsModel
 from app.services.ai_search.regexes import _STOPWORDS
-from app.services.news_fetcher import get_live_news
+from app.services.news_fetcher import LiveNewsUnavailable, get_live_news, live_news_status, reset_live_news_status
 
 
 def _words(query: str) -> list[str]:
@@ -36,13 +36,38 @@ def _event_row_to_dict(e: Event) -> dict:
             e.event_date.strftime("%b %d, %Y") if e.event_date else
             e.published_at.strftime("%b %d, %Y") if e.published_at else ""
         ),
+        # Additive (2026-09-22, event_impact audit): projected at this
+        # existing retrieval boundary rather than adding a second query
+        # from AEV2 assembly. `source` is the real ingestion adapter name
+        # (Event.source, e.g. "nse_announcements") — the event_impact
+        # eligibility gate's "Event.source is non-null" check reads this
+        # exact key. `event_date`/`published_at` are raw ISO timestamps
+        # (unlike the pre-formatted "date" display string above, which
+        # every existing consumer of this dict already depends on
+        # unchanged) — event_date is when the event itself occurred,
+        # published_at is when MarketRipple ingested it; event_impact
+        # needs the former specifically for any future post-event price
+        # window, and the eligibility gate's "published_at is present"
+        # check reads the latter.
+        "source": e.source or "",
+        "event_date": e.event_date.isoformat() if e.event_date else None,
+        "published_at": e.published_at.isoformat() if e.published_at else None,
     }
 
 
+# Step 3.4G.1: candidate-pool sizes. The pool is bounded by RECENCY (newest first), never by stored impact_score; relevance and impact are applied afterwards by evidence_ranking.
+POOL_EVENTS_TAGGED = 200
+POOL_EVENTS_TOPIC = 600
+POOL_NEWS_WINDOW = 60
+POOL_ANNOUNCEMENTS = 60
+
+
 async def _search_events(
-    db: AsyncSession, query: str, limit: int = 10, entities: dict | None = None,
+    db: AsyncSession, query: str, limit: int = 10, entities: dict | None = None, tagged_only: bool = False, terms: list[str] | None = None, pool_by_recency: bool = False,
 ) -> list[dict]:
     ws = _words(query)
+    from sqlalchemy import func
+    order = (func.coalesce(Event.event_date, Event.published_at).desc(), Event.impact_score.desc()) if pool_by_recency else (Event.impact_score.desc(),)
     symbols = [s for s in (entities or {}).get("companies", []) if s]
 
     # Entity-scoped filter first (P1 fix). Event.companies is a JSON list of
@@ -55,18 +80,25 @@ async def _search_events(
     # accidentally satisfy this company's symbol match.
     if symbols:
         company_conds = [Event.companies.ilike(f'%"symbol": "{s}"%') for s in symbols]
-        stmt = select(Event).where(or_(*company_conds)).order_by(Event.impact_score.desc()).limit(limit)
+        stmt = select(Event).where(or_(*company_conds)).order_by(*order).limit(limit)
         rows = (await db.execute(stmt)).scalars().all()
         if rows:
             return [_event_row_to_dict(e) for e in rows]
         # Resolved a company but nothing is tagged to it — fall through to
         # the word-match path below instead of returning nothing.
+        # tagged_only (Step 2 retrieval planning): a company-scoped question must not be answered from other companies' events, so no fall-through.
+        if tagged_only:
+            return []
+    elif tagged_only:
+        return []
 
-    conds = [Event.title.ilike(f"%{w}%") for w in ws] + [Event.summary.ilike(f"%{w}%") for w in ws]
+    # terms (Step 2 topic retrieval): the sector/policy/macro vocabulary replaces the raw query words.
+    search = list(terms) if terms else ws
+    conds = [Event.title.ilike(f"%{w}%") for w in search] + [Event.summary.ilike(f"%{w}%") for w in search]
     stmt = (
-        select(Event).where(or_(*conds)).order_by(Event.impact_score.desc()).limit(limit)
+        select(Event).where(or_(*conds)).order_by(*order).limit(limit)
         if conds else
-        select(Event).order_by(Event.impact_score.desc()).limit(limit)
+        select(Event).order_by(*order).limit(limit)
     )
     rows = (await db.execute(stmt)).scalars().all()
     return [_event_row_to_dict(e) for e in rows]
@@ -79,12 +111,16 @@ def _symbols_to_names(symbols: list[str]) -> list[str]:
 
 
 async def _search_news(
-    db: AsyncSession, query: str, limit: int = 8, entities: dict | None = None,
+    db: AsyncSession, query: str, limit: int = 8, entities: dict | None = None, entity_terms: list[str] | None = None, live_window: int | None = None,
 ) -> list[dict]:
     ws = _words(query)
 
     def _matches(text: str) -> bool:
         t = text.lower()
+        if entity_terms is not None:
+            # Company-scoped: the item must NAME the company (alias, symbol or short name), not merely share a word like "outlook" or "bank" with the question.
+            import re as _re
+            return any(_re.search(r"(?<![a-z0-9])" + _re.escape(term) + r"(?![a-z0-9])", t) for term in entity_terms)
         return any(w in t for w in ws)
 
     results: list[dict] = []
@@ -95,7 +131,12 @@ async def _search_news(
         # entity-scoped filtering. Tagging the live RSS/yfinance cache with
         # resolved entities is a real data-pipeline project, not a
         # retrieval-layer fix — flagged as backlog, not attempted here.
-        live = await get_live_news(limit=20) or []
+        # Step 3.4G.1: the live-feed candidate window is explicit (live_window) instead of a hard-coded newest-20, and the result is cut AFTER matching/ranking, not before.
+        # (get_live_news itself returns its whole 60-item cache on a cold cache and [:limit] on a warm one, so the window must be requested explicitly to be state-independent.)
+        reset_live_news_status()
+        live = await get_live_news(limit=live_window or 20) or []
+        if live_window:
+            live = list(live)[:live_window]
         for a in live:
             if _matches(a.get("headline", "") + " " + a.get("summary", "")):
                 results.append({
@@ -125,8 +166,10 @@ async def _search_news(
             )
             db_rows = (await db.execute(stmt)).scalars().all()
 
-        if not db_rows and ws:
-            conds = [NewsModel.headline.ilike(f"%{w}%") for w in ws]
+        # company-scoped (names): entity-name rows only. Topic-scoped (entity_terms without companies): search by those terms. Otherwise the raw words.
+        search = ws if entity_terms is None else (entity_terms if not names else [])
+        if not db_rows and search:
+            conds = [NewsModel.headline.ilike(f"%{w}%") for w in search]
             # P1 fix: this query had no .order_by() at all before — rows
             # came back in whatever order SQLite happened to return them,
             # not by relevance or any other defined criterion.
@@ -146,7 +189,12 @@ async def _search_news(
                     "url": None,
                 })
 
-    return results[:limit]
+    # Step 3.4H.3: a live feed that could not be obtained (cold start cut off, every source failed) is an infrastructure condition. If it left us with nothing at all, say so (the caller records a
+    # retrieval failure) instead of returning [] that would read as "no news exists". A legitimate empty feed, or rows from the database fallback, are returned as before.
+    status = live_news_status()
+    if not results and status in ("failed", "timeout"):
+        raise LiveNewsUnavailable(f"live news unavailable ({status})")
+    return results[:(live_window or limit)]
 
 
 async def _search_policies(

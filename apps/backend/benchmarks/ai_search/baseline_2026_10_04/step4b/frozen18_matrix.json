@@ -1,0 +1,997 @@
+{
+  "commit": "87ae232",
+  "provider_calls_made": 0,
+  "n": 18,
+  "results": [
+    {
+      "id": "CR1",
+      "type": "company_research",
+      "query": "What is the outlook for Kotak Mahindra Bank?",
+      "elapsed_s": 21.5,
+      "expected": {
+        "specialist": "company",
+        "ui_mode": "direct_company_research"
+      },
+      "got": {
+        "specialist": "company",
+        "ui_mode": "direct_company_research",
+        "intent": "general"
+      },
+      "route_ui_ok": true,
+      "route_specialist_ok": true,
+      "entities": {
+        "companies": [
+          "KOTAKBANK"
+        ],
+        "sectors": [],
+        "policies": []
+      },
+      "entities_ok": true,
+      "entities_note": "as expected",
+      "gate_a": {
+        "status": "SUFFICIENT",
+        "kind": "company_assessment",
+        "required": [
+          "current_company_evidence"
+        ],
+        "satisfied": [
+          "current_company_evidence"
+        ],
+        "missing": [],
+        "reason": null,
+        "missing_entities": []
+      },
+      "premise": null,
+      "conclusion_scope": {
+        "requested": "not_applicable",
+        "authorized": "not_applicable",
+        "partial": false,
+        "missing": []
+      },
+      "would_call_model": true,
+      "outcome": "SUFFICIENT",
+      "evidence": {
+        "events": 0,
+        "news": 1,
+        "announcements": 2,
+        "policies": 0,
+        "valuation_symbols": [],
+        "sector_rows": 0,
+        "vix": 14.77,
+        "context_lines": 3
+      },
+      "answer_availability": "temporarily_unavailable"
+    },
+    {
+      "id": "CR2",
+      "type": "company_research",
+      "query": "How is 3M India doing as a business?",
+      "elapsed_s": 0.3,
+      "expected": {
+        "specialist": "company",
+        "ui_mode": "direct_company_research"
+      },
+      "got": {
+        "specialist": "company",
+        "ui_mode": "direct_company_research",
+        "intent": "general"
+      },
+      "route_ui_ok": true,
+      "route_specialist_ok": true,
+      "entities": {
+        "companies": [],
+        "sectors": [],
+        "policies": []
+      },
+      "entities_ok": null,
+      "entities_note": "n/a (refused before specialist)",
+      "gate_a": {
+        "status": "INSUFFICIENT",
+        "kind": "company_assessment",
+        "required": [
+          "current_company_evidence"
+        ],
+        "satisfied": [],
+        "missing": [
+          "current_company_evidence"
+        ],
+        "reason": "no_recent_company_evidence",
+        "missing_entities": [
+          "3MINDIA"
+        ]
+      },
+      "premise": "not_applicable",
+      "conclusion_scope": null,
+      "would_call_model": false,
+      "outcome": "REFUSAL_GATE_A",
+      "evidence": null,
+      "answer_availability": "no_verified_evidence"
+    },
+    {
+      "id": "CR3",
+      "type": "company_research",
+      "query": "What is happening with TCS lately?",
+      "elapsed_s": 0.4,
+      "expected": {
+        "specialist": "company",
+        "ui_mode": "direct_company_research"
+      },
+      "got": {
+        "specialist": "company",
+        "ui_mode": "direct_company_research",
+        "intent": "general"
+      },
+      "route_ui_ok": true,
+      "route_specialist_ok": true,
+      "entities": {
+        "companies": [
+          "TCS"
+        ],
+        "sectors": [],
+        "policies": []
+      },
+      "entities_ok": true,
+      "entities_note": "as expected",
+      "gate_a": {
+        "status": "SUFFICIENT",
+        "kind": "company_assessment",
+        "required": [
+          "current_company_evidence"
+        ],
+        "satisfied": [
+          "current_company_evidence"
+        ],
+        "missing": [],
+        "reason": null,
+        "missing_entities": []
+      },
+      "premise": null,
+      "conclusion_scope": {
+        "requested": "not_applicable",
+        "authorized": "not_applicable",
+        "partial": false,
+        "missing": []
+      },
+      "would_call_model": true,
+      "outcome": "SUFFICIENT",
+      "evidence": {
+        "events": 1,
+        "news": 0,
+        "announcements": 2,
+        "policies": 0,
+        "valuation_symbols": [],
+        "sector_rows": 0,
+        "vix": 14.77,
+        "context_lines": 3
+      },
+      "answer_availability": "temporarily_unavailable"
+    },
+    {
+      "id": "EI1",
+      "type": "event_impact",
+      "query": "BEL just won a new defence order, what does this mean for the stock?",
+      "elapsed_s": 0.3,
+      "expected": {
+        "specialist": "company",
+        "ui_mode": "event_impact"
+      },
+      "got": {
+        "specialist": "company",
+        "ui_mode": "event_impact",
+        "intent": "news_reaction"
+      },
+      "route_ui_ok": true,
+      "route_specialist_ok": true,
+      "entities": {
+        "companies": [],
+        "sectors": [],
+        "policies": []
+      },
+      "entities_ok": null,
+      "entities_note": "n/a (refused before specialist)",
+      "gate_a": {
+        "status": "INSUFFICIENT",
+        "kind": "event_impact",
+        "required": [
+          "event_verification"
+        ],
+        "satisfied": [],
+        "missing": [
+          "event_verification"
+        ],
+        "reason": "event_premise_not_established",
+        "missing_entities": [
+          "BEL"
+        ]
+      },
+      "premise": "not_established",
+      "conclusion_scope": null,
+      "would_call_model": false,
+      "outcome": "REFUSAL_GATE_A",
+      "evidence": null,
+      "answer_availability": "no_verified_evidence"
+    },
+    {
+      "id": "EI2",
+      "type": "event_impact",
+      "query": "TCS just announced a new AI research center, what does this mean?",
+      "elapsed_s": 0.2,
+      "expected": {
+        "specialist": "company",
+        "ui_mode": "event_impact"
+      },
+      "got": {
+        "specialist": "company",
+        "ui_mode": "event_impact",
+        "intent": "news_reaction"
+      },
+      "route_ui_ok": true,
+      "route_specialist_ok": true,
+      "entities": {
+        "companies": [],
+        "sectors": [],
+        "policies": []
+      },
+      "entities_ok": null,
+      "entities_note": "n/a (refused before specialist)",
+      "gate_a": {
+        "status": "INSUFFICIENT",
+        "kind": "event_impact",
+        "required": [
+          "event_verification"
+        ],
+        "satisfied": [],
+        "missing": [
+          "event_verification"
+        ],
+        "reason": "event_premise_not_established",
+        "missing_entities": [
+          "TCS"
+        ]
+      },
+      "premise": "not_established",
+      "conclusion_scope": null,
+      "would_call_model": false,
+      "outcome": "REFUSAL_GATE_A",
+      "evidence": null,
+      "answer_availability": "no_verified_evidence"
+    },
+    {
+      "id": "EI3",
+      "type": "event_impact",
+      "query": "Banking sector just reported stronger credit growth, what is the impact?",
+      "elapsed_s": 1.0,
+      "expected": {
+        "specialist": "company",
+        "ui_mode": "event_impact"
+      },
+      "got": {
+        "specialist": "sector",
+        "ui_mode": "event_impact",
+        "intent": "news_reaction"
+      },
+      "route_ui_ok": true,
+      "route_specialist_ok": false,
+      "entities": {
+        "companies": [],
+        "sectors": [
+          "banking"
+        ],
+        "policies": []
+      },
+      "entities_ok": true,
+      "entities_note": "as expected",
+      "gate_a": {
+        "status": "SUFFICIENT",
+        "kind": "sector_assessment",
+        "required": [
+          "sector_evidence_banking"
+        ],
+        "satisfied": [
+          "sector_evidence_banking"
+        ],
+        "missing": [],
+        "reason": null,
+        "missing_entities": []
+      },
+      "premise": null,
+      "conclusion_scope": {
+        "requested": "not_applicable",
+        "authorized": "not_applicable",
+        "partial": false,
+        "missing": []
+      },
+      "would_call_model": true,
+      "outcome": "SUFFICIENT",
+      "evidence": {
+        "events": 10,
+        "news": 10,
+        "announcements": 0,
+        "policies": 0,
+        "valuation_symbols": [],
+        "sector_rows": 11,
+        "vix": 14.77,
+        "context_lines": 2
+      },
+      "answer_availability": "temporarily_unavailable"
+    },
+    {
+      "id": "SR1",
+      "type": "sector_research",
+      "query": "How is the banking sector doing right now?",
+      "elapsed_s": 0.3,
+      "expected": {
+        "specialist": "sector",
+        "ui_mode": "sector_theme_research"
+      },
+      "got": {
+        "specialist": "sector",
+        "ui_mode": "sector_theme_research",
+        "intent": "general"
+      },
+      "route_ui_ok": true,
+      "route_specialist_ok": true,
+      "entities": {
+        "companies": [],
+        "sectors": [
+          "banking"
+        ],
+        "policies": []
+      },
+      "entities_ok": true,
+      "entities_note": "as expected",
+      "gate_a": {
+        "status": "SUFFICIENT",
+        "kind": "sector_assessment",
+        "required": [
+          "sector_evidence_banking"
+        ],
+        "satisfied": [
+          "sector_evidence_banking"
+        ],
+        "missing": [],
+        "reason": null,
+        "missing_entities": []
+      },
+      "premise": null,
+      "conclusion_scope": {
+        "requested": "not_applicable",
+        "authorized": "not_applicable",
+        "partial": false,
+        "missing": []
+      },
+      "would_call_model": true,
+      "outcome": "SUFFICIENT",
+      "evidence": {
+        "events": 10,
+        "news": 10,
+        "announcements": 0,
+        "policies": 0,
+        "valuation_symbols": [],
+        "sector_rows": 11,
+        "vix": 14.77,
+        "context_lines": 2
+      },
+      "answer_availability": "temporarily_unavailable"
+    },
+    {
+      "id": "SR2",
+      "type": "sector_research",
+      "query": "What is the outlook for the IT services sector?",
+      "elapsed_s": 0.3,
+      "expected": {
+        "specialist": "sector",
+        "ui_mode": "sector_theme_research"
+      },
+      "got": {
+        "specialist": "sector",
+        "ui_mode": "sector_theme_research",
+        "intent": "general"
+      },
+      "route_ui_ok": true,
+      "route_specialist_ok": true,
+      "entities": {
+        "companies": [],
+        "sectors": [
+          "it"
+        ],
+        "policies": []
+      },
+      "entities_ok": true,
+      "entities_note": "as expected",
+      "gate_a": {
+        "status": "SUFFICIENT",
+        "kind": "sector_assessment",
+        "required": [
+          "sector_evidence_it"
+        ],
+        "satisfied": [
+          "sector_evidence_it"
+        ],
+        "missing": [],
+        "reason": null,
+        "missing_entities": []
+      },
+      "premise": null,
+      "conclusion_scope": {
+        "requested": "not_applicable",
+        "authorized": "not_applicable",
+        "partial": false,
+        "missing": []
+      },
+      "would_call_model": true,
+      "outcome": "SUFFICIENT",
+      "evidence": {
+        "events": 10,
+        "news": 3,
+        "announcements": 0,
+        "policies": 0,
+        "valuation_symbols": [],
+        "sector_rows": 11,
+        "vix": 14.77,
+        "context_lines": 2
+      },
+      "answer_availability": "temporarily_unavailable"
+    },
+    {
+      "id": "SR3",
+      "type": "sector_research",
+      "query": "Which sectors look weak in the market at the moment?",
+      "elapsed_s": 0.5,
+      "expected": {
+        "specialist": "sector",
+        "ui_mode": "sector_theme_research"
+      },
+      "got": {
+        "specialist": "sector",
+        "ui_mode": "sector_theme_research",
+        "intent": "general"
+      },
+      "route_ui_ok": true,
+      "route_specialist_ok": true,
+      "entities": {
+        "companies": [],
+        "sectors": [],
+        "policies": []
+      },
+      "entities_ok": true,
+      "entities_note": "as expected",
+      "gate_a": {
+        "status": "SUFFICIENT",
+        "kind": "sector_scan",
+        "required": [
+          "live_sector_rows"
+        ],
+        "satisfied": [
+          "live_sector_rows"
+        ],
+        "missing": [],
+        "reason": null,
+        "missing_entities": []
+      },
+      "premise": null,
+      "conclusion_scope": {
+        "requested": "not_applicable",
+        "authorized": "not_applicable",
+        "partial": false,
+        "missing": []
+      },
+      "would_call_model": true,
+      "outcome": "SUFFICIENT",
+      "evidence": {
+        "events": 0,
+        "news": 0,
+        "announcements": 0,
+        "policies": 0,
+        "valuation_symbols": [],
+        "sector_rows": 11,
+        "vix": 14.77,
+        "context_lines": 2
+      },
+      "answer_availability": "temporarily_unavailable"
+    },
+    {
+      "id": "MP1",
+      "type": "macro_policy",
+      "query": "What happens to Indian banks if the RBI cuts the repo rate?",
+      "elapsed_s": 2.8,
+      "expected": {
+        "specialist": "sector",
+        "ui_mode": "policy_macro_impact"
+      },
+      "got": {
+        "specialist": "sector",
+        "ui_mode": "policy_macro_impact",
+        "intent": "general"
+      },
+      "route_ui_ok": true,
+      "route_specialist_ok": true,
+      "entities": {
+        "companies": [],
+        "sectors": [
+          "banking"
+        ],
+        "policies": [
+          "rbi",
+          "repo rate"
+        ]
+      },
+      "entities_ok": true,
+      "entities_note": "as expected",
+      "gate_a": {
+        "status": "SUFFICIENT",
+        "kind": "macro_transmission",
+        "required": [
+          "macro_condition_evidence",
+          "sector_evidence_banking"
+        ],
+        "satisfied": [
+          "macro_condition_evidence",
+          "sector_evidence_banking"
+        ],
+        "missing": [],
+        "reason": null,
+        "missing_entities": []
+      },
+      "premise": null,
+      "conclusion_scope": {
+        "requested": "not_applicable",
+        "authorized": "not_applicable",
+        "partial": false,
+        "missing": []
+      },
+      "would_call_model": true,
+      "outcome": "SUFFICIENT",
+      "evidence": {
+        "events": 10,
+        "news": 10,
+        "announcements": 0,
+        "policies": 0,
+        "valuation_symbols": [],
+        "sector_rows": 0,
+        "vix": 14.77,
+        "context_lines": 3
+      },
+      "answer_availability": "temporarily_unavailable"
+    },
+    {
+      "id": "MP2",
+      "type": "macro_policy",
+      "query": "How would higher crude oil prices affect Indian markets?",
+      "elapsed_s": 0.2,
+      "expected": {
+        "specialist": "company",
+        "ui_mode": "policy_macro_impact"
+      },
+      "got": {
+        "specialist": "company",
+        "ui_mode": "policy_macro_impact",
+        "intent": "general"
+      },
+      "route_ui_ok": true,
+      "route_specialist_ok": true,
+      "entities": {
+        "companies": [],
+        "sectors": [],
+        "policies": []
+      },
+      "entities_ok": true,
+      "entities_note": "as expected",
+      "gate_a": {
+        "status": "SUFFICIENT",
+        "kind": "macro_transmission",
+        "required": [
+          "macro_condition_evidence"
+        ],
+        "satisfied": [
+          "macro_condition_evidence"
+        ],
+        "missing": [],
+        "reason": null,
+        "missing_entities": []
+      },
+      "premise": null,
+      "conclusion_scope": {
+        "requested": "not_applicable",
+        "authorized": "not_applicable",
+        "partial": false,
+        "missing": []
+      },
+      "would_call_model": true,
+      "outcome": "SUFFICIENT",
+      "evidence": {
+        "events": 10,
+        "news": 5,
+        "announcements": 0,
+        "policies": 0,
+        "valuation_symbols": [],
+        "sector_rows": 0,
+        "vix": 14.77,
+        "context_lines": 3
+      },
+      "answer_availability": "temporarily_unavailable"
+    },
+    {
+      "id": "MP3",
+      "type": "macro_policy",
+      "query": "How would a weaker rupee affect Indian IT exporters?",
+      "elapsed_s": 0.4,
+      "expected": {
+        "specialist": "sector",
+        "ui_mode": "policy_macro_impact"
+      },
+      "got": {
+        "specialist": "sector",
+        "ui_mode": "policy_macro_impact",
+        "intent": "general"
+      },
+      "route_ui_ok": true,
+      "route_specialist_ok": true,
+      "entities": {
+        "companies": [],
+        "sectors": [
+          "it"
+        ],
+        "policies": []
+      },
+      "entities_ok": true,
+      "entities_note": "as expected",
+      "gate_a": {
+        "status": "SUFFICIENT",
+        "kind": "macro_transmission",
+        "required": [
+          "macro_condition_evidence",
+          "sector_evidence_it"
+        ],
+        "satisfied": [
+          "macro_condition_evidence",
+          "sector_evidence_it"
+        ],
+        "missing": [],
+        "reason": null,
+        "missing_entities": []
+      },
+      "premise": null,
+      "conclusion_scope": {
+        "requested": "not_applicable",
+        "authorized": "not_applicable",
+        "partial": false,
+        "missing": []
+      },
+      "would_call_model": true,
+      "outcome": "SUFFICIENT",
+      "evidence": {
+        "events": 10,
+        "news": 7,
+        "announcements": 0,
+        "policies": 0,
+        "valuation_symbols": [],
+        "sector_rows": 0,
+        "vix": 14.77,
+        "context_lines": 2
+      },
+      "answer_availability": "temporarily_unavailable"
+    },
+    {
+      "id": "CC1",
+      "type": "company_comparison",
+      "query": "TCS vs Infosys, which is stronger?",
+      "elapsed_s": 1.4,
+      "expected": {
+        "specialist": "comparison",
+        "ui_mode": "company_comparison"
+      },
+      "got": {
+        "specialist": "comparison",
+        "ui_mode": "company_comparison",
+        "intent": "compare"
+      },
+      "route_ui_ok": true,
+      "route_specialist_ok": true,
+      "entities": {
+        "companies": [
+          "TCS",
+          "INFY"
+        ],
+        "sectors": [],
+        "policies": []
+      },
+      "entities_ok": true,
+      "entities_note": "as expected",
+      "gate_a": {
+        "status": "SUFFICIENT",
+        "kind": "comparison",
+        "required": [
+          "evidence_for_TCS",
+          "evidence_for_INFY"
+        ],
+        "satisfied": [
+          "evidence_for_TCS",
+          "evidence_for_INFY"
+        ],
+        "missing": [],
+        "reason": null,
+        "missing_entities": []
+      },
+      "premise": null,
+      "conclusion_scope": {
+        "requested": "overall_strength",
+        "authorized": "valuation_comparison",
+        "partial": true,
+        "missing": [
+          "operating_evidence_TCS",
+          "operating_evidence_INFY"
+        ]
+      },
+      "would_call_model": true,
+      "outcome": "SUFFICIENT_PARTIAL_SCOPE",
+      "evidence": {
+        "events": 1,
+        "news": 0,
+        "announcements": 6,
+        "policies": 0,
+        "valuation_symbols": [
+          "INFY",
+          "TCS"
+        ],
+        "sector_rows": 0,
+        "vix": 14.77,
+        "context_lines": 3
+      },
+      "answer_availability": "temporarily_unavailable"
+    },
+    {
+      "id": "CC2",
+      "type": "company_comparison",
+      "query": "Compare HDFC Bank and ICICI Bank.",
+      "elapsed_s": 1.4,
+      "expected": {
+        "specialist": "comparison",
+        "ui_mode": "company_comparison"
+      },
+      "got": {
+        "specialist": "comparison",
+        "ui_mode": "company_comparison",
+        "intent": "compare"
+      },
+      "route_ui_ok": true,
+      "route_specialist_ok": true,
+      "entities": {
+        "companies": [
+          "HDFCBANK",
+          "ICICIBANK"
+        ],
+        "sectors": [],
+        "policies": []
+      },
+      "entities_ok": true,
+      "entities_note": "as expected",
+      "gate_a": {
+        "status": "SUFFICIENT",
+        "kind": "comparison",
+        "required": [
+          "evidence_for_HDFCBANK",
+          "evidence_for_ICICIBANK"
+        ],
+        "satisfied": [
+          "evidence_for_HDFCBANK",
+          "evidence_for_ICICIBANK"
+        ],
+        "missing": [],
+        "reason": null,
+        "missing_entities": []
+      },
+      "premise": null,
+      "conclusion_scope": {
+        "requested": "overall_strength",
+        "authorized": "valuation_comparison",
+        "partial": true,
+        "missing": [
+          "operating_evidence_HDFCBANK",
+          "operating_evidence_ICICIBANK"
+        ]
+      },
+      "would_call_model": true,
+      "outcome": "SUFFICIENT_PARTIAL_SCOPE",
+      "evidence": {
+        "events": 0,
+        "news": 0,
+        "announcements": 6,
+        "policies": 0,
+        "valuation_symbols": [
+          "HDFCBANK",
+          "ICICIBANK"
+        ],
+        "sector_rows": 0,
+        "vix": 14.77,
+        "context_lines": 3
+      },
+      "answer_availability": "temporarily_unavailable"
+    },
+    {
+      "id": "CC3",
+      "type": "company_comparison",
+      "query": "I hold BEL. Should I switch to HAL?",
+      "elapsed_s": 1.3,
+      "expected": {
+        "specialist": "comparison",
+        "ui_mode": "switch_analysis"
+      },
+      "got": {
+        "specialist": "comparison",
+        "ui_mode": "switch_analysis",
+        "intent": "switch"
+      },
+      "route_ui_ok": true,
+      "route_specialist_ok": true,
+      "entities": {
+        "companies": [
+          "HAL",
+          "BEL"
+        ],
+        "sectors": [],
+        "policies": []
+      },
+      "entities_ok": true,
+      "entities_note": "as expected",
+      "gate_a": {
+        "status": "SUFFICIENT",
+        "kind": "comparison",
+        "required": [
+          "evidence_for_HAL",
+          "evidence_for_BEL"
+        ],
+        "satisfied": [
+          "evidence_for_HAL",
+          "evidence_for_BEL"
+        ],
+        "missing": [],
+        "reason": null,
+        "missing_entities": []
+      },
+      "premise": null,
+      "conclusion_scope": {
+        "requested": "overall_strength",
+        "authorized": "valuation_comparison",
+        "partial": true,
+        "missing": [
+          "operating_evidence_HAL",
+          "operating_evidence_BEL"
+        ]
+      },
+      "would_call_model": true,
+      "outcome": "SUFFICIENT_PARTIAL_SCOPE",
+      "evidence": {
+        "events": 1,
+        "news": 0,
+        "announcements": 1,
+        "policies": 0,
+        "valuation_symbols": [
+          "BEL",
+          "HAL"
+        ],
+        "sector_rows": 0,
+        "vix": 14.77,
+        "context_lines": 3
+      },
+      "answer_availability": "temporarily_unavailable"
+    },
+    {
+      "id": "GE1",
+      "type": "general_explanation",
+      "query": "What is a P/E ratio and how should I read it?",
+      "elapsed_s": 0.0,
+      "expected": {
+        "specialist": "company",
+        "ui_mode": "direct_company_research"
+      },
+      "got": {
+        "specialist": "education",
+        "ui_mode": "direct_company_research",
+        "intent": "decision"
+      },
+      "route_ui_ok": true,
+      "route_specialist_ok": false,
+      "entities": {
+        "companies": [],
+        "sectors": [],
+        "policies": []
+      },
+      "entities_ok": null,
+      "entities_note": "n/a (refused before specialist)",
+      "gate_a": {
+        "status": null,
+        "kind": null,
+        "required": null,
+        "satisfied": null,
+        "missing": null,
+        "reason": null,
+        "missing_entities": null
+      },
+      "premise": null,
+      "conclusion_scope": null,
+      "would_call_model": false,
+      "outcome": "NO_SPECIALIST_REACHED",
+      "evidence": null,
+      "answer_availability": "available"
+    },
+    {
+      "id": "GE2",
+      "type": "general_explanation",
+      "query": "What does FII selling mean for the Indian market?",
+      "elapsed_s": 0.0,
+      "expected": {
+        "specialist": "company",
+        "ui_mode": "direct_company_research"
+      },
+      "got": {
+        "specialist": "education",
+        "ui_mode": "direct_company_research",
+        "intent": "general"
+      },
+      "route_ui_ok": true,
+      "route_specialist_ok": false,
+      "entities": {
+        "companies": [],
+        "sectors": [],
+        "policies": []
+      },
+      "entities_ok": null,
+      "entities_note": "n/a (refused before specialist)",
+      "gate_a": {
+        "status": null,
+        "kind": null,
+        "required": null,
+        "satisfied": null,
+        "missing": null,
+        "reason": null,
+        "missing_entities": null
+      },
+      "premise": null,
+      "conclusion_scope": null,
+      "would_call_model": false,
+      "outcome": "NO_SPECIALIST_REACHED",
+      "evidence": null,
+      "answer_availability": "available"
+    },
+    {
+      "id": "GE3",
+      "type": "general_explanation",
+      "query": "How does the MarketRipple Score work?",
+      "elapsed_s": 0.0,
+      "expected": {
+        "specialist": "company",
+        "ui_mode": "direct_company_research"
+      },
+      "got": {
+        "specialist": "education",
+        "ui_mode": "direct_company_research",
+        "intent": "general"
+      },
+      "route_ui_ok": true,
+      "route_specialist_ok": false,
+      "entities": {
+        "companies": [],
+        "sectors": [],
+        "policies": []
+      },
+      "entities_ok": null,
+      "entities_note": "n/a (refused before specialist)",
+      "gate_a": {
+        "status": null,
+        "kind": null,
+        "required": null,
+        "satisfied": null,
+        "missing": null,
+        "reason": null,
+        "missing_entities": null
+      },
+      "premise": null,
+      "conclusion_scope": null,
+      "would_call_model": false,
+      "outcome": "NO_SPECIALIST_REACHED",
+      "evidence": null,
+      "answer_availability": "available"
+    }
+  ]
+}

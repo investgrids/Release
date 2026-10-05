@@ -1,0 +1,2157 @@
+{
+  "mode": "live",
+  "model": "gpt-6-luna",
+  "cap": 2,
+  "model_requests_made": 2,
+  "stopped": null,
+  "results": {
+    "EI3": {
+      "id": "EI3",
+      "query": "Banking sector just reported stronger credit growth, what is the impact?",
+      "entities": {
+        "companies": [],
+        "sectors": [
+          "banking"
+        ],
+        "policies": []
+      },
+      "wall_s": 25.2,
+      "calls": [
+        {
+          "provider": "openai-benchmark-project",
+          "model": "gpt-6-luna",
+          "max_completion_tokens": 6500,
+          "prompt_chars": 8449,
+          "approx_input_tokens": 2112,
+          "latency_ms": 12281,
+          "status": 200,
+          "limit_headers": {
+            "openai-processing-ms": "10655",
+            "x-ratelimit-limit-requests": "50",
+            "x-ratelimit-limit-tokens": "100000",
+            "x-ratelimit-remaining-requests": "46",
+            "x-ratelimit-remaining-tokens": "60590",
+            "x-ratelimit-reset-requests": "1h38m43.811s",
+            "x-ratelimit-reset-tokens": "283h45m7.2s",
+            "x-request-id": "req_732cbe7afe964c3e9c435cdac7799a0b"
+          },
+          "response_model": "gpt-6-luna",
+          "finish_reason": "stop",
+          "output_chars": 1695,
+          "usage": {
+            "prompt_tokens": 2064,
+            "completion_tokens": 1327,
+            "total_tokens": 3391
+          },
+          "reasoning_tokens": 876,
+          "would_exceed_30s": false,
+          "raw_output": "{\n  \"investment\": {\n    \"summary\": \"The impact cannot be established from the supplied evidence because it contains no credit-growth data.\",\n    \"bottom_line\": \"The impact cannot be established from the supplied evidence because it contains no credit-growth data.\"\n  },\n  \"claim_sources\": [\n    {\n      \"claim\": \"Banking rose 0.6% on the day, versus 1.1% for PSU Bank and 0.1% for Private Bank.\",\n      \"sources\": [\"C2\"]\n    }\n  ],\n  \"evidence\": {\n    \"what_happened\": \"\",\n    \"why_it_happened\": \"\",\n    \"key_drivers\": []\n  },\n  \"sector_analysis\": {\n    \"current_trend\": \"Banking rose 0.6% on the day, versus 1.1% for PSU Bank and 0.1% for Private Bank.\",\n    \"government_drivers\": [],\n    \"macro_drivers\": []\n  },\n  \"companies\": [],\n  \"sectors\": [\n    {\n      \"name\": \"Banking\",\n      \"explanation\": \"Banking rose 0.6% on the day, versus 1.1% for PSU Bank and 0.1% for Private Bank.\"\n    }\n  ],\n  \"timeline\": {\n    \"milestones\": []\n  },\n  \"risks\": {\n    \"risks\": [\n      \"The supplied evidence does not include credit-growth data, so the reported strengthening and its impact cannot be assessed.\"\n    ],\n    \"opportunities\": []\n  },\n  \"extras\": {\n    \"monitoring\": {\n      \"items\": [\n        {\n          \"label\": \"Credit-growth data\",\n          \"importance\": \"critical\",\n          \"why_it_matters\": \"It would establish whether growth strengthened and provide a basis to assess the impact asked about.\",\n          \"frequency\": \"When available\"\n        }\n      ]\n    },\n    \"follow_up_questions\": [\n      \"What credit-growth figures and comparison period are being referenced?\",\n      \"Would you like the impact assessed against bank-sector performance or broader market performance?\"\n    ]\n  }\n}"
+        }
+      ],
+      "model_calls": 1,
+      "expected_model_calls": null,
+      "call_count_as_expected": null,
+      "response": {
+        "query": "Banking sector just reported stronger credit growth, what is the impact?",
+        "response_id": "4ea25e3d-b045-4624-a2c5-cded11030bb5",
+        "schema_version": "v3.0",
+        "specialist": "sector",
+        "degraded_reason": "claims_not_authorized",
+        "intent": "news_reaction",
+        "ui_mode": "event_impact",
+        "switch_holding": null,
+        "switch_target": null,
+        "synthesis_incomplete": true,
+        "answer": {
+          "summary": "The analysis that was generated included statements MarketRipple's retrieved evidence doesn't support, such as specific figures or dates, or company facts without a traceable source, so it isn't being shown. The evidence that was found is listed below.",
+          "bottom_line": "The analysis that was generated included statements MarketRipple's retrieved evidence doesn't support, such as specific figures or dates, or company facts without a traceable source, so it isn't being shown. The evidence that was found is listed below.",
+          "what_happened": "",
+          "why_it_happened": "",
+          "immediate_impact": "",
+          "medium_term": "",
+          "long_term": "",
+          "what_priced_in": "",
+          "risks": [],
+          "opportunities": [],
+          "confidence": null,
+          "confidence_level": "unscored",
+          "sentiment": "neutral",
+          "sources_count": 0
+        },
+        "key_drivers": [],
+        "insights": [],
+        "companies": [],
+        "sectors": [],
+        "related_events": [],
+        "news": [],
+        "policies": [],
+        "timeline": [],
+        "historical_comparison": [],
+        "ripple_chain": [],
+        "scenarios": {},
+        "monitoring": {
+          "items": []
+        },
+        "follow_up_questions": [],
+        "follow_up_groups": [],
+        "investment_verdict": {
+          "rating": "Not Applicable",
+          "direction": "neutral",
+          "confidence": null,
+          "horizon": null,
+          "top_picks": [],
+          "risks": [],
+          "catalysts": [],
+          "opportunity_score": null,
+          "risk_level": "",
+          "suitable_for": "",
+          "engine_verdict": null
+        },
+        "market_chart": {
+          "labels": [],
+          "series": []
+        },
+        "graph": {
+          "nodes": [],
+          "edges": []
+        },
+        "citations": [],
+        "decision_intelligence": null,
+        "confidence_data": {
+          "level": "unscored",
+          "score": null,
+          "reasons": [],
+          "breakdown": {},
+          "caveats": []
+        },
+        "decision_engine_v2": {},
+        "timeline_intelligence": {},
+        "opportunity_risk_matrix": {},
+        "ai_conclusion": {},
+        "evidence_score": {
+          "stars": null,
+          "checklist": {},
+          "source_count": 0,
+          "development_count": 0,
+          "corroborating_source_count": 0
+        },
+        "confidence_breakdown": {
+          "final_confidence": null,
+          "level": "unscored"
+        },
+        "confidence": {
+          "status": "unscored",
+          "score": null,
+          "components": {
+            "evidence_quality": null,
+            "market_confirmation": null,
+            "historical_similarity": null,
+            "data_freshness": null
+          }
+        },
+        "source_attribution": [],
+        "validation": {
+          "repairs": [],
+          "omissions": [],
+          "contradiction_flagged": false
+        },
+        "market_impact_horizons": {},
+        "what_to_monitor": [],
+        "ai_reasoning_methods": [],
+        "evidence_sufficiency": null,
+        "premise_check": {
+          "status": "not_applicable",
+          "terms": []
+        },
+        "answer_authorization": {
+          "applicable": true,
+          "authorized": false,
+          "reasons": [
+            "uncovered_factual_sentences"
+          ],
+          "unsupported_figure_count": 0,
+          "factual_sentences": 2
+        },
+        "public_title": "This analysis couldn't be verified",
+        "conclusion_scope": null,
+        "structured_authorization": null,
+        "timing": {
+          "intent_detection_ms": 15.0,
+          "entity_detection_ms": 16.0,
+          "evidence_collection_ms": 12828.0,
+          "reasoning_ms": 12297.0,
+          "validation_ms": 31.0,
+          "total_ms": 25187.0
+        },
+        "context_used": {
+          "companies": [],
+          "sectors": []
+        },
+        "watch_subject": null,
+        "answer_availability": {
+          "state": "no_verified_evidence",
+          "evidence_retrieval_completed": true,
+          "evidence_count": 0
+        }
+      },
+      "gate_a": null,
+      "premise_check": {
+        "status": "not_applicable",
+        "terms": []
+      },
+      "gate_b": {
+        "applicable": true,
+        "authorized": false,
+        "reasons": [
+          "uncovered_factual_sentences"
+        ],
+        "unsupported_figure_count": 0,
+        "factual_sentences": 2
+      },
+      "claim_validation": null,
+      "claim_sources": null,
+      "degraded_reason": "claims_not_authorized",
+      "rejected_generation": [
+        {
+          "reasons": [
+            "uncovered_factual_sentences"
+          ],
+          "generation": {
+            "summary": "The impact cannot be established from the supplied evidence because it contains no credit-growth data.",
+            "bottom_line": "The impact cannot be established from the supplied evidence because it contains no credit-growth data.",
+            "confidence": null,
+            "confidence_self_rating": null,
+            "sentiment": null,
+            "what_happened": "",
+            "why_it_happened": "",
+            "immediate_impact": "",
+            "medium_term": "",
+            "long_term": "",
+            "what_priced_in": "",
+            "key_drivers": [],
+            "risks": [
+              "The supplied evidence does not include credit-growth data, so the reported strengthening and its impact cannot be assessed."
+            ],
+            "opportunities": [],
+            "companies": [],
+            "sectors": [
+              {
+                "name": "Banking",
+                "explanation": "Banking rose 0.6% on the day, versus 1.1% for PSU Bank and 0.1% for Private Bank."
+              }
+            ],
+            "investment_verdict": {
+              "rating": null,
+              "direction": null,
+              "confidence": null,
+              "horizon": null,
+              "top_picks": [],
+              "risks": [
+                "The supplied evidence does not include credit-growth data, so the reported strengthening and its impact cannot be assessed."
+              ],
+              "catalysts": [],
+              "opportunity_score": null
+            },
+            "follow_up_questions": [
+              "What credit-growth figures and comparison period are being referenced?",
+              "Would you like the impact assessed against bank-sector performance or broader market performance?"
+            ],
+            "claim_sources": [
+              {
+                "claim": "Banking rose 0.6% on the day, versus 1.1% for PSU Bank and 0.1% for Private Bank.",
+                "sources": [
+                  "C2"
+                ]
+              }
+            ],
+            "timeline": [],
+            "insights": [],
+            "scenarios": {},
+            "monitoring": {
+              "items": [
+                {
+                  "label": "Credit-growth data",
+                  "importance": "critical",
+                  "why_it_matters": "It would establish whether growth strengthened and provide a basis to assess the impact asked about.",
+                  "frequency": "When available"
+                }
+              ]
+            },
+            "decision_engine_v2": {},
+            "timeline_intelligence": {},
+            "opportunity_risk_matrix": {},
+            "ai_conclusion": {},
+            "sector_score": null,
+            "current_trend": "Banking rose 0.6% on the day, versus 1.1% for PSU Bank and 0.1% for Private Bank.",
+            "money_flow": "",
+            "government_drivers": [],
+            "macro_drivers": [],
+            "sector_leaders": [],
+            "sector_laggards": []
+          }
+        }
+      ],
+      "evidence": {
+        "plan_kind": "topic",
+        "filter_report": {
+          "plan": "topic",
+          "events": {
+            "kept": 8,
+            "dropped_stale": 5,
+            "dropped_irrelevant": 3,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 14
+          },
+          "news": {
+            "kept": 19,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_undated": 0,
+            "dropped_tips": 1,
+            "dropped_single_company_filing": 0
+          },
+          "announcements": {
+            "kept": 0,
+            "dropped_stale": 0
+          },
+          "policies": {
+            "kept": 0,
+            "dropped_irrelevant": 0
+          },
+          "premise": {
+            "required": false,
+            "terms": [],
+            "supported": null,
+            "supporting": []
+          }
+        },
+        "events": [
+          {
+            "id": "rss-22bbfbb737a0",
+            "title": "RBI Remains Cautious On Crypto, Backs Underlying Technology: Governor Sanjay Malhotra",
+            "summary": "RBI Governor Sanjay Malhotra stated India promotes blockchain and tokenisation technology but remains cautious on cryptocurrencies due to concerns over monetary sovereignty and policy.",
+            "date": "2026-10-03T10:25:15.466208",
+            "source": "NDTV Profit",
+            "companies": []
+          },
+          {
+            "id": "rss-d59fc9906a97",
+            "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+            "summary": "The Securities and Exchange Board of India (Sebi) has introduced a mandatory Credit Risk-o-Meter for debt securities, aiming to enhance investor awareness regarding credit risk. This user-friendly tool features a standardized, colour-coded scale, similar to those used in mutual funds. Issuers and on",
+            "date": "2026-08-14T05:40:27.378039",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "rss-ad00a27f34b9",
+            "title": "RBI to close FCNR(B) swaps a month earlier due to gush",
+            "summary": "The Reserve Bank of India has moved the FCNR(B) deposit deadline to August 31 in response to better-than-expected foreign currency inflows. This adjustment follows a positive uptake of the swap facility linked to these deposits, with inflows surpassing previous totals. Meanwhile, the swap schemes fo",
+            "date": "2026-08-15T04:20:19.977742",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "nse-3fe23e9e4b",
+            "title": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+            "summary": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+            "date": "2026-08-12T16:33:33.702605",
+            "source": "NSE",
+            "companies": []
+          },
+          {
+            "id": "rss-452ba91505d8",
+            "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+            "summary": "The Indian rupee remained stable on Thursday, closing near its previous level.  Dollar sales by the Reserve Bank of India kept the local unit within a tight range.  Demand from maturing forwards and debt outflows added pressure to the currency.  Traders observed a narrow trading band, anticipating f",
+            "date": "2026-08-14T02:00:43.280534",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "rss-4b6b8365cd2b",
+            "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+            "summary": "The Indian rupee faced a challenging week, depreciating against the dollar amidst mounting tensions from the Middle East conflict. Despite this, central bank interventions and steady dollar sales by state banks helped mitigate more significant losses. With India relying on imports for about ninety p",
+            "date": "2026-08-14T10:55:41.495253",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "rss-b36bc6485df8",
+            "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+            "summary": "The Indian rupee finished the day marginally higher, propelled by ongoing tensions in the Middle East. Continuous interventions from the central bank have provided support against the U.S. dollar. Traders remain watchful as critical inflation data from India and the U.S. approaches. Throughout Augus",
+            "date": "2026-08-12T16:05:37.135262",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "nse-e73653ad09",
+            "title": "Pursuant to the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015 and the Code of Fair Disclosure and Conduct and in terms of Regulation 8 of the SEBI (Prohibition of Insider Trading) Regulations, 2015, the Bank would like to place the attached information on record pertaining to its performance in the quarter ended September 30, 2026.",
+            "summary": "Pursuant to the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015 and the Code of Fair Disclosure and Conduct and in terms of Regulation 8 of the SEBI (Prohibition of Insider Trading) Regulations, 2015, the Bank would like to place the attached information on record pertaining",
+            "date": "2026-10-03T14:10:23.818974",
+            "source": "NSE",
+            "companies": []
+          }
+        ],
+        "news": [
+          {
+            "id": "live-55ffbb46f20a",
+            "title": "Indian markets open higher amid positive global cues; PSU bank stocks lead - Telangana Today",
+            "summary": "Indian markets open higher amid positive global cues; PSU bank stocks lead&nbsp;&nbsp;Telangana Today",
+            "date": "23m ago",
+            "source": "Google News"
+          },
+          {
+            "id": "live-ef1a981a7f99",
+            "title": "Yes Bank shares rise 3% after Q2 business update shows loans surging 24% YoY, deposits up 20%",
+            "summary": "Yes Bank shares rose after the lender reported a 23.8% YoY growth in loans and advances to around Rs 3.1 lakh crore in Q2 FY27. Deposits also grew nearly 20% YoY, signalling continued business momentu",
+            "date": "42m ago",
+            "source": "Economic Times"
+          },
+          {
+            "id": "live-82948d56e7a0",
+            "title": "Why is market rising today? Sensex rallies 700 points, Nifty above 22,600. 6 key factors driving rebound",
+            "summary": "After a long slump, the Indian stock market is experiencing a refreshing surge, with both Sensex and Nifty indices showcasing notable increases. The recent leadership transition at HDFC Bank has invig",
+            "date": "47m ago",
+            "source": "Economic Times"
+          },
+          {
+            "id": "live-93fe9b163d82",
+            "title": "HDFC Bank shares rise 2% after appointing Anup Bagchi as new CEO, Q2 biz update. Buy, sell or hold?",
+            "summary": "HDFC Bank shares rose after Anup Bagchi was appointed as the bank’s new MD &amp; CEO, ending months of uncertainty over its top leadership. Brokerages Jefferies, Morgan Stanley and Citi retained posit",
+            "date": "51m ago",
+            "source": "Economic Times"
+          },
+          {
+            "id": "live-d723b4bf9296",
+            "title": "HDFC Bank shares rise 2% as Street cheers Anup Bagchi's appointment as CEO",
+            "summary": "HDFC Bank shares have significantly underperformed peers over the last few years. The stock price has declined by 25 per cent in the past one year and 8 per cent in the past five years.",
+            "date": "58m ago",
+            "source": "Business Standard"
+          },
+          {
+            "id": "live-81831ca2c246",
+            "title": "HDFC Bank: Anup Bagchi at helm lifts overhang; brokerages share outlook",
+            "summary": "Analysts at Motilal Oswal Financial Services (MOFSL) said Bagchi's appointment removes a key overhang around HDFC Bank's leadership succession.",
+            "date": "1h ago",
+            "source": "Business Standard"
+          },
+          {
+            "id": "live-5bb11d985ce9",
+            "title": "Kotak Mahindra Bank Primed For Next Leg Of Growth As Street Cheers Anup Saha's Elevation",
+            "summary": "Street analysts view his deep domain expertise in analytics-driven consumer finance and high-yielding credit portfolios as an ideal catalyst for Kotak Mahindra Bank's next phase of transformation and ",
+            "date": "1h ago",
+            "source": "NDTV Profit"
+          },
+          {
+            "id": "live-2e37e55d12e0",
+            "title": "Stock market today LIVE: Sensex up 500 points, Nifty up 150 points; HDFC Bank, RIL, Bajaj Finance shares gain",
+            "summary": "Stock market Opening Bell Today: The Gift Nifty live chart is signalling around 200 points gap-up opening for the Nifty 50 index",
+            "date": "1h ago",
+            "source": "Livemint"
+          },
+          {
+            "id": "live-19242829be69",
+            "title": "Sensex, Nifty opening: Will stock market rise ahead of RBI MPC? - India Today",
+            "summary": "Sensex, Nifty opening: Will stock market rise ahead of RBI MPC?&nbsp;&nbsp;India Today",
+            "date": "1h ago",
+            "source": "Google News"
+          },
+          {
+            "id": "live-49cafe92bde4",
+            "title": "India's bond yield curve poised to flatten as RBI drains surplus cash",
+            "summary": "The 5-10 year yield gap is expected to narrow as the RBI drains surplus cash, pressuring shorter maturities",
+            "date": "1h ago",
+            "source": "Business Standard"
+          },
+          {
+            "id": "live-e1c06fd9a7d4",
+            "title": "Anup Bagchi's Appointment Removes Key Overhang For HDFC Bank Stock, Supports Re-Rating, Say Brokerages",
+            "summary": "Analysts believe the appointment should help restore investor and customer confidence in HDFC Bank, given that Anup Bagchi is a banking veteran with experience across diverse responsibilities within t",
+            "date": "1h ago",
+            "source": "NDTV Profit"
+          },
+          {
+            "id": "live-2fadad083a8a",
+            "title": "HDFC Bank Share Price Live Updates: HDFC Bank's Price Breakout Signals Strong Momentum",
+            "summary": "HDFC Bank Share Price Live Updates: HDFC Bank's Price Breakout Signals Strong Momentum",
+            "date": "2h ago",
+            "source": "Economic Times"
+          },
+          {
+            "id": "live-f4420e5a340d",
+            "title": "Stocks to watch: HDFC Bank, Ola Electric, D-Mart, YES Bank, Bajaj Finance",
+            "summary": "Stocks to watch today: HDFC Bank has appointed ICICI Group veteran Anup Bagchi as its next managing director and chief executive officer (MD & CEO).",
+            "date": "2h ago",
+            "source": "Business Standard"
+          },
+          {
+            "id": "live-f112bc12c835",
+            "title": "Markets bet on RBI rate hike as inflation pressure builds",
+            "summary": "As inflation concerns rise, investors are putting their faith in the Reserve Bank of India to implement an interest rate hike. A survey reveals that nearly 60% of economists believe a 25-basis-point i",
+            "date": "2h ago",
+            "source": "Economic Times"
+          },
+          {
+            "id": "live-f80336401a44",
+            "title": "RBI's dollar inflow measures buy time, but external risks remain",
+            "summary": "The Reserve Bank of India's recent measures to boost dollar inflows are a temporary fix, economists warn. While these steps aim to stabilize the rupee now, the country must strengthen its balance of p",
+            "date": "1h ago",
+            "source": "Economic Times"
+          },
+          {
+            "id": "live-5ed5dc17ff75",
+            "title": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch - Business Today",
+            "summary": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch&nbsp;&nbsp;Business Today",
+            "date": "11m ago",
+            "source": "Google News"
+          },
+          {
+            "id": "live-90be64e87840",
+            "title": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses - BusinessLine",
+            "summary": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses&nbsp;&nbsp;BusinessLine",
+            "date": "46m ago",
+            "source": "Google News"
+          },
+          {
+            "id": "live-394f4e9b3a99",
+            "title": "Zerodha now wants to enter investment banking space, seeks Sebi nod",
+            "summary": "Zerodha has applied to SEBI for a Category I merchant banking licence, signalling its entry into investment banking. The move aligns with India’s strong IPO pipeline and expanding capital markets acti",
+            "date": "12m ago",
+            "source": "Economic Times"
+          },
+          {
+            "id": "live-184d15fcaee2",
+            "title": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active - Moneycontrol.com",
+            "summary": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active&nbsp;&nbsp;Moneycontrol.com",
+            "date": "7m ago",
+            "source": "Google News"
+          }
+        ],
+        "announcements": [],
+        "policies": [],
+        "valuation": {},
+        "vix": 14.51,
+        "sector_rows": [
+          {
+            "id": "it",
+            "name": "IT",
+            "value": "+1.0%",
+            "positive": true
+          },
+          {
+            "id": "banking",
+            "name": "Banking",
+            "value": "+0.6%",
+            "positive": true
+          },
+          {
+            "id": "pharma",
+            "name": "Pharma",
+            "value": "-1.3%",
+            "positive": false
+          },
+          {
+            "id": "auto",
+            "name": "Auto",
+            "value": "-1.0%",
+            "positive": false
+          },
+          {
+            "id": "energy",
+            "name": "Energy",
+            "value": "-0.3%",
+            "positive": false
+          },
+          {
+            "id": "fmcg",
+            "name": "FMCG",
+            "value": "+0.5%",
+            "positive": true
+          },
+          {
+            "id": "infra",
+            "name": "Infra",
+            "value": "+0.4%",
+            "positive": true
+          },
+          {
+            "id": "metal",
+            "name": "Metal",
+            "value": "+0.1%",
+            "positive": true
+          },
+          {
+            "id": "realty",
+            "name": "Realty",
+            "value": "+0.9%",
+            "positive": true
+          },
+          {
+            "id": "psu-bank",
+            "name": "PSU Bank",
+            "value": "+1.1%",
+            "positive": true
+          },
+          {
+            "id": "private-bank",
+            "name": "Private Bank",
+            "value": "+0.1%",
+            "positive": true
+          }
+        ],
+        "macro_indices": [],
+        "context_lines": [
+          "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+          "Sector performance (real, live 1-day change): PSU Bank +1.1%; Banking +0.6%; Private Bank +0.1%"
+        ],
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        },
+        "index": [
+          {
+            "id": "E1",
+            "kind": "event",
+            "title": "RBI Remains Cautious On Crypto, Backs Underlying Technology: Governor Sanjay Malhotra",
+            "summary": "RBI Governor Sanjay Malhotra stated India promotes blockchain and tokenisation technology but remains cautious on cryptocurrencies due to concerns over monetary sovereignty and policy.",
+            "date": "2026-10-03T10:25:15.466208",
+            "source": "NDTV Profit",
+            "companies": [],
+            "ref": "event:rss-22bbfbb737a0"
+          },
+          {
+            "id": "E2",
+            "kind": "event",
+            "title": "Sebi proposes mandatory colour-coded Credit Risk-o-Meter for debt securities",
+            "summary": "The Securities and Exchange Board of India (Sebi) has introduced a mandatory Credit Risk-o-Meter for debt securities, aiming to enhance investor awareness regarding credit risk. This user-friendly too",
+            "date": "2026-08-14T05:40:27.378039",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "event:rss-d59fc9906a97"
+          },
+          {
+            "id": "E3",
+            "kind": "event",
+            "title": "RBI to close FCNR(B) swaps a month earlier due to gush",
+            "summary": "The Reserve Bank of India has moved the FCNR(B) deposit deadline to August 31 in response to better-than-expected foreign currency inflows. This adjustment follows a positive uptake of the swap facili",
+            "date": "2026-08-15T04:20:19.977742",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "event:rss-ad00a27f34b9"
+          },
+          {
+            "id": "E4",
+            "kind": "event",
+            "title": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+            "summary": "Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulation, 2015-Renewal of loan/ credit facility",
+            "date": "2026-08-12T16:33:33.702605",
+            "source": "NSE",
+            "companies": [],
+            "ref": "event:nse-3fe23e9e4b"
+          },
+          {
+            "id": "E5",
+            "kind": "event",
+            "title": "Rupee holds steady at 95.44 amidst RBI intervention",
+            "summary": "The Indian rupee remained stable on Thursday, closing near its previous level.  Dollar sales by the Reserve Bank of India kept the local unit within a tight range.  Demand from maturing forwards and d",
+            "date": "2026-08-14T02:00:43.280534",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "event:rss-452ba91505d8"
+          },
+          {
+            "id": "E6",
+            "kind": "event",
+            "title": "Rupee logs weekly decline, with RBI intervention curbing losses",
+            "summary": "The Indian rupee faced a challenging week, depreciating against the dollar amidst mounting tensions from the Middle East conflict. Despite this, central bank interventions and steady dollar sales by s",
+            "date": "2026-08-14T10:55:41.495253",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "event:rss-4b6b8365cd2b"
+          },
+          {
+            "id": "E7",
+            "kind": "event",
+            "title": "Rupee nudges up on RBI intervention; investors eye inflation data",
+            "summary": "The Indian rupee finished the day marginally higher, propelled by ongoing tensions in the Middle East. Continuous interventions from the central bank have provided support against the U.S. dollar. Tra",
+            "date": "2026-08-12T16:05:37.135262",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "event:rss-b36bc6485df8"
+          },
+          {
+            "id": "E8",
+            "kind": "event",
+            "title": "Pursuant to the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015 and the Code of Fair Disclosure and Conduct and in terms of Regulation 8 of the SEBI (Prohibition of Insider Trading) Regulations, 2015, the Bank would like to place the attached information on record pertaining to its performance in the quarter ended September 30, 2026.",
+            "summary": "Pursuant to the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015 and the Code of Fair Disclosure and Conduct and in terms of Regulation 8 of the SEBI (Prohibition of Insider Tr",
+            "date": "2026-10-03T14:10:23.818974",
+            "source": "NSE",
+            "companies": [],
+            "ref": "event:nse-e73653ad09"
+          },
+          {
+            "id": "N1",
+            "kind": "news",
+            "title": "Indian markets open higher amid positive global cues; PSU bank stocks lead - Telangana Today",
+            "summary": "Indian markets open higher amid positive global cues; PSU bank stocks lead&nbsp;&nbsp;Telangana Today",
+            "date": "23m ago",
+            "source": "Google News",
+            "companies": [],
+            "ref": "news:live-55ffbb46f20a"
+          },
+          {
+            "id": "N2",
+            "kind": "news",
+            "title": "Yes Bank shares rise 3% after Q2 business update shows loans surging 24% YoY, deposits up 20%",
+            "summary": "Yes Bank shares rose after the lender reported a 23.8% YoY growth in loans and advances to around Rs 3.1 lakh crore in Q2 FY27. Deposits also grew nearly 20% YoY, signalling continued business momentu",
+            "date": "42m ago",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "news:live-ef1a981a7f99"
+          },
+          {
+            "id": "N3",
+            "kind": "news",
+            "title": "Why is market rising today? Sensex rallies 700 points, Nifty above 22,600. 6 key factors driving rebound",
+            "summary": "After a long slump, the Indian stock market is experiencing a refreshing surge, with both Sensex and Nifty indices showcasing notable increases. The recent leadership transition at HDFC Bank has invig",
+            "date": "47m ago",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "news:live-82948d56e7a0"
+          },
+          {
+            "id": "N4",
+            "kind": "news",
+            "title": "HDFC Bank shares rise 2% after appointing Anup Bagchi as new CEO, Q2 biz update. Buy, sell or hold?",
+            "summary": "HDFC Bank shares rose after Anup Bagchi was appointed as the bank’s new MD &amp; CEO, ending months of uncertainty over its top leadership. Brokerages Jefferies, Morgan Stanley and Citi retained posit",
+            "date": "51m ago",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "news:live-93fe9b163d82"
+          },
+          {
+            "id": "N5",
+            "kind": "news",
+            "title": "HDFC Bank shares rise 2% as Street cheers Anup Bagchi's appointment as CEO",
+            "summary": "HDFC Bank shares have significantly underperformed peers over the last few years. The stock price has declined by 25 per cent in the past one year and 8 per cent in the past five years.",
+            "date": "58m ago",
+            "source": "Business Standard",
+            "companies": [],
+            "ref": "news:live-d723b4bf9296"
+          },
+          {
+            "id": "N6",
+            "kind": "news",
+            "title": "HDFC Bank: Anup Bagchi at helm lifts overhang; brokerages share outlook",
+            "summary": "Analysts at Motilal Oswal Financial Services (MOFSL) said Bagchi's appointment removes a key overhang around HDFC Bank's leadership succession.",
+            "date": "1h ago",
+            "source": "Business Standard",
+            "companies": [],
+            "ref": "news:live-81831ca2c246"
+          },
+          {
+            "id": "N7",
+            "kind": "news",
+            "title": "Kotak Mahindra Bank Primed For Next Leg Of Growth As Street Cheers Anup Saha's Elevation",
+            "summary": "Street analysts view his deep domain expertise in analytics-driven consumer finance and high-yielding credit portfolios as an ideal catalyst for Kotak Mahindra Bank's next phase of transformation and ",
+            "date": "1h ago",
+            "source": "NDTV Profit",
+            "companies": [],
+            "ref": "news:live-5bb11d985ce9"
+          },
+          {
+            "id": "N8",
+            "kind": "news",
+            "title": "Stock market today LIVE: Sensex up 500 points, Nifty up 150 points; HDFC Bank, RIL, Bajaj Finance shares gain",
+            "summary": "Stock market Opening Bell Today: The Gift Nifty live chart is signalling around 200 points gap-up opening for the Nifty 50 index",
+            "date": "1h ago",
+            "source": "Livemint",
+            "companies": [],
+            "ref": "news:live-2e37e55d12e0"
+          },
+          {
+            "id": "N9",
+            "kind": "news",
+            "title": "Sensex, Nifty opening: Will stock market rise ahead of RBI MPC? - India Today",
+            "summary": "Sensex, Nifty opening: Will stock market rise ahead of RBI MPC?&nbsp;&nbsp;India Today",
+            "date": "1h ago",
+            "source": "Google News",
+            "companies": [],
+            "ref": "news:live-19242829be69"
+          },
+          {
+            "id": "N10",
+            "kind": "news",
+            "title": "India's bond yield curve poised to flatten as RBI drains surplus cash",
+            "summary": "The 5-10 year yield gap is expected to narrow as the RBI drains surplus cash, pressuring shorter maturities",
+            "date": "1h ago",
+            "source": "Business Standard",
+            "companies": [],
+            "ref": "news:live-49cafe92bde4"
+          },
+          {
+            "id": "N11",
+            "kind": "news",
+            "title": "Anup Bagchi's Appointment Removes Key Overhang For HDFC Bank Stock, Supports Re-Rating, Say Brokerages",
+            "summary": "Analysts believe the appointment should help restore investor and customer confidence in HDFC Bank, given that Anup Bagchi is a banking veteran with experience across diverse responsibilities within t",
+            "date": "1h ago",
+            "source": "NDTV Profit",
+            "companies": [],
+            "ref": "news:live-e1c06fd9a7d4"
+          },
+          {
+            "id": "N12",
+            "kind": "news",
+            "title": "HDFC Bank Share Price Live Updates: HDFC Bank's Price Breakout Signals Strong Momentum",
+            "summary": "HDFC Bank Share Price Live Updates: HDFC Bank's Price Breakout Signals Strong Momentum",
+            "date": "2h ago",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "news:live-2fadad083a8a"
+          },
+          {
+            "id": "N13",
+            "kind": "news",
+            "title": "Stocks to watch: HDFC Bank, Ola Electric, D-Mart, YES Bank, Bajaj Finance",
+            "summary": "Stocks to watch today: HDFC Bank has appointed ICICI Group veteran Anup Bagchi as its next managing director and chief executive officer (MD & CEO).",
+            "date": "2h ago",
+            "source": "Business Standard",
+            "companies": [],
+            "ref": "news:live-f4420e5a340d"
+          },
+          {
+            "id": "N14",
+            "kind": "news",
+            "title": "Markets bet on RBI rate hike as inflation pressure builds",
+            "summary": "As inflation concerns rise, investors are putting their faith in the Reserve Bank of India to implement an interest rate hike. A survey reveals that nearly 60% of economists believe a 25-basis-point i",
+            "date": "2h ago",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "news:live-f112bc12c835"
+          },
+          {
+            "id": "N15",
+            "kind": "news",
+            "title": "RBI's dollar inflow measures buy time, but external risks remain",
+            "summary": "The Reserve Bank of India's recent measures to boost dollar inflows are a temporary fix, economists warn. While these steps aim to stabilize the rupee now, the country must strengthen its balance of p",
+            "date": "1h ago",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "news:live-f80336401a44"
+          },
+          {
+            "id": "N16",
+            "kind": "news",
+            "title": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch - Business Today",
+            "summary": "Nifty, Sensex, Nifty Bank outlook for today: GIFT Nifty up 3 points; key levels to watch&nbsp;&nbsp;Business Today",
+            "date": "11m ago",
+            "source": "Google News",
+            "companies": [],
+            "ref": "news:live-5ed5dc17ff75"
+          },
+          {
+            "id": "N17",
+            "kind": "news",
+            "title": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses - BusinessLine",
+            "summary": "Sensex, Nifty trade flat; Dr Reddy’s tops gainers, Kotak Bank leads losses&nbsp;&nbsp;BusinessLine",
+            "date": "46m ago",
+            "source": "Google News",
+            "companies": [],
+            "ref": "news:live-90be64e87840"
+          },
+          {
+            "id": "N18",
+            "kind": "news",
+            "title": "Zerodha now wants to enter investment banking space, seeks Sebi nod",
+            "summary": "Zerodha has applied to SEBI for a Category I merchant banking licence, signalling its entry into investment banking. The move aligns with India’s strong IPO pipeline and expanding capital markets acti",
+            "date": "12m ago",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "news:live-394f4e9b3a99"
+          },
+          {
+            "id": "N19",
+            "kind": "news",
+            "title": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active - Moneycontrol.com",
+            "summary": "Sensex Today | Stock Market Live: Sensex, Nifty at day's low; VIX up 7%, BSE, Persistent, HDFC Bank most active&nbsp;&nbsp;Moneycontrol.com",
+            "date": "7m ago",
+            "source": "Google News",
+            "companies": [],
+            "ref": "news:live-184d15fcaee2"
+          },
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:1"
+          },
+          {
+            "id": "C2",
+            "kind": "context",
+            "title": "Sector performance (real, live 1-day change): PSU Bank +1.1%; Banking +0.6%; Private Bank +0.1%",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:2"
+          }
+        ],
+        "historical": []
+      },
+      "model_result": {
+        "status": 200,
+        "classification": null,
+        "finish_reason": "stop",
+        "latency_ms": 12281,
+        "usage": {
+          "prompt_tokens": 2064,
+          "completion_tokens": 1327,
+          "total_tokens": 3391
+        },
+        "reasoning_tokens": 876,
+        "would_exceed_30s": false
+      },
+      "outcome": "generation_rejected_by_gate_b"
+    },
+    "CC2": {
+      "id": "CC2",
+      "query": "Compare HDFC Bank and ICICI Bank.",
+      "entities": {
+        "companies": [
+          "HDFCBANK",
+          "ICICIBANK"
+        ],
+        "sectors": [],
+        "policies": []
+      },
+      "wall_s": 25.69,
+      "calls": [
+        {
+          "provider": "openai-benchmark-project",
+          "model": "gpt-6-luna",
+          "max_completion_tokens": 7000,
+          "prompt_chars": 8131,
+          "approx_input_tokens": 2033,
+          "latency_ms": 22594,
+          "status": 200,
+          "limit_headers": {
+            "openai-processing-ms": "21975",
+            "x-ratelimit-limit-requests": "50",
+            "x-ratelimit-limit-tokens": "100000",
+            "x-ratelimit-remaining-requests": "45",
+            "x-ratelimit-remaining-tokens": "57280",
+            "x-ratelimit-reset-requests": "2h7m17.144s",
+            "x-ratelimit-reset-tokens": "307h35m2.4s",
+            "x-request-id": "req_54a13d01c5364ea082c6577506df267f"
+          },
+          "response_model": "gpt-6-luna",
+          "finish_reason": "stop",
+          "output_chars": 3545,
+          "usage": {
+            "prompt_tokens": 2042,
+            "completion_tokens": 2901,
+            "total_tokens": 4943
+          },
+          "reasoning_tokens": 1849,
+          "would_exceed_30s": false,
+          "raw_output": "{\n  \"investment\": {\n    \"summary\": \"HDFC Bank is at P/E 15.6 and P/B 1.81, versus ICICI Bank at P/E 17.0 and P/B 2.48. The supplied evidence gives HDFC Bank's 52-week range as 681.9–1020.5 and ICICI Bank's as 1187.6–1480.0.\",\n    \"bottom_line\": \"HDFC Bank is at P/E 15.6 and P/B 1.81, versus ICICI Bank at P/E 17.0 and P/B 2.48. Operating growth, margins and earnings trends are not available in the supplied evidence, so those dimensions cannot be compared here.\"\n  },\n  \"claim_sources\": [\n    {\n      \"claim\": \"HDFC Bank is at P/E 15.6 and P/B 1.81, versus ICICI Bank at P/E 17.0 and P/B 2.48.\",\n      \"sources\": [\"C1\", \"C2\"]\n    },\n    {\n      \"claim\": \"The supplied evidence gives HDFC Bank's 52-week range as 681.9–1020.5 and ICICI Bank's as 1187.6–1480.0.\",\n      \"sources\": [\"C1\", \"C2\"]\n    },\n    {\n      \"claim\": \"The supplied market-news headline links a 2% rise in HDFC Bank shares with Anup Bagchi's CEO appointment and a Q2 business update.\",\n      \"sources\": [\"N2\"]\n    },\n    {\n      \"claim\": \"HDFC Bank's supplied figures include P/E 15.6, P/B 1.81 and a 52-week range of 681.9–1020.5.\",\n      \"sources\": [\"C1\"]\n    },\n    {\n      \"claim\": \"ICICI Bank's supplied figures include P/E 17.0, P/B 2.48 and a 52-week range of 1187.6–1480.0.\",\n      \"sources\": [\"C2\"]\n    },\n    {\n      \"claim\": \"The query compares HDFC Bank and ICICI Bank using their supplied valuation multiples.\",\n      \"sources\": [\"C1\", \"C2\"]\n    }\n  ],\n  \"evidence\": {\n    \"what_happened\": \"The supplied market-news headline links a 2% rise in HDFC Bank shares with Anup Bagchi's CEO appointment and a Q2 business update.\",\n    \"why_it_happened\": \"The supplied evidence does not establish what drives the difference in the banks' valuation multiples.\",\n    \"key_drivers\": [\n      {\n        \"icon\": \"valuation\",\n        \"title\": \"Valuation multiples\",\n        \"explanation\": \"HDFC Bank is at P/E 15.6 and P/B 1.81, versus ICICI Bank at P/E 17.0 and P/B 2.48.\"\n      }\n    ]\n  },\n  \"companies\": [\n    {\n      \"symbol\": \"HDFCBANK\",\n      \"name\": \"HDFC Bank\",\n      \"reason\": \"HDFC Bank's supplied figures include P/E 15.6, P/B 1.81 and a 52-week range of 681.9–1020.5.\"\n    },\n    {\n      \"symbol\": \"ICICIBANK\",\n      \"name\": \"ICICI Bank\",\n      \"reason\": \"ICICI Bank's supplied figures include P/E 17.0, P/B 2.48 and a 52-week range of 1187.6–1480.0.\"\n    }\n  ],\n  \"sectors\": [\n    {\n      \"name\": \"Banking\",\n      \"explanation\": \"The query compares HDFC Bank and ICICI Bank using their supplied valuation multiples.\"\n    }\n  ],\n  \"timeline\": {\n    \"milestones\": []\n  },\n  \"risks\": {\n    \"risks\": [\n      \"Operating growth, margins and earnings trends are not available in the supplied evidence.\"\n    ],\n    \"opportunities\": []\n  },\n  \"extras\": {\n    \"monitoring\": {\n      \"items\": [\n        {\n          \"label\": \"Comparable operating results\",\n          \"importance\": \"critical\",\n          \"why_it_matters\": \"Growth and margin information would address the operating-data gap in the supplied comparison.\",\n          \"frequency\": \"Each reporting cycle\"\n        },\n        {\n          \"label\": \"Valuation multiples\",\n          \"importance\": \"important\",\n          \"why_it_matters\": \"Tracking comparable P/E and P/B figures would show whether the valuation difference noted above changes.\",\n          \"frequency\": \"Each data update\"\n        }\n      ]\n    },\n    \"follow_up_questions\": [\n      \"Can you provide comparable growth and margin data for both banks?\",\n      \"Would you like the comparison expanded to include asset-quality and capital metrics?\"\n    ]\n  }\n}"
+        }
+      ],
+      "model_calls": 1,
+      "expected_model_calls": null,
+      "call_count_as_expected": null,
+      "response": {
+        "query": "Compare HDFC Bank and ICICI Bank.",
+        "response_id": "9a69c745-f213-4a5f-810f-b4144fac9aba",
+        "schema_version": "v3.0",
+        "specialist": "comparison",
+        "intent": "compare",
+        "ui_mode": "company_comparison",
+        "switch_holding": "HDFC Bank",
+        "switch_target": "ICICI Bank",
+        "degraded_reason": null,
+        "synthesis_incomplete": false,
+        "answer": {
+          "summary": "HDFC Bank is at P/E 15.6 and P/B 1.81, versus ICICI Bank at P/E 17.0 and P/B 2.48. The supplied evidence gives HDFC Bank's 52-week range as 681.9–1020.5 and ICICI Bank's as 1187.6–1480.0.",
+          "bottom_line": "HDFC Bank is at P/E 15.6 and P/B 1.81, versus ICICI Bank at P/E 17.0 and P/B 2.48. Operating growth, margins and earnings trends are not available in the supplied evidence, so those dimensions cannot be compared here.",
+          "what_happened": "The supplied market-news headline links a 2% rise in HDFC Bank shares with Anup Bagchi's CEO appointment and a Q2 business update.",
+          "why_it_happened": "The supplied evidence does not establish what drives the difference in the banks' valuation multiples.",
+          "immediate_impact": "",
+          "medium_term": "",
+          "long_term": "",
+          "what_priced_in": "",
+          "risks": [
+            "Operating growth, margins and earnings trends are not available in the supplied evidence."
+          ],
+          "opportunities": [],
+          "confidence": 42.5,
+          "confidence_level": "Medium",
+          "sentiment": null,
+          "sources_count": 3
+        },
+        "key_drivers": [
+          {
+            "icon": "valuation",
+            "title": "Valuation multiples",
+            "explanation": "HDFC Bank is at P/E 15.6 and P/B 1.81, versus ICICI Bank at P/E 17.0 and P/B 2.48.",
+            "confidence": null
+          }
+        ],
+        "insights": [],
+        "companies": [
+          {
+            "symbol": "HDFCBANK",
+            "name": "HDFC Bank",
+            "reason": "HDFC Bank's supplied figures include P/E 15.6, P/B 1.81 and a 52-week range of 681.9–1020.5.",
+            "impact_type": null,
+            "impact_score": null,
+            "confidence": null,
+            "price": "714.50",
+            "change": "-0.93%",
+            "positive": false,
+            "price_fetched_at": "2026-10-05T04:50:41.439691+00:00",
+            "chart": [
+              722.7,
+              708.7,
+              721.2,
+              714.55
+            ],
+            "ripple_position": "Indirect Exposure",
+            "why_it_matters": "HDFC Bank's supplied figures include P/E 15.6, P/B 1.81 and a 52-week range of 681.9–1020.5."
+          },
+          {
+            "symbol": "ICICIBANK",
+            "name": "ICICI Bank",
+            "reason": "ICICI Bank's supplied figures include P/E 17.0, P/B 2.48 and a 52-week range of 1187.6–1480.0.",
+            "impact_type": null,
+            "impact_score": null,
+            "confidence": null,
+            "price": "1,315.40",
+            "change": "+0.37%",
+            "positive": true,
+            "price_fetched_at": "2026-10-05T04:50:41.888689+00:00",
+            "chart": [
+              1292.2,
+              1321.7,
+              1310.6,
+              1315.4
+            ],
+            "ripple_position": "Indirect Exposure",
+            "why_it_matters": "ICICI Bank's supplied figures include P/E 17.0, P/B 2.48 and a 52-week range of 1187.6–1480.0."
+          }
+        ],
+        "sectors": [
+          {
+            "name": "Banking",
+            "explanation": "The query compares HDFC Bank and ICICI Bank using their supplied valuation multiples.",
+            "score": null,
+            "outlook": null,
+            "positive": null,
+            "confidence": null
+          }
+        ],
+        "related_events": [],
+        "news": [
+          {
+            "id": "live-82948d56e7a0",
+            "headline": "Why is market rising today? Sensex rallies 700 points, Nifty above 22,600. 6 key factors driving rebound",
+            "summary": "After a long slump, the Indian stock market is experiencing a refreshing surge, with both Sensex and Nifty indices showcasing notable increases. The recent leadership transition at HDFC Bank has invig",
+            "source": "Economic Times",
+            "published_at": "47m ago",
+            "impact_score": 8.5,
+            "url": "https://economictimes.indiatimes.com/markets/stocks/news/why-is-market-rising-today-sensex-gains-nearly-500-pts-nifty-above-22550-7-key-factors-driving-rebound/articleshow/134685325.cms"
+          },
+          {
+            "id": "live-93fe9b163d82",
+            "headline": "HDFC Bank shares rise 2% after appointing Anup Bagchi as new CEO, Q2 biz update. Buy, sell or hold?",
+            "summary": "HDFC Bank shares rose after Anup Bagchi was appointed as the bank’s new MD &amp; CEO, ending months of uncertainty over its top leadership. Brokerages Jefferies, Morgan Stanley and Citi retained posit",
+            "source": "Economic Times",
+            "published_at": "51m ago",
+            "impact_score": 7.5,
+            "url": "https://economictimes.indiatimes.com/markets/stocks/news/hdfc-bank-shares-in-focus-after-appointing-anup-bagchi-as-new-ceo-q2-biz-update-buy-sell-or-hold/articleshow/134685243.cms"
+          },
+          {
+            "id": "live-d723b4bf9296",
+            "headline": "HDFC Bank shares rise 2% as Street cheers Anup Bagchi's appointment as CEO",
+            "summary": "HDFC Bank shares have significantly underperformed peers over the last few years. The stock price has declined by 25 per cent in the past one year and 8 per cent in the past five years.",
+            "source": "Business Standard",
+            "published_at": "58m ago",
+            "impact_score": 7.0,
+            "url": "https://www.business-standard.com/markets/news/hdfc-bank-shares-rise-2-as-street-cheers-anup-bagchi-s-appointment-as-ceo-126100500106_1.html"
+          }
+        ],
+        "policies": [],
+        "timeline": [],
+        "historical_comparison": [],
+        "ripple_chain": [
+          {
+            "depth": 0,
+            "nodes": [
+              {
+                "id": "event:rss-3bfd645261e1",
+                "label": "SBI, HDFC Bank, to ICICI Bank, Axis Bank: Bank stocks fall ahead of RBI monetary policy decision tom",
+                "type": "event",
+                "direction": "positive",
+                "weight": 1.0,
+                "parent_id": null
+              }
+            ]
+          },
+          {
+            "depth": 1,
+            "nodes": [
+              {
+                "id": "sector:financial-services",
+                "label": "Financial Services",
+                "type": "sector",
+                "direction": "negative",
+                "weight": 0.64,
+                "parent_id": "event:rss-3bfd645261e1"
+              },
+              {
+                "id": "sector:banks",
+                "label": "banks",
+                "type": "sector",
+                "direction": "negative",
+                "weight": 0.64,
+                "parent_id": "event:rss-3bfd645261e1"
+              },
+              {
+                "id": "company:sbin",
+                "label": "SBIN",
+                "type": "company",
+                "direction": "negative",
+                "weight": 0.64,
+                "parent_id": "event:rss-3bfd645261e1"
+              },
+              {
+                "id": "company:hdfcbank",
+                "label": "HDFCBANK",
+                "type": "company",
+                "direction": "negative",
+                "weight": 0.64,
+                "parent_id": "event:rss-3bfd645261e1"
+              },
+              {
+                "id": "company:icicibank",
+                "label": "ICICIBANK",
+                "type": "company",
+                "direction": "negative",
+                "weight": 0.64,
+                "parent_id": "event:rss-3bfd645261e1"
+              }
+            ]
+          }
+        ],
+        "scenarios": {},
+        "monitoring": {
+          "items": [
+            {
+              "label": "Comparable operating results",
+              "importance": "critical",
+              "why_it_matters": "Growth and margin information would address the operating-data gap in the supplied comparison.",
+              "frequency": "Each reporting cycle"
+            },
+            {
+              "label": "Valuation multiples",
+              "importance": "important",
+              "why_it_matters": "Tracking comparable P/E and P/B figures would show whether the valuation difference noted above changes.",
+              "frequency": "Each data update"
+            }
+          ]
+        },
+        "follow_up_questions": [
+          "Can you provide comparable growth and margin data for both banks?",
+          "Would you like the comparison expanded to include asset-quality and capital metrics?"
+        ],
+        "investment_verdict": {
+          "rating": "Not Applicable",
+          "direction": null,
+          "confidence": 42.5,
+          "horizon": "1-3 months",
+          "top_picks": [],
+          "risks": [],
+          "catalysts": [],
+          "opportunity_score": null,
+          "risk_level": "",
+          "suitable_for": "",
+          "engine_verdict": null
+        },
+        "market_chart": {
+          "labels": [],
+          "series": []
+        },
+        "graph": {
+          "nodes": [
+            {
+              "id": "q",
+              "label": "Compare HDFC Bank and ICICI …",
+              "type": "query",
+              "x": 0,
+              "y": 0
+            },
+            {
+              "id": "mig-event:rss-3bfd645261e1",
+              "label": "SBI, HDFC Bank, to ICICI Bank, Axis Bank: Bank stocks fall ahead of RBI monetary policy decision tom",
+              "type": "event",
+              "x": 0,
+              "y": 130,
+              "direction": "positive"
+            },
+            {
+              "id": "mig-sector:financial-services",
+              "label": "Financial Services",
+              "type": "sector",
+              "x": 0,
+              "y": 260,
+              "direction": "negative"
+            },
+            {
+              "id": "mig-sector:banks",
+              "label": "banks",
+              "type": "sector",
+              "x": 170,
+              "y": 260,
+              "direction": "negative"
+            },
+            {
+              "id": "mig-company:sbin",
+              "label": "SBIN",
+              "type": "company",
+              "x": 340,
+              "y": 260,
+              "direction": "negative"
+            },
+            {
+              "id": "mig-company:hdfcbank",
+              "label": "HDFCBANK",
+              "type": "company",
+              "x": 510,
+              "y": 260,
+              "direction": "negative"
+            },
+            {
+              "id": "mig-company:icicibank",
+              "label": "ICICIBANK",
+              "type": "company",
+              "x": 680,
+              "y": 260,
+              "direction": "negative"
+            },
+            {
+              "id": "co-HDFCBANK",
+              "label": "HDFCBANK",
+              "type": "company",
+              "x": 0,
+              "y": 390,
+              "impact_score": null
+            },
+            {
+              "id": "co-ICICIBANK",
+              "label": "ICICIBANK",
+              "type": "company",
+              "x": 170,
+              "y": 390,
+              "impact_score": null
+            },
+            {
+              "id": "comp-KOTAKBANK",
+              "label": "KOTAKBANK",
+              "type": "competitor",
+              "x": 0,
+              "y": 520
+            },
+            {
+              "id": "risk-0",
+              "label": "Operating growth, margins and earnings t…",
+              "type": "risk",
+              "x": 0,
+              "y": 650
+            }
+          ],
+          "edges": [
+            {
+              "id": "q->mig-event:rss-3bfd645261e1",
+              "source": "q",
+              "target": "mig-event:rss-3bfd645261e1",
+              "label": "impacts"
+            },
+            {
+              "id": "mig-event:rss-3bfd645261e1->mig-sector:financial-services",
+              "source": "mig-event:rss-3bfd645261e1",
+              "target": "mig-sector:financial-services",
+              "label": "impacts"
+            },
+            {
+              "id": "mig-event:rss-3bfd645261e1->mig-sector:banks",
+              "source": "mig-event:rss-3bfd645261e1",
+              "target": "mig-sector:banks",
+              "label": "impacts"
+            },
+            {
+              "id": "mig-event:rss-3bfd645261e1->mig-company:sbin",
+              "source": "mig-event:rss-3bfd645261e1",
+              "target": "mig-company:sbin",
+              "label": "impacts"
+            },
+            {
+              "id": "mig-event:rss-3bfd645261e1->mig-company:hdfcbank",
+              "source": "mig-event:rss-3bfd645261e1",
+              "target": "mig-company:hdfcbank",
+              "label": "impacts"
+            },
+            {
+              "id": "mig-event:rss-3bfd645261e1->mig-company:icicibank",
+              "source": "mig-event:rss-3bfd645261e1",
+              "target": "mig-company:icicibank",
+              "label": "impacts"
+            },
+            {
+              "id": "q->co-HDFCBANK",
+              "source": "q",
+              "target": "co-HDFCBANK",
+              "label": "involves"
+            },
+            {
+              "id": "q->co-ICICIBANK",
+              "source": "q",
+              "target": "co-ICICIBANK",
+              "label": "involves"
+            },
+            {
+              "id": "co-HDFCBANK->comp-KOTAKBANK",
+              "source": "co-HDFCBANK",
+              "target": "comp-KOTAKBANK",
+              "label": "competes_with"
+            },
+            {
+              "id": "co-ICICIBANK->comp-KOTAKBANK",
+              "source": "co-ICICIBANK",
+              "target": "comp-KOTAKBANK",
+              "label": "competes_with"
+            },
+            {
+              "id": "co-HDFCBANK->risk-0",
+              "source": "co-HDFCBANK",
+              "target": "risk-0",
+              "label": "threatens"
+            }
+          ]
+        },
+        "citations": [
+          "Business Standard",
+          "Economic Times"
+        ],
+        "decision_intelligence": {},
+        "confidence_data": {
+          "level": "Medium",
+          "score": 42.5,
+          "reasons": [
+            "9 trusted sources",
+            "Calibrated from 102 verified predictions (57% historical accuracy)"
+          ],
+          "breakdown": {
+            "evidence_quality": 52.5,
+            "market_confirmation": 0.0,
+            "historical_similarity": 0.0,
+            "data_freshness": 100.0,
+            "reasoning_confidence": 50.0
+          },
+          "caveats": [
+            "This is a valuation comparison only. MarketRipple doesn't have current operating evidence (results, growth, margins, orders) for HDFC Bank Ltd and ICICI Bank Ltd, so it doesn't conclude which company is stronger overall."
+          ]
+        },
+        "decision_engine_v2": {},
+        "timeline_intelligence": {},
+        "opportunity_risk_matrix": {},
+        "ai_conclusion": {},
+        "evidence_score": {
+          "stars": 3,
+          "checklist": {
+            "real_time_price_data": true,
+            "government_data": false,
+            "historical_precedent": false,
+            "company_filings": true,
+            "live_market_events": true
+          },
+          "source_count": 3,
+          "development_count": 9,
+          "corroborating_source_count": 9
+        },
+        "confidence_breakdown": {
+          "evidence_quality": 52.5,
+          "market_confirmation": 0.0,
+          "historical_similarity": 0.0,
+          "data_freshness": 100.0,
+          "reasoning_confidence": 50.0,
+          "final_confidence": 42.5,
+          "level": "Medium",
+          "reasons": [
+            "9 trusted sources",
+            "Calibrated from 102 verified predictions (57% historical accuracy)"
+          ]
+        },
+        "confidence": {
+          "status": "scored",
+          "score": 33.4,
+          "components": {
+            "evidence_quality": 52.5,
+            "market_confirmation": 0.0,
+            "historical_similarity": 0.0,
+            "data_freshness": 100.0
+          }
+        },
+        "source_attribution": [
+          "news:live-82948d56e7a0",
+          "news:live-93fe9b163d82",
+          "news:live-d723b4bf9296"
+        ],
+        "evidence_index": [
+          {
+            "id": "N1",
+            "kind": "news",
+            "title": "Why is market rising today? Sensex rallies 700 points, Nifty above 22,600. 6 key factors driving rebound",
+            "date": "47m ago",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "N2",
+            "kind": "news",
+            "title": "HDFC Bank shares rise 2% after appointing Anup Bagchi as new CEO, Q2 biz update. Buy, sell or hold?",
+            "date": "51m ago",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "N3",
+            "kind": "news",
+            "title": "HDFC Bank shares rise 2% as Street cheers Anup Bagchi's appointment as CEO",
+            "date": "58m ago",
+            "source": "Business Standard",
+            "companies": []
+          },
+          {
+            "id": "A1",
+            "kind": "announcement",
+            "title": "HDFC Bank Limited has informed the Exchange about General Updates",
+            "date": "2026-08-24T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "HDFCBANK"
+            ]
+          },
+          {
+            "id": "A2",
+            "kind": "announcement",
+            "title": "ICICI Bank Limited has informed the Exchange about Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015",
+            "date": "2026-09-02T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "ICICIBANK"
+            ]
+          },
+          {
+            "id": "A3",
+            "kind": "announcement",
+            "title": "ICICI Bank Limited has informed the Exchange regarding Allotment of 598493  Shares.",
+            "date": "2026-09-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "ICICIBANK"
+            ]
+          },
+          {
+            "id": "A4",
+            "kind": "announcement",
+            "title": "ICICI Bank Limited has informed the Exchange about Credit Rating",
+            "date": "2026-09-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "ICICIBANK"
+            ]
+          },
+          {
+            "id": "A5",
+            "kind": "announcement",
+            "title": "ICICI Bank Limited has informed the Exchange about disclosure under Regulation 30 read with para A of Schedule III and Regulation 46(2) of the Securities and Exchange Board of…",
+            "date": "2026-08-24T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "ICICIBANK"
+            ]
+          },
+          {
+            "id": "A6",
+            "kind": "announcement",
+            "title": "ICICI Bank Limited has informed the Exchange regarding Allotment of 181843 Equity Shares under ICICI Bank Employees Stock Option Scheme-2000 on August 24, 2026.",
+            "date": "2026-08-24T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "ICICIBANK"
+            ]
+          },
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "HDFCBANK: P/E 15.6, P/B 1.81, 52W 681.9-1020.5",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": []
+          },
+          {
+            "id": "C2",
+            "kind": "context",
+            "title": "ICICIBANK: P/E 17.0, P/B 2.48, 52W 1187.6-1480.0",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": []
+          },
+          {
+            "id": "C3",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": []
+          }
+        ],
+        "claim_sources": [
+          {
+            "claim": "HDFC Bank is at P/E 15.6 and P/B 1.81, versus ICICI Bank at P/E 17.0 and P/B 2.48.",
+            "sources": [
+              "C1",
+              "C2"
+            ],
+            "scope": "company",
+            "company": "HDFCBANK",
+            "status": "ok",
+            "problems": [],
+            "ineligible": []
+          },
+          {
+            "claim": "The supplied evidence gives HDFC Bank's 52-week range as 681.9–1020.5 and ICICI Bank's as 1187.6–1480.0.",
+            "sources": [
+              "C1",
+              "C2"
+            ],
+            "scope": "company",
+            "company": "HDFCBANK",
+            "status": "ok",
+            "problems": [],
+            "ineligible": []
+          },
+          {
+            "claim": "The supplied market-news headline links a 2% rise in HDFC Bank shares with Anup Bagchi's CEO appointment and a Q2 business update.",
+            "sources": [
+              "N2"
+            ],
+            "scope": "company",
+            "company": "HDFCBANK",
+            "status": "ok",
+            "problems": [],
+            "ineligible": []
+          },
+          {
+            "claim": "HDFC Bank's supplied figures include P/E 15.6, P/B 1.81 and a 52-week range of 681.9–1020.5.",
+            "sources": [
+              "C1"
+            ],
+            "scope": "company",
+            "company": "HDFCBANK",
+            "status": "ok",
+            "problems": [],
+            "ineligible": []
+          },
+          {
+            "claim": "ICICI Bank's supplied figures include P/E 17.0, P/B 2.48 and a 52-week range of 1187.6–1480.0.",
+            "sources": [
+              "C2"
+            ],
+            "scope": "company",
+            "company": "ICICIBANK",
+            "status": "ok",
+            "problems": [],
+            "ineligible": []
+          },
+          {
+            "claim": "The query compares HDFC Bank and ICICI Bank using their supplied valuation multiples.",
+            "sources": [
+              "C1",
+              "C2"
+            ],
+            "scope": "company",
+            "company": "HDFCBANK",
+            "status": "ok",
+            "problems": [],
+            "ineligible": []
+          }
+        ],
+        "claim_validation": {
+          "status": "ok",
+          "summary": {
+            "claims": 6,
+            "ok": 6,
+            "problems": 0,
+            "uncovered_factual_sentences": 0
+          },
+          "uncovered": []
+        },
+        "premise_check": {
+          "status": "not_applicable",
+          "terms": []
+        },
+        "validation": {
+          "repairs": [],
+          "omissions": [],
+          "contradiction_flagged": false
+        },
+        "market_impact_horizons": {},
+        "what_to_monitor": [],
+        "ai_reasoning_methods": [],
+        "follow_up_groups": [
+          {
+            "key": "risks",
+            "label": "Risks",
+            "icon": "risk",
+            "items": [
+              {
+                "text": "What is the biggest downside risk?",
+                "query": "What is the biggest downside risk for HDFC Bank vs ICICI Bank right now?",
+                "difficulty": "beginner"
+              }
+            ]
+          },
+          {
+            "key": "compare",
+            "label": "Compare Further",
+            "icon": "compare",
+            "items": [
+              {
+                "text": "Compare HDFCBANK vs KOTAKBANK",
+                "query": "Compare HDFC Bank vs Kotak Mahindra Bank Ltd",
+                "difficulty": "intermediate"
+              },
+              {
+                "text": "Compare HDFCBANK vs SBIN",
+                "query": "Compare HDFC Bank vs State Bank of India",
+                "difficulty": "intermediate"
+              }
+            ]
+          },
+          {
+            "key": "portfolio",
+            "label": "Portfolio Decisions",
+            "icon": "portfolio",
+            "items": [
+              {
+                "text": "Should I switch HDFCBANK to ICICIBANK?",
+                "query": "Should I switch from HDFC Bank to ICICI Bank?",
+                "difficulty": "beginner"
+              },
+              {
+                "text": "Should I add HDFCBANK to my portfolio?",
+                "query": "Should I add HDFC Bank to my portfolio?",
+                "difficulty": "beginner"
+              }
+            ]
+          },
+          {
+            "key": "deeper",
+            "label": "Go Deeper",
+            "icon": "deeper",
+            "items": [
+              {
+                "text": "Show quarterly earnings trend",
+                "query": "Show HDFC Bank's quarterly earnings trend",
+                "difficulty": "intermediate"
+              }
+            ]
+          },
+          {
+            "key": "horizon",
+            "label": "Different Horizons",
+            "icon": "horizon",
+            "items": [
+              {
+                "text": "HDFCBANK vs ICICIBANK for 1 Month",
+                "query": "HDFC Bank vs ICICI Bank for 1 month",
+                "difficulty": "beginner"
+              }
+            ]
+          },
+          {
+            "key": "ripple",
+            "label": "Explore Ripple",
+            "icon": "ripple",
+            "items": [
+              {
+                "text": "Explore SBI, HDFC Bank, to ICICI Bank, Axis Bank: Bank stocks fall ahead of RBI monetary policy decision tom",
+                "query": "What is the impact of SBI, HDFC Bank, to ICICI Bank, Axis Bank: Bank stocks fall ahead of RBI monetary policy decision tom?",
+                "difficulty": "intermediate"
+              }
+            ]
+          }
+        ],
+        "conclusion_scope": {
+          "requested": "overall_strength",
+          "authorized": "valuation_comparison",
+          "partial": true,
+          "missing": [
+            "operating_evidence_HDFCBANK",
+            "operating_evidence_ICICIBANK"
+          ],
+          "reason": "overall_strength_needs_operating_evidence_for_every_company",
+          "coverage": {
+            "HDFCBANK": {
+              "valuation": true,
+              "operating": false
+            },
+            "ICICIBANK": {
+              "valuation": true,
+              "operating": false
+            }
+          }
+        },
+        "structured_authorization": {
+          "policy": "llm_structured_claims_withheld_unless_deterministically_authorized",
+          "withheld": [],
+          "state": "none_generated"
+        },
+        "evidence_sufficiency": {
+          "status": "SUFFICIENT",
+          "kind": "comparison",
+          "required": [
+            "evidence_for_HDFCBANK",
+            "evidence_for_ICICIBANK"
+          ],
+          "satisfied": [
+            "evidence_for_HDFCBANK",
+            "evidence_for_ICICIBANK"
+          ],
+          "missing": [],
+          "reason": null,
+          "missing_entities": [],
+          "context": [
+            "HDFCBANK: Why is market rising today? Sensex rallies 700 points, Nifty above 22,600. 6 key",
+            "HDFCBANK: HDFC Bank shares rise 2% after appointing Anup Bagchi as new CEO, Q2 biz update.",
+            "HDFCBANK: valuation data",
+            "ICICIBANK: ICICI Bank Limited has informed the Exchange about Disclosure under Regulation 3",
+            "ICICIBANK: ICICI Bank Limited has informed the Exchange regarding Allotment of 598493  Shar"
+          ]
+        },
+        "answer_authorization": {
+          "applicable": true,
+          "authorized": true,
+          "reasons": [],
+          "unsupported_figure_count": 0,
+          "factual_sentences": 6
+        },
+        "timing": {
+          "intent_detection_ms": 0.0,
+          "entity_detection_ms": 15.0,
+          "evidence_collection_ms": 1297.0,
+          "reasoning_ms": 22594.0,
+          "validation_ms": 62.0,
+          "assembly_ms": 1719.0,
+          "total_ms": 25687.0
+        },
+        "context_used": {
+          "companies": [],
+          "sectors": []
+        },
+        "watch_subject": null,
+        "answer_availability": {
+          "state": "available",
+          "evidence_retrieval_completed": true,
+          "evidence_count": 3
+        }
+      },
+      "gate_a": {
+        "status": "SUFFICIENT",
+        "kind": "comparison",
+        "required": [
+          "evidence_for_HDFCBANK",
+          "evidence_for_ICICIBANK"
+        ],
+        "satisfied": [
+          "evidence_for_HDFCBANK",
+          "evidence_for_ICICIBANK"
+        ],
+        "missing": [],
+        "reason": null,
+        "missing_entities": [],
+        "context": [
+          "HDFCBANK: Why is market rising today? Sensex rallies 700 points, Nifty above 22,600. 6 key",
+          "HDFCBANK: HDFC Bank shares rise 2% after appointing Anup Bagchi as new CEO, Q2 biz update.",
+          "HDFCBANK: valuation data",
+          "ICICIBANK: ICICI Bank Limited has informed the Exchange about Disclosure under Regulation 3",
+          "ICICIBANK: ICICI Bank Limited has informed the Exchange regarding Allotment of 598493  Shar"
+        ]
+      },
+      "premise_check": {
+        "status": "not_applicable",
+        "terms": []
+      },
+      "gate_b": {
+        "applicable": true,
+        "authorized": true,
+        "reasons": [],
+        "unsupported_figure_count": 0,
+        "factual_sentences": 6
+      },
+      "claim_validation": {
+        "status": "ok",
+        "summary": {
+          "claims": 6,
+          "ok": 6,
+          "problems": 0,
+          "uncovered_factual_sentences": 0
+        },
+        "uncovered": []
+      },
+      "claim_sources": [
+        {
+          "claim": "HDFC Bank is at P/E 15.6 and P/B 1.81, versus ICICI Bank at P/E 17.0 and P/B 2.48.",
+          "sources": [
+            "C1",
+            "C2"
+          ],
+          "scope": "company",
+          "company": "HDFCBANK",
+          "status": "ok",
+          "problems": [],
+          "ineligible": []
+        },
+        {
+          "claim": "The supplied evidence gives HDFC Bank's 52-week range as 681.9–1020.5 and ICICI Bank's as 1187.6–1480.0.",
+          "sources": [
+            "C1",
+            "C2"
+          ],
+          "scope": "company",
+          "company": "HDFCBANK",
+          "status": "ok",
+          "problems": [],
+          "ineligible": []
+        },
+        {
+          "claim": "The supplied market-news headline links a 2% rise in HDFC Bank shares with Anup Bagchi's CEO appointment and a Q2 business update.",
+          "sources": [
+            "N2"
+          ],
+          "scope": "company",
+          "company": "HDFCBANK",
+          "status": "ok",
+          "problems": [],
+          "ineligible": []
+        },
+        {
+          "claim": "HDFC Bank's supplied figures include P/E 15.6, P/B 1.81 and a 52-week range of 681.9–1020.5.",
+          "sources": [
+            "C1"
+          ],
+          "scope": "company",
+          "company": "HDFCBANK",
+          "status": "ok",
+          "problems": [],
+          "ineligible": []
+        },
+        {
+          "claim": "ICICI Bank's supplied figures include P/E 17.0, P/B 2.48 and a 52-week range of 1187.6–1480.0.",
+          "sources": [
+            "C2"
+          ],
+          "scope": "company",
+          "company": "ICICIBANK",
+          "status": "ok",
+          "problems": [],
+          "ineligible": []
+        },
+        {
+          "claim": "The query compares HDFC Bank and ICICI Bank using their supplied valuation multiples.",
+          "sources": [
+            "C1",
+            "C2"
+          ],
+          "scope": "company",
+          "company": "HDFCBANK",
+          "status": "ok",
+          "problems": [],
+          "ineligible": []
+        }
+      ],
+      "degraded_reason": null,
+      "rejected_generation": [],
+      "evidence": {
+        "plan_kind": "comparison",
+        "filter_report": {
+          "plan": "comparison",
+          "events": {
+            "kept": 0,
+            "dropped_stale": 1,
+            "dropped_irrelevant": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "news": {
+            "kept": 3,
+            "dropped_stale": 0,
+            "dropped_irrelevant": 0,
+            "dropped_undated": 0,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 0
+          },
+          "announcements": {
+            "kept": 6,
+            "dropped_stale": 0
+          },
+          "policies": {
+            "kept": 0,
+            "dropped_irrelevant": 0
+          },
+          "premise": {
+            "required": false,
+            "terms": [],
+            "supported": null,
+            "supporting": []
+          }
+        },
+        "events": [],
+        "news": [
+          {
+            "id": "live-82948d56e7a0",
+            "title": "Why is market rising today? Sensex rallies 700 points, Nifty above 22,600. 6 key factors driving rebound",
+            "summary": "After a long slump, the Indian stock market is experiencing a refreshing surge, with both Sensex and Nifty indices showcasing notable increases. The recent leadership transition at HDFC Bank has invig",
+            "date": "47m ago",
+            "source": "Economic Times"
+          },
+          {
+            "id": "live-93fe9b163d82",
+            "title": "HDFC Bank shares rise 2% after appointing Anup Bagchi as new CEO, Q2 biz update. Buy, sell or hold?",
+            "summary": "HDFC Bank shares rose after Anup Bagchi was appointed as the bank’s new MD &amp; CEO, ending months of uncertainty over its top leadership. Brokerages Jefferies, Morgan Stanley and Citi retained posit",
+            "date": "51m ago",
+            "source": "Economic Times"
+          },
+          {
+            "id": "live-d723b4bf9296",
+            "title": "HDFC Bank shares rise 2% as Street cheers Anup Bagchi's appointment as CEO",
+            "summary": "HDFC Bank shares have significantly underperformed peers over the last few years. The stock price has declined by 25 per cent in the past one year and 8 per cent in the past five years.",
+            "date": "58m ago",
+            "source": "Business Standard"
+          }
+        ],
+        "announcements": [
+          {
+            "id": "ann_nse-9674e3f312",
+            "title": "HDFC Bank Limited has informed the Exchange about General Updates",
+            "category": null,
+            "date": "2026-08-24T00:00:00"
+          },
+          {
+            "id": "ann_nse-9ba2ba3c6a",
+            "title": "ICICI Bank Limited has informed the Exchange about Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015",
+            "category": null,
+            "date": "2026-09-02T00:00:00"
+          },
+          {
+            "id": "ann_nse-b7c242fc6b",
+            "title": "ICICI Bank Limited has informed the Exchange regarding Allotment of 598493  Shares.",
+            "category": null,
+            "date": "2026-09-01T00:00:00"
+          },
+          {
+            "id": "ann_nse-7ed4e285eb",
+            "title": "ICICI Bank Limited has informed the Exchange about Credit Rating",
+            "category": null,
+            "date": "2026-09-01T00:00:00"
+          },
+          {
+            "id": "ann_nse-5e56c449ab",
+            "title": "ICICI Bank Limited has informed the Exchange about disclosure under Regulation 30 read with para A of Schedule III and Regulation 46(2) of the Securities and Exchange Board of…",
+            "category": null,
+            "date": "2026-08-24T00:00:00"
+          },
+          {
+            "id": "ann_nse-593e19f0d8",
+            "title": "ICICI Bank Limited has informed the Exchange regarding Allotment of 181843 Equity Shares under ICICI Bank Employees Stock Option Scheme-2000 on August 24, 2026.",
+            "category": null,
+            "date": "2026-08-24T00:00:00"
+          }
+        ],
+        "policies": [],
+        "valuation": {
+          "HDFCBANK": {
+            "pe": 15.6,
+            "pb": 1.81,
+            "52w_high": 1020.5,
+            "52w_low": 681.9
+          },
+          "ICICIBANK": {
+            "pe": 17.0,
+            "pb": 2.48,
+            "52w_high": 1480.0,
+            "52w_low": 1187.6
+          }
+        },
+        "vix": 14.5,
+        "sector_rows": [],
+        "macro_indices": [],
+        "context_lines": [
+          "HDFCBANK: P/E 15.6, P/B 1.81, 52W 681.9-1020.5",
+          "ICICIBANK: P/E 17.0, P/B 2.48, 52W 1187.6-1480.0",
+          "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)"
+        ],
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        },
+        "index": [
+          {
+            "id": "N1",
+            "kind": "news",
+            "title": "Why is market rising today? Sensex rallies 700 points, Nifty above 22,600. 6 key factors driving rebound",
+            "summary": "After a long slump, the Indian stock market is experiencing a refreshing surge, with both Sensex and Nifty indices showcasing notable increases. The recent leadership transition at HDFC Bank has invig",
+            "date": "47m ago",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "news:live-82948d56e7a0"
+          },
+          {
+            "id": "N2",
+            "kind": "news",
+            "title": "HDFC Bank shares rise 2% after appointing Anup Bagchi as new CEO, Q2 biz update. Buy, sell or hold?",
+            "summary": "HDFC Bank shares rose after Anup Bagchi was appointed as the bank’s new MD &amp; CEO, ending months of uncertainty over its top leadership. Brokerages Jefferies, Morgan Stanley and Citi retained posit",
+            "date": "51m ago",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "news:live-93fe9b163d82"
+          },
+          {
+            "id": "N3",
+            "kind": "news",
+            "title": "HDFC Bank shares rise 2% as Street cheers Anup Bagchi's appointment as CEO",
+            "summary": "HDFC Bank shares have significantly underperformed peers over the last few years. The stock price has declined by 25 per cent in the past one year and 8 per cent in the past five years.",
+            "date": "58m ago",
+            "source": "Business Standard",
+            "companies": [],
+            "ref": "news:live-d723b4bf9296"
+          },
+          {
+            "id": "A1",
+            "kind": "announcement",
+            "title": "HDFC Bank Limited has informed the Exchange about General Updates",
+            "date": "2026-08-24T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "HDFCBANK"
+            ],
+            "ref": "announcement:ann_nse-9674e3f312"
+          },
+          {
+            "id": "A2",
+            "kind": "announcement",
+            "title": "ICICI Bank Limited has informed the Exchange about Disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015",
+            "date": "2026-09-02T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "ICICIBANK"
+            ],
+            "ref": "announcement:ann_nse-9ba2ba3c6a"
+          },
+          {
+            "id": "A3",
+            "kind": "announcement",
+            "title": "ICICI Bank Limited has informed the Exchange regarding Allotment of 598493  Shares.",
+            "date": "2026-09-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "ICICIBANK"
+            ],
+            "ref": "announcement:ann_nse-b7c242fc6b"
+          },
+          {
+            "id": "A4",
+            "kind": "announcement",
+            "title": "ICICI Bank Limited has informed the Exchange about Credit Rating",
+            "date": "2026-09-01T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "ICICIBANK"
+            ],
+            "ref": "announcement:ann_nse-7ed4e285eb"
+          },
+          {
+            "id": "A5",
+            "kind": "announcement",
+            "title": "ICICI Bank Limited has informed the Exchange about disclosure under Regulation 30 read with para A of Schedule III and Regulation 46(2) of the Securities and Exchange Board of…",
+            "date": "2026-08-24T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "ICICIBANK"
+            ],
+            "ref": "announcement:ann_nse-5e56c449ab"
+          },
+          {
+            "id": "A6",
+            "kind": "announcement",
+            "title": "ICICI Bank Limited has informed the Exchange regarding Allotment of 181843 Equity Shares under ICICI Bank Employees Stock Option Scheme-2000 on August 24, 2026.",
+            "date": "2026-08-24T00:00:00",
+            "source": "NSE",
+            "companies": [
+              "ICICIBANK"
+            ],
+            "ref": "announcement:ann_nse-593e19f0d8"
+          },
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "HDFCBANK: P/E 15.6, P/B 1.81, 52W 681.9-1020.5",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:1"
+          },
+          {
+            "id": "C2",
+            "kind": "context",
+            "title": "ICICIBANK: P/E 17.0, P/B 2.48, 52W 1187.6-1480.0",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:2"
+          },
+          {
+            "id": "C3",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:3"
+          }
+        ],
+        "historical": []
+      },
+      "model_result": {
+        "status": 200,
+        "classification": null,
+        "finish_reason": "stop",
+        "latency_ms": 22594,
+        "usage": {
+          "prompt_tokens": 2042,
+          "completion_tokens": 2901,
+          "total_tokens": 4943
+        },
+        "reasoning_tokens": 1849,
+        "would_exceed_30s": false
+      },
+      "outcome": "generation_authorized"
+    }
+  }
+}

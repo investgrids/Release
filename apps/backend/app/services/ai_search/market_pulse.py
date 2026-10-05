@@ -18,6 +18,8 @@ import re
 
 import structlog
 
+from app.core.config import settings
+from app.services import request_deadline
 from app.services.ai_service import _call_with_fallback
 from app.services.ai_search.date_context import current_date_context
 
@@ -90,8 +92,11 @@ _MARKET_PULSE_RE = re.compile(
     r"today'?s\s+(?:top\s+|biggest\s+)?(?:gainers?|losers?|winners?|movers?|gaining\s+stocks?)|"
     r"biggest\s+(?:gainers?|losers?|winners?|movers?)|"
     r"52.?week\s+highs?|52.?week\s+lows?|most\s+active\s+stocks?|highest\s+volume\s+stocks?|"
+    r"stocks?\s+(?:are\s+)?(?:the\s+)?most\s+active|"
     r"what'?s\s+(?:driving|moving)\s+the\s+market|"
-    r"why\s+is\s+(?:the\s+)?(?:nifty|sensex|market)\s+(?:up|down)"
+    r"why\s+is\s+(?:the\s+)?(?:nifty|sensex|market)\s+(?:up|down)|"
+    r"(?:what'?s|what\s+is)\s+(?:the\s+)?(?:nifty|sensex|the\s+market)\s+doing|"
+    r"market'?s?\s+mood"
     r")\b",
     re.IGNORECASE,
 )
@@ -130,7 +135,10 @@ _MARKET_PULSE_CLASSIFY_SYSTEM = (
 
 async def _classify_market_pulse_llm(query: str) -> bool:
     try:
-        raw = await _call_with_fallback(f'Query: "{query}"', _MARKET_PULSE_CLASSIFY_SYSTEM, max_tokens=5, priority="interactive")
+        # Step 3.4H.2b: a yes/no classifier gets its own small slice of the request budget (a nested, earlier deadline: it can never extend the request deadline or use its finalization reserve).
+        # If it cannot answer in time the result is "" -> False -> the query is NOT treated as market pulse and takes the normal research route, which is the same outcome as any classifier failure.
+        with request_deadline.sub_budget(settings.ai_search_classifier_budget_seconds):
+            raw = await _call_with_fallback(f'Query: "{query}"', _MARKET_PULSE_CLASSIFY_SYSTEM, max_tokens=5, priority="interactive")
         return bool(raw) and raw.strip().lower().lstrip('"\'').startswith("y")
     except Exception as exc:
         log.warning("ai_search.market_pulse_classify_failed", error=str(exc)[:120])
@@ -269,6 +277,7 @@ async def _run_market_pulse_search(query: str) -> dict:
         "synthesis_incomplete": synthesis_incomplete,
         "generated_at":        pulse.get("generated_at"),
         "market_status":       pulse.get("market_status", {}),
+        "market_session":      pulse.get("market_session"),
         "indices":             pulse.get("indices", []),
         "market_mood":         pulse.get("market_mood"),
         "market_direction":    pulse.get("market_direction"),
@@ -279,6 +288,7 @@ async def _run_market_pulse_search(query: str) -> dict:
         "top_gainers":         _attach_narrative(pulse.get("top_gainers", []), ai.get("gainer_narratives") or {}),
         "top_losers":          _attach_narrative(pulse.get("top_losers", []), ai.get("loser_narratives") or {}),
         "most_active":         pulse.get("most_active", []),
+        "theme_momentum":      pulse.get("theme_momentum", []),
         "biggest_opportunity": pulse.get("biggest_opportunity"),
         "biggest_risk":        pulse.get("biggest_risk"),
         "ai_conclusion":       ai.get("ai_conclusion") or "",

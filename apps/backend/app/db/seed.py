@@ -21,52 +21,21 @@ def _cal_date(days_from_now: int) -> str:
     return (datetime.now(timezone.utc) + timedelta(days=days_from_now)).strftime("%b %d, %Y")
 
 
+# 2026-09-23 fix (browser QA content-integrity review): evt-rbi-june-
+# 2026, evt-defence-budget-2026, and evt-solar-capacity-2026 used to be
+# hardcoded here — the exact 3 fabricated fixtures that leaked into
+# production on 2026-07-22 (see repair_leaked_seed_events.py's own
+# module docstring for the full incident) and were permanently deleted
+# there. Removing them from this list too, not just the DB row, is the
+# actual fix: seed_missing_events() below is an unconditional UPSERT
+# that runs on every non-production startup (including every local dev
+# restart) — as long as these 3 stayed in EVENTS, deleting the DB rows
+# via the repair script was never durable locally: the very next
+# backend restart re-inserted them from this exact list, which is what
+# happened during this review (confirmed live: repair ran clean, then
+# a restart brought evt-rbi-june-2026 straight back). Never re-add these
+# 3 IDs here.
 EVENTS = [
-    models.Event(
-        id="evt-rbi-june-2026",
-        title="RBI holds repo rate at 6.5% for seventh consecutive meeting",
-        summary="The Monetary Policy Committee unanimously kept the repo rate unchanged, citing stable inflation near the 4% target and continued support for growth. Governor flagged external risks from global commodity prices.",
-        impact_score=8.7,
-        confidence=0.93,
-        sectors=["Financials", "Consumer Staples", "Real Estate"],
-        companies=[
-            {"symbol": "HDFCBANK", "name": "HDFC Bank", "impact": "Positive"},
-            {"symbol": "ICICIBANK", "name": "ICICI Bank", "impact": "Positive"},
-            {"symbol": "SBIN", "name": "SBI", "impact": "Neutral"},
-        ],
-        category="Macro",
-        published_at=_dt(2026, 6, 18),
-    ),
-    models.Event(
-        id="evt-defence-budget-2026",
-        title="Defence capital expenditure raised by Rs. 45,000 Cr in revised estimates",
-        summary="The revised budget allocation boosts indigenous defence procurement, benefiting domestic manufacturers under the Make-in-India initiative. Order books at BEL, HAL and Bharat Forge are expected to expand significantly.",
-        impact_score=9.1,
-        confidence=0.89,
-        sectors=["Defence", "Aerospace", "Manufacturing"],
-        companies=[
-            {"symbol": "BEL", "name": "Bharat Electronics", "impact": "Positive"},
-            {"symbol": "HAL", "name": "Hindustan Aeronautics", "impact": "Positive"},
-            {"symbol": "BHARATFORG", "name": "Bharat Forge", "impact": "Positive"},
-        ],
-        category="Government",
-        published_at=_dt(2026, 7, 8),
-    ),
-    models.Event(
-        id="evt-solar-capacity-2026",
-        title="India surpasses 100 GW solar capacity milestone",
-        summary="India crossed 100 GW of installed solar capacity, triggered accelerated renewable procurement targets for utilities. Analysts expect large-scale order inflows for module manufacturers and project developers.",
-        impact_score=8.3,
-        confidence=0.85,
-        sectors=["Energy", "Utilities", "Manufacturing"],
-        companies=[
-            {"symbol": "ADANIGREEN", "name": "Adani Green Energy", "impact": "Positive"},
-            {"symbol": "TATAPOWER", "name": "Tata Power", "impact": "Positive"},
-            {"symbol": "SUZLON", "name": "Suzlon Energy", "impact": "Positive"},
-        ],
-        category="Policy",
-        published_at=_dt(2026, 7, 14),
-    ),
     models.Event(
         id="evt-it-deal-slowdown-2026",
         title="US enterprise IT spending contracts for second consecutive quarter",
@@ -315,7 +284,21 @@ SECTORS = [
 
 
 async def seed(db):
-    """Insert initial rows into all tables if they're empty."""
+    """Insert initial rows into all tables if they're empty.
+
+    Defense in depth (2026-09-22, leaked-fixture repair): main.py's
+    lifespan already gates its call to this function behind
+    `if settings.is_production`, but that guard lived ONLY at that one
+    call site — any other caller (a test, a script, a future refactor)
+    could call seed() directly and insert this hand-written placeholder
+    content straight into a production database with no protection at
+    all, exactly how evt-rbi-june-2026/evt-defence-budget-2026/
+    evt-solar-capacity-2026 leaked into production on 2026-07-22, three
+    days before that guard existed. Checking here too means this
+    function refuses to run in production regardless of who calls it."""
+    from app.core.config import settings
+    if settings.is_production:
+        return
     from app.db.crud import count_rows, bulk_insert
 
     for model_cls, records in [
@@ -332,7 +315,13 @@ async def seed(db):
 
 
 async def seed_missing_stories(db):
-    """Upsert any STORIES entries that are missing - safe to run on an already-seeded DB."""
+    """Upsert any STORIES entries that are missing - safe to run on an already-seeded DB.
+
+    Same defense-in-depth production guard as seed() — see that
+    function's docstring."""
+    from app.core.config import settings
+    if settings.is_production:
+        return
     from sqlalchemy import select
     for story in STORIES:
         existing = (await db.execute(select(models.Story).where(models.Story.id == story.id))).scalar_one_or_none()
@@ -348,7 +337,13 @@ async def seed_missing_stories(db):
 
 
 async def seed_missing_calendar(db):
-    """Upsert any CALENDAR entries that are missing - safe to run on an already-seeded DB."""
+    """Upsert any CALENDAR entries that are missing - safe to run on an already-seeded DB.
+
+    Same defense-in-depth production guard as seed() — see that
+    function's docstring."""
+    from app.core.config import settings
+    if settings.is_production:
+        return
     from sqlalchemy import select
     for event in CALENDAR:
         existing = (await db.execute(select(models.CalendarEvent).where(models.CalendarEvent.id == event.id))).scalar_one_or_none()
@@ -364,7 +359,16 @@ async def seed_missing_calendar(db):
 
 
 async def seed_missing_events(db):
-    """Upsert EVENTS entries, restoring authoritative scores that the pipeline may overwrite."""
+    """Upsert EVENTS entries, restoring authoritative scores that the pipeline may overwrite.
+
+    Same defense-in-depth production guard as seed() — see that
+    function's docstring. This is the specific function whose
+    unconditional 2026-07-22 run is how evt-rbi-june-2026/
+    evt-defence-budget-2026/evt-solar-capacity-2026 leaked into
+    production."""
+    from app.core.config import settings
+    if settings.is_production:
+        return
     from sqlalchemy import select
     for event in EVENTS:
         existing = (await db.execute(select(models.Event).where(models.Event.id == event.id))).scalar_one_or_none()

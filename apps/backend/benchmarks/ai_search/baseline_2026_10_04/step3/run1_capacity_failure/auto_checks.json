@@ -1,0 +1,74 @@
+{
+  "CR1": {
+    "answer_exists": false,
+    "reason": "capacity"
+  },
+  "CR2": {
+    "answer_exists": false,
+    "reason": "capacity"
+  },
+  "CR3": {
+    "answer_exists": false,
+    "reason": "capacity"
+  },
+  "EI1": {
+    "answer_exists": false,
+    "reason": "capacity"
+  },
+  "EI2": {
+    "answer_exists": false,
+    "reason": "capacity"
+  },
+  "EI3": {
+    "answer_exists": false,
+    "reason": "capacity"
+  },
+  "SR1": {
+    "answer_exists": false,
+    "reason": "capacity"
+  },
+  "SR2": {
+    "answer_exists": false,
+    "reason": "capacity"
+  },
+  "SR3": {
+    "answer_exists": false,
+    "reason": "capacity"
+  },
+  "MP1": {
+    "answer_exists": false,
+    "reason": "capacity"
+  },
+  "MP2": {
+    "answer_exists": false,
+    "reason": "capacity"
+  },
+  "MP3": {
+    "answer_exists": false,
+    "reason": "capacity"
+  },
+  "CC1": {
+    "answer_exists": false,
+    "reason": "capacity"
+  },
+  "CC2": {
+    "answer_exists": false,
+    "reason": "capacity"
+  },
+  "CC3": {
+    "answer_exists": false,
+    "reason": "capacity"
+  },
+  "GE1": {
+    "answer_exists": false,
+    "reason": "capacity"
+  },
+  "GE2": {
+    "answer_exists": false,
+    "reason": "capacity"
+  },
+  "GE3": {
+    "answer_exists": false,
+    "reason": "capacity"
+  }
+}

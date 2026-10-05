@@ -58,6 +58,7 @@ async def refine_ai_search(
     the frontend's job in that case is to re-run the full search, not to
     have this endpoint quietly paper over missing evidence."""
     from app.services.ai_search import cache as cache_mod
+    from app.services.ai_search import refine_safety
     from app.services.ai_search.specialists import refine as refine_specialist
     from app.services.ai_search import validation as validation_mod
 
@@ -81,6 +82,19 @@ async def refine_ai_search(
     )
     if not was_degraded:
         parsed, _report = validation_mod.validate_and_repair(parsed)
+
+        # Exhaustive deterministic recommendation-language safety net —
+        # every free-text location refine's own output can carry (see
+        # refine_safety.py's own docstring: 9 locations across 3
+        # response keys, not just the 2 most obviously "conclusion-
+        # shaped" ones a narrower first pass checked). Found missing
+        # entirely in the 2026-09-21 intent audit; the narrower version
+        # was itself found incomplete in the very next review pass.
+        violated_field = refine_safety.find_refine_violation(parsed)
+        if violated_field:
+            refine_safety.log_refine_violation(violated_field)
+            was_degraded = True
+            parsed = refine_safety.build_refine_degraded_response()
     latency_ms = round((time.monotonic() - _t0) * 1000, 1)
 
     from app.services.ai_service import _AI_USAGE

@@ -4,11 +4,12 @@ from __future__ import annotations
 import time
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services import request_deadline
 from app.core.limiter import limiter
 from app.db.session import get_db
 from app.services.ai_search import instrumentation as ai_search_stats
@@ -65,6 +66,20 @@ class SearchResponse(BaseModel):
 # Layer 1 (exact) + Layer 2 (semantic) caching internally and returns
 # was_cached — keeping V2's pre-checks alongside would just be a second,
 # redundant cache layer with its own separate key scheme.
+async def _bounded(steps):
+    """Run the pipeline's step generator under the request deadline (Step 3.4H.2b). Used by the streaming route; the non-streaming routes wrap the call directly."""
+    with request_deadline.scope():
+        async for item in steps:
+            yield item
+
+
+@router.get("/search/suggestions")
+async def ai_search_suggestions():
+    """Today's example questions for the landing page, built from the live market (sector moves, live headlines) with no model call. See services/ai_search/suggestions.py."""
+    from app.services.ai_search.suggestions import get_suggestions
+    return await get_suggestions()
+
+
 @router.post("/search", response_model=SearchResponse)
 @limiter.limit("10/minute")
 async def ai_search(
@@ -82,7 +97,8 @@ async def ai_search(
     log.info("ai_search.request", query=query[:50], ip=request.client.host if request.client else "unknown")
     _t0 = time.monotonic()
     try:
-        result, was_cached = await run_ai_search_v3(query, db, body.session_context)
+        with request_deadline.scope():      # Step 3.4H.2b: one absolute budget for this interactive request (no-op when AI_SEARCH_TOTAL_BUDGET_SECONDS is 0)
+            result, was_cached = await run_ai_search_v3(query, db, body.session_context)
     except Exception as exc:
         ai_search_stats.record_error(exc)
         raise
@@ -91,6 +107,9 @@ async def ai_search(
         ai_search_stats.record_cache_hit()
     else:
         ai_search_stats.record_success(latency_ms)
+
+    from app.services.ai_search.response_finalize import finalize_v3_response
+    result = finalize_v3_response(query, result, was_cached=was_cached)
 
     return SearchResponse(query=query, cached=was_cached, result=result)
 
@@ -114,6 +133,7 @@ async def ai_search_v3(
     request: Request,
     body: SearchRequest,
     db: AsyncSession = Depends(get_db),
+    x_admin_key: str | None = Header(default=None),
 ):
     """Non-streaming V3 pipeline endpoint — canonical JSON adapter. `/search`
     above is now a thin compatibility wrapper over this same core (6G
@@ -134,7 +154,8 @@ async def ai_search_v3(
     log.info("ai_search_v3.request", query=query[:50], ip=request.client.host if request.client else "unknown")
     _t0 = time.monotonic()
     try:
-        result, was_cached = await run_ai_search_v3(query, db, body.session_context)
+        with request_deadline.scope():      # Step 3.4H.2b: one absolute budget for this interactive request (no-op when AI_SEARCH_TOTAL_BUDGET_SECONDS is 0)
+            result, was_cached = await run_ai_search_v3(query, db, body.session_context)
     except Exception as exc:
         log.warning("ai_search_v3.error", exc=str(exc)[:200])
         ai_search_stats.record_error(exc)
@@ -152,6 +173,13 @@ async def ai_search_v3(
     # analytics, not billing. None on a cache hit — no live LLM call happened.
     from app.services.ai_service import _AI_USAGE
     provider = None if was_cached else _AI_USAGE.get("last_provider")
+
+    # Deterministic recommendation-language safety net (unconditional)
+    # + optional AEV2 assembly — both run strictly AFTER cache retrieval
+    # above, from whichever `result` was resolved (cache hit or fresh).
+    # Never mutates `result` in place — see response_finalize.py.
+    from app.services.ai_search.response_finalize import finalize_v3_response
+    result = finalize_v3_response(query, result, x_admin_key=x_admin_key, was_cached=was_cached)
 
     return SearchResponseV3(
         query=query, cached=was_cached, result=result,
@@ -204,14 +232,14 @@ async def ai_search_stream(
         _t0 = time.monotonic()
         stages_seen: set[str] = set()
         try:
-            async for stage, label, payload in _run_v3_steps(query, db, parsed_session_context):
+            async for stage, label, payload in _bounded(_run_v3_steps(query, db, parsed_session_context)):
                 stages_seen.add(stage)
                 if payload is None:
                     yield f"event: stage\ndata: {_json.dumps({'stage': stage, 'label': label})}\n\n"
                 else:
                     # Same "reasoning" stage absent == cache hit signal used
                     # by run_ai_search_v3 for the non-streaming route.
-                    was_cached = "reasoning" not in stages_seen
+                    was_cached = not stages_seen & {"reasoning", "insufficient_evidence", "education", "retrieval_incomplete", "education_not_covered"}
                     latency_ms = round((time.monotonic() - _t0) * 1000, 1)
                     if was_cached:
                         ai_search_stats.record_cache_hit()
@@ -219,6 +247,15 @@ async def ai_search_stream(
                         ai_search_stats.record_success(latency_ms)
                     from app.services.ai_service import _AI_USAGE
                     provider = None if was_cached else _AI_USAGE.get("last_provider")
+                    # Same safety-gate + optional-AEV2 pipeline every route
+                    # runs its response through — see response_finalize.py.
+                    # x_admin_key is structurally None here: EventSource
+                    # (the browser API this route is built for) supports no
+                    # custom request headers at all, so canary mode is
+                    # simply unreachable from this route — the correct,
+                    # safe default, not a gap to work around.
+                    from app.services.ai_search.response_finalize import finalize_v3_response
+                    payload = finalize_v3_response(query, payload, was_cached=was_cached)
                     envelope = {
                         "result": payload,
                         "cached": was_cached,

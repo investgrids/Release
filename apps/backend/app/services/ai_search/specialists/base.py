@@ -76,11 +76,23 @@ def degraded_response(query: str) -> dict:
     flatten_nested — it's a synthetic default, not LLM output to translate)."""
     return {
         "degraded": True,
-        "summary": f"Market intelligence analysis for: {query}. Analysis based on real-time database events and news.",
+        # 2026-09-23 fix: previously interpolated the raw query verbatim
+        # into both of these fields. Both are scanned by safety_gate.py's
+        # advisory-language check (they're the two "answer"-shaped
+        # _SAFETY_FIELDS), which has no way to distinguish an echoed USER
+        # question from generated assistant analysis — a query merely
+        # containing an advisory-shaped phrase ("...continue holding BEL
+        # or switch to HAL?") tripped the scanner on the user's own words,
+        # not anything this system generated, and silently overwrote the
+        # real degraded_reason ("capacity") with "recommendation_language_
+        # violation" (see response_finalize.py's now-immutable-original-
+        # reason fix for the other half of this incident). The query is
+        # already shown verbatim in the page's own heading, so repeating
+        # it here added nothing besides this risk.
+        "summary": "Market intelligence analysis for this question. Analysis based on real-time database events and news.",
         "bottom_line": (
-            f"There isn't enough freshly generated analysis to answer “{query}” with confidence right now "
-            "— the underlying event and news data is available below, but the synthesis step didn't complete. "
-            "Try rephrasing the question or checking back shortly."
+            "There isn't enough freshly generated analysis to answer this question with confidence right now "
+            "— the synthesis step didn't complete. Try rephrasing the question or checking back shortly."
         ),
         "what_happened": "A significant market development has been identified related to the queried topic.",
         "why_it_happened": "Multiple macro, policy, and sector-specific factors are driving this development.",
@@ -91,7 +103,7 @@ def degraded_response(query: str) -> dict:
         "risks": ["Execution risk", "Global headwinds", "Regulatory uncertainty"],
         "opportunities": ["Sector rotation", "Infrastructure capex", "Export growth"],
         "key_drivers": [],
-        "confidence": 40, "sentiment": "neutral",
+        "confidence": None, "sentiment": None,
         "insights": [
             {"icon": "\U0001F4CA", "title": "Market Overview", "summary": "Current market conditions reflect mixed global and domestic signals with selective sector strength."},
             {"icon": "\U0001F3DB️", "title": "Policy Framework", "summary": "Government policy remains focused on infrastructure, manufacturing, and economic growth enablement."},
@@ -101,7 +113,7 @@ def degraded_response(query: str) -> dict:
         "companies": [], "sectors": [], "timeline": [],
         "follow_up_questions": ["Which sectors benefit most?", "What is the timeline?", "Key risks?", "Historical precedents?"],
         "investment_verdict": {
-            "rating": "Neutral", "direction": "neutral", "confidence": 40,
+            "rating": "Not Applicable", "direction": None, "confidence": None,
             "horizon": "6-12 months", "top_picks": [],
             "risks": ["Macro uncertainty"], "catalysts": ["Policy clarity"],
             "opportunity_score": 50,
@@ -121,14 +133,10 @@ def degraded_response(query: str) -> dict:
 # generating — the position most likely to actually shape output order/effort.
 PRIORITY_INSTRUCTIONS = (
     "PRIORITY ORDER — read before generating the JSON below:\n"
-    "1. Get \"investment\", \"decision\", and \"evidence\" right first — these are the actual "
-    "answer to the user's question. A sharp, specific, well-reasoned investment conclusion "
-    "matters more than any other field in this schema.\n"
-    "2. \"companies\" and \"sectors\" come next — the concrete entities backing the conclusion.\n"
-    "3. \"timeline\" and \"risks\" matter, but briefly and specifically beats exhaustively.\n"
-    "4. \"extras\" (insights/scenarios/monitoring/follow_up_questions) is the LOWEST priority. "
-    "If you are running low on reasoning budget, abbreviate or thin out \"extras\" first — "
-    "NEVER sacrifice the quality of \"investment\"/\"decision\"/\"evidence\" to fit \"extras\" in.\n"
+    "1. \"investment\" and \"evidence\" are the answer: sourced, specific, limited to what the evidence supports.\n"
+    "2. \"claim_sources\" is part of the answer, not an extra: every factual sentence needs its verbatim entry.\n"
+    "3. \"companies\" and \"sectors\" name the entities and say, in one grounded sentence each, how they relate to the question.\n"
+    "4. \"risks\", \"timeline\" and \"extras\" stay short. Leave a field empty rather than fill it with anything the evidence does not support.\n"
 )
 
 # Shared instruction footer every specialist appends — the research-framing
@@ -136,35 +144,33 @@ PRIORITY_INSTRUCTIONS = (
 # model say Buy/Sell/Hold) so it's centralized rather than copy-pasted 3x.
 # References the NESTED field paths since that's the shape the model
 # actually generates (flatten_nested renames these on the way out).
-def research_framing_rules(outlook_labels: list[str]) -> str:
-    quoted_labels = ", ".join(f'"{l}"' for l in outlook_labels)
+def research_framing_rules(outlook_labels: list[str] | None = None) -> str:
+    """Framing rules for every specialist prompt. `outlook_labels` is kept for call-site compatibility: since Step 3.4D-3 the model is not asked for a rating, so no label list is shown."""
     return (
-        # P4 temporal-context fix — called fresh every prompt build (never
-        # cached/module-level), the confirmed root cause of a real
-        # hallucination: nothing anywhere told the model today's actual
-        # date, producing an "FY25E" reference ~17 months after FY25 had
-        # already ended. See date_context.py's docstring.
         f'- {current_date_context()}\n'
-        f'- "investment.rating" MUST be exactly one of these values, nothing else: '
-        f'{quoted_labels}. '
-        "This is a RESEARCH platform, not an advisory one — never say Buy, Sell, Hold, "
-        "Strong Buy, Strong Sell, Accumulate, or Reduce anywhere in any field.\n"
-        '- "decision.investor_action_note" must be phrased as what to watch for or '
-        "consider — never a direct instruction to buy/sell/hold.\n"
-        '- "investment.verdict_scale" and "decision.current_view" must agree in '
-        "direction with \"investment.direction\" — do not produce a bullish verdict_scale "
-        "alongside a bearish direction, or vice versa.\n"
-        '- "extras.scenarios" probabilities (bull + base + bear) must sum to exactly 100.\n'
-        '- "companies" must ONLY include real, listed NSE equities with a direct, specific, '
-        "mechanistic connection to this exact query — never a government body, ministry, "
-        "or unlisted entity.\n"
-        '- "timeline.immediate"/"one_week"/"one_to_three_months"/"six_to_twelve_months"/'
-        '"one_to_three_years" must each say something genuinely different from the others — '
-        "do not restate the same point in different words across horizons. Keep each entry's "
-        "own stated timeframe consistent with its own label (don't write \"3-6 months\" inside "
-        "the \"one_week\" entry), and keep \"immediate\"'s tone consistent with \"investment.direction\" "
-        "— a bullish call needs a bullish-or-neutral immediate read, not a negative one.\n"
-        '- Every company named in "investment.summary"/"investment.bottom_line" must also appear '
-        'in the "companies" list, and vice versa — don\'t discuss a company in prose that isn\'t '
-        "in the structured list, or list one you never mention."
+        "- This is a RESEARCH platform, not an advisory one. Never say Buy, Sell, Hold, Strong Buy, Strong Sell, Accumulate or Reduce anywhere, and do not give a verdict, rating, direction, "
+        "sentiment, confidence, probability, score, scenario, winner, preference or recommendation: those are not part of your output.\n"
+        '- "companies" must ONLY include real, listed NSE equities with a direct, specific connection to this exact query, never a government body, ministry or unlisted entity. '
+        'Each entry has only "symbol", "name" and a one-sentence "reason" grounded in the evidence.\n'
+        '- Every company named in "investment.summary"/"investment.bottom_line" must also appear in the "companies" list, and vice versa.\n'
+        + _claim_rules()
     )
+
+
+def premise_note(evidence) -> str:
+    """The unverified-event notice for the prompt, tolerant of an evidence object that predates the premise check (tests use minimal stand-ins)."""
+    fn = getattr(evidence, "premise_notice", None)
+    return fn() if callable(fn) else ""
+
+
+GROUNDING_RULES = (
+    "- GROUNDING: use ONLY facts, numbers, dates and events that appear in the evidence lists and context above. Do not use outside knowledge to supply company facts, financial figures, "
+    "dates, events, forecasts, peer comparisons or market conditions. If the supplied evidence cannot support a requested factual conclusion, state plainly that it cannot be established "
+    "from the available MarketRipple evidence instead of answering from memory. Never invent earnings dates or scenario figures. This is defense in depth: an answer whose factual "
+    "claims cannot be traced to the evidence is withheld."
+)
+
+
+def _claim_rules() -> str:
+    from app.services.ai_search.schema import CLAIM_SOURCES_RULES, COMPOSITION_RULES
+    return GROUNDING_RULES + "\n" + COMPOSITION_RULES + "\n" + CLAIM_SOURCES_RULES

@@ -102,8 +102,13 @@ async def _real_interest_rate_trend() -> str | None:
     just leaves the dimension unset, same as before this fix — never a
     guessed value."""
     try:
+        from app.core.config import settings
+        from app.services import request_deadline
         from app.services.macro_rates.service import get_macro_rate_state
-        state = await get_macro_rate_state()
+        # Step 3 closure: an interactive request waits only briefly for this OPTIONAL dimension (the dimension stays unset, never guessed, if the macro fetch is not ready); the fetch itself
+        # continues in the background and warms the cache. Background callers (no request deadline) wait as before.
+        wait = settings.macro_rate_interactive_wait_seconds if request_deadline.active() else None
+        state = await get_macro_rate_state(max_wait_s=wait)
         return state.interest_rate_trend
     except Exception:
         return None

@@ -118,6 +118,27 @@ class Settings(BaseSettings):
     # this codebase. Do not point this at a paid provider.
     ai_provider: str = "openrouter"
 
+    # ── AI Search request latency budget (Step 3.4H.2b) ────────────────────
+    # PROVISIONAL starting values, not validated thresholds: 3.4H.4 (production-chain measurement) may change any of them. Set the total to 0 to disable the budget entirely.
+    # Coupling: attempt cap <= total - reserve - min attempt, or the first attempt can consume the whole budget and no fallback is ever tried.
+    ai_search_total_budget_seconds: float = 24.0
+    ai_search_finalization_reserve_seconds: float = 2.0
+    ai_search_classifier_budget_seconds: float = 3.0
+    ai_search_min_provider_attempt_seconds: float = 8.0
+    ai_search_provider_attempt_cap_seconds: float = 14.0
+
+    # Step 3 closure: longest an interactive AI Search request waits for the optional macro-rate dimension of historical retrieval (the macro fetch continues in the background).
+    macro_rate_interactive_wait_seconds: float = 2.0
+
+    # ── Live news snapshot (Step 3.4H.3) ────────────────────────────────────
+    # Cache availability limits, not article-freshness rules: every item keeps its own timestamp and eligibility stays with retrieval and ranking.
+    live_news_max_stale_seconds: int = 6 * 3600          # a snapshot older than this is treated as absent
+    live_news_cold_rss_cap_seconds: float = 4.0          # longest a request waits for the first RSS publish when there is no usable snapshot (also bounded by the request deadline)
+    live_news_rss_publish_window_seconds: float = 3.0    # a refresh publishes whatever feeds have answered when this window closes
+    live_news_rss_max_seconds: float = 12.0              # hard limit for stragglers inside one refresh
+    live_news_yfinance_timeout_seconds: float = 20.0     # background-only phase; never a precondition for publishing RSS
+    live_news_warmup_interval_seconds: int = 600         # scheduler refresh, inside the 15-minute TTL
+
     # Legacy providers (kept for future use)
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com/v1"
@@ -213,6 +234,34 @@ class Settings(BaseSettings):
     # Segments (comma-separated, e.g. "bank") whose filing-backed score is public while filing_score_public stays False. Empty = none.
     filing_score_public_segments: str = ""
     opportunity_read_source: str = "v1"  # "v1" | "v2"
+
+    # Answer Experience V2 (AEV2) — evidence-first AI Search redesign,
+    # approved spec 2026-09-21 (design closed, Rev. 3 + errata). Raw
+    # string here, same convention as opportunity_read_source/
+    # article_pipeline_mode above — the real, fail-closed parsing (any
+    # value other than the 4 recognized strings resolves to "off", never
+    # an accidental activation) lives in
+    # app/services/ai_search/aev2/mode.py, not here.
+    # off     : answer_experience_v2 is never computed or returned.
+    # shadow  : computed and logged (sanitized telemetry only) on every
+    #           request; never serialized into the client response.
+    # canary  : computed and returned, but ONLY to a request carrying the
+    #           existing admin-key gate — no user accounts to scope a
+    #           cohort by, so this reuses that already-proven mechanism.
+    # public  : computed and returned to every request.
+    ai_search_aev2_mode: str = "off"  # "off" | "shadow" | "canary" | "public"
+
+    # Dedicated telemetry-hashing secret (review finding, 2026-09-21): a
+    # plain SHA-256 of the query text is reversible by dictionary/rainbow
+    # lookup for common queries, so AEV2 shadow/canary/public telemetry
+    # hashes the query with HMAC-SHA256 keyed by this value instead —
+    # deliberately a SEPARATE secret from admin_api_key (a compromised
+    # telemetry key must never also compromise the admin-write surface,
+    # and vice versa). Empty by default; app/services/ai_search/aev2/
+    # telemetry.py fails closed (a fixed placeholder, never a silent
+    # plain-SHA-256 fallback) when this is unset, rather than quietly
+    # reintroducing the exact privacy gap this field exists to close.
+    aev2_telemetry_key: str = ""
 
     # Article V2 Production Integration, Phase P5 (owner design,
     # 2026-09-06) — the entry-point mode boundary for the Event-triggered

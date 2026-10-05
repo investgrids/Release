@@ -1,0 +1,440 @@
+{
+  "state": {
+    "calls": 0,
+    "circuit_open": false
+  },
+  "results": [
+    {
+      "id": "CR1",
+      "type": "company_research",
+      "query": "What is the outlook for Kotak Mahindra Bank?",
+      "latency_s": 33.48,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question.",
+      "fabricated_when_degraded": false,
+      "attribution": {
+        "checked": true,
+        "related_events_shown": 0,
+        "news_shown": 0
+      }
+    },
+    {
+      "id": "CR2",
+      "type": "company_research",
+      "query": "How is 3M India doing as a business?",
+      "latency_s": 0.33,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question.",
+      "fabricated_when_degraded": false,
+      "attribution": {
+        "checked": true,
+        "related_events_shown": 0,
+        "news_shown": 0
+      }
+    },
+    {
+      "id": "CR3",
+      "type": "company_research",
+      "query": "What is happening with TCS lately?",
+      "latency_s": 0.31,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 1
+      },
+      "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. 1 related event found for this question is listed below.",
+      "fabricated_when_degraded": false,
+      "attribution": {
+        "checked": true,
+        "related_events_shown": 1,
+        "news_shown": 0
+      }
+    },
+    {
+      "id": "EI1",
+      "type": "event_impact",
+      "query": "BEL just won a new defence order, what does this mean for the stock?",
+      "latency_s": 0.23,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question.",
+      "fabricated_when_degraded": false,
+      "attribution": {
+        "checked": true,
+        "related_events_shown": 0,
+        "news_shown": 0
+      }
+    },
+    {
+      "id": "EI2",
+      "type": "event_impact",
+      "query": "TCS just announced a new AI research center, what does this mean?",
+      "latency_s": 0.28,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question.",
+      "fabricated_when_degraded": false,
+      "attribution": {
+        "checked": true,
+        "related_events_shown": 0,
+        "news_shown": 0
+      }
+    },
+    {
+      "id": "EI3",
+      "type": "event_impact",
+      "query": "Banking sector just reported stronger credit growth, what is the impact?",
+      "latency_s": 0.7,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question.",
+      "fabricated_when_degraded": false,
+      "attribution": {
+        "checked": true,
+        "related_events_shown": 0,
+        "news_shown": 0
+      }
+    },
+    {
+      "id": "SR1",
+      "type": "sector_research",
+      "query": "How is the banking sector doing right now?",
+      "latency_s": 0.25,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question.",
+      "fabricated_when_degraded": false,
+      "attribution": {
+        "checked": true,
+        "related_events_shown": 0,
+        "news_shown": 0
+      }
+    },
+    {
+      "id": "SR2",
+      "type": "sector_research",
+      "query": "What is the outlook for the IT services sector?",
+      "latency_s": 0.3,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question.",
+      "fabricated_when_degraded": false,
+      "attribution": {
+        "checked": true,
+        "related_events_shown": 0,
+        "news_shown": 0
+      }
+    },
+    {
+      "id": "SR3",
+      "type": "sector_research",
+      "query": "Which sectors look weak in the market at the moment?",
+      "latency_s": 0.27,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question.",
+      "fabricated_when_degraded": false,
+      "attribution": {
+        "checked": true,
+        "related_events_shown": 0,
+        "news_shown": 0
+      }
+    },
+    {
+      "id": "MP1",
+      "type": "macro_policy",
+      "query": "What happens to Indian banks if the RBI cuts the repo rate?",
+      "latency_s": 2.61,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question.",
+      "fabricated_when_degraded": false,
+      "attribution": {
+        "checked": true,
+        "related_events_shown": 0,
+        "news_shown": 0
+      }
+    },
+    {
+      "id": "MP2",
+      "type": "macro_policy",
+      "query": "How would higher crude oil prices affect Indian markets?",
+      "latency_s": 0.27,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question.",
+      "fabricated_when_degraded": false,
+      "attribution": {
+        "checked": true,
+        "related_events_shown": 0,
+        "news_shown": 0
+      }
+    },
+    {
+      "id": "MP3",
+      "type": "macro_policy",
+      "query": "How would a weaker rupee affect Indian IT exporters?",
+      "latency_s": 0.28,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question.",
+      "fabricated_when_degraded": false,
+      "attribution": {
+        "checked": true,
+        "related_events_shown": 0,
+        "news_shown": 0
+      }
+    },
+    {
+      "id": "CC1",
+      "type": "company_comparison",
+      "query": "TCS vs Infosys, which is stronger?",
+      "latency_s": 1.25,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 1
+      },
+      "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. 1 related event found for this question is listed below.",
+      "fabricated_when_degraded": false,
+      "attribution": {
+        "checked": true,
+        "related_events_shown": 1,
+        "news_shown": 0
+      }
+    },
+    {
+      "id": "CC2",
+      "type": "company_comparison",
+      "query": "Compare HDFC Bank and ICICI Bank.",
+      "latency_s": 1.19,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question.",
+      "fabricated_when_degraded": false,
+      "attribution": {
+        "checked": true,
+        "related_events_shown": 0,
+        "news_shown": 0
+      }
+    },
+    {
+      "id": "CC3",
+      "type": "company_comparison",
+      "query": "I hold BEL. Should I switch to HAL?",
+      "latency_s": 1.17,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 1
+      },
+      "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. 1 related event found for this question is listed below.",
+      "fabricated_when_degraded": false,
+      "attribution": {
+        "checked": true,
+        "related_events_shown": 1,
+        "news_shown": 0
+      }
+    },
+    {
+      "id": "GE1",
+      "type": "general_explanation",
+      "query": "What is a P/E ratio and how should I read it?",
+      "latency_s": 0.14,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question.",
+      "fabricated_when_degraded": false,
+      "attribution": {
+        "checked": true,
+        "related_events_shown": 0,
+        "news_shown": 0
+      }
+    },
+    {
+      "id": "GE2",
+      "type": "general_explanation",
+      "query": "What does FII selling mean for the Indian market?",
+      "latency_s": 0.16,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question.",
+      "fabricated_when_degraded": false,
+      "attribution": {
+        "checked": true,
+        "related_events_shown": 0,
+        "news_shown": 0
+      }
+    },
+    {
+      "id": "GE3",
+      "type": "general_explanation",
+      "query": "How does the MarketRipple Score work?",
+      "latency_s": 0.14,
+      "model_calls": [],
+      "model_call_count": 0,
+      "skipped_by_circuit": null,
+      "cap_hit": false,
+      "synthesis_incomplete": true,
+      "degraded_reason": "capacity",
+      "answer_availability": {
+        "state": "temporarily_unavailable",
+        "evidence_retrieval_completed": true,
+        "evidence_count": 0
+      },
+      "summary": "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook. No supporting evidence is shown for this question.",
+      "fabricated_when_degraded": false,
+      "attribution": {
+        "checked": true,
+        "related_events_shown": 0,
+        "news_shown": 0
+      }
+    }
+  ]
+}

@@ -4,7 +4,7 @@ AI service — multi-provider free-tier AI with automatic fallback.
 Provider chain (empirically-reliable-first, auto-skips exhausted providers —
 see _call_with_fallback for the 2026-07-26 reordering rationale):
   1. Groq high-quality — gpt-oss-120b/20b, 1,000 req/day each
-  2. Groq fast         — qwen3.8-27b/compound/compound-mini/gpt-oss-safeguard-20b
+  2. Groq fast         — qwen3.8-27b
   3. OpenRouter large  — 550B, 120B, 31B free models (account-wide cap:
                          1,000 req/day once $10+ in credits is on file, tight
                          free-tier daily cap otherwise — NOT per-model, see
@@ -115,6 +115,8 @@ import email.utils
 import re
 import time
 import httpx
+
+from app.services import request_deadline
 import structlog
 from collections import deque
 from contextlib import asynccontextmanager
@@ -703,6 +705,19 @@ _GEMINI_MODELS = [
 # quota already exhausted, only the two real models in THIS tier plus
 # Gemini were left to absorb all platform LLM demand (AIPE + AI Search
 # combined), pushing AI Search's own success rate down to ~19.5% that day.
+#
+# 2026-09-24 provider-cleanup: groq/compound and groq/compound-mini
+# (previously in the FAST tier below) confirmed GONE via the same live
+# GET .../v1/models probe against the real production key — status 200,
+# full catalog returned, neither slug present (this account's real chat-
+# capable catalog is now exactly openai/gpt-oss-120b, openai/gpt-oss-20b,
+# openai/gpt-oss-safeguard-20b, qwen/qwen3.8-27b — the other 6 entries are
+# allam-2-7b, 2 orpheus TTS models, 2 llama-prompt-guard classifiers, and
+# whisper — none of them a general chat replacement). Removed rather than
+# guessed at a replacement slug: every real chat model in this account's
+# current catalog is already in use somewhere in this fallback chain, so
+# there is nothing left to substitute in. See test_ai_service_provider_
+# cleanup.py for the regression pinning this.
 _GROQ_HIGH = [
     "openai/gpt-oss-120b",                       # 1,000 req/day — highest quality on Groq
     "openai/gpt-oss-20b",                        # 1,000 req/day — solid mid-tier
@@ -711,18 +726,38 @@ _GROQ_HIGH = [
 # ── Tier 4: Groq FAST (14,400 req/day — high volume workhorse when quality tiers exhaust)
 #
 # 2026-08-22: llama-3.1-8b-instant confirmed gone the same way as
-# llama-3.3-70b-versatile above (same live probe). Replaced the lost volume
-# backstop with gpt-oss-safeguard-20b (confirmed real and working via live
-# probe) — a safety-tuned reasoning variant. See _GROQ_REASONING_EFFORT
-# below for how its (and qwen3.8-27b's) reasoning overhead is tamed.
+# llama-3.3-70b-versatile above (same live probe). The lost volume
+# backstop was replaced with gpt-oss-safeguard-20b at the time — WRONG:
+# see the 2026-09-24 note below, this model has never belonged in a
+# general answer-synthesis chain at all.
 #
 # 2026-09-19: qwen/qwen3.6-27b -> qwen/qwen3.8-27b (Groq renamed it again;
 # see the _GROQ_HIGH comment above for the P0 incident this caused).
+#
+# 2026-09-24: groq/compound-mini and groq/compound removed — both
+# confirmed gone from this account's real catalog via a live GET
+# .../v1/models probe (see _GROQ_HIGH's own comment for the full
+# verification and why no replacement slug was guessed at).
+#
+# 2026-09-24 correction (same day, provider-cleanup review): openai/
+# gpt-oss-safeguard-20b ALSO removed — verified directly against Groq's
+# own model documentation (console.groq.com/docs/model/openai/gpt-oss-
+# safeguard-20b): "OpenAI's first open weight reasoning model
+# specifically trained for safety classification tasks... helps
+# classify text content based on customizable policies" for "Trust &
+# Safety Content Moderation" / "Policy-Based Classification" / "
+# Automated Triage & Moderation" — explicitly NOT a general-purpose chat
+# model, and it had been silently generating real investment-research
+# answers in this tier since 2026-08-22. Not relocated to a dedicated
+# moderation/safety-classification path because no such path exists in
+# this codebase to relocate it into (grep-confirmed: this was its only
+# reference anywhere) — this app's actual safety net for generated text
+# is the deterministic, non-LLM advisory-language scanner (safety_gate.py
+# / advisory_language.py), which this model never fed into either. See
+# test_ai_service_provider_cleanup.py for the regression pinning both
+# this and the compound/compound-mini removal.
 _GROQ_FAST = [
     "qwen/qwen3.8-27b",           # 1,000 req/day — mid quality
-    "groq/compound-mini",         # 250 req/day   — Groq native
-    "groq/compound",              # 250 req/day   — Groq native larger
-    "openai/gpt-oss-safeguard-20b", # reasoning model — see _GROQ_REASONING_EFFORT
 ]
 
 # `reasoning_effort` handling for Groq's reasoning-tuned models — NOT one
@@ -732,11 +767,15 @@ _GROQ_FAST = [
 #     `reasoning` field, never leaks into `content` — but still spends
 #     hidden reasoning_tokens out of the same max_tokens budget as the
 #     visible answer, and only accepts "low"/"medium"/"high" ("none" is a
-#     400 "must be one of low, medium, or high"). Confirmed: a 1100
-#     max_tokens call to gpt-oss-safeguard-20b returned only 353 chars,
-#     truncated mid-string, with default effort; the identical call with
-#     "low" finished naturally (finish_reason="stop", reasoning_tokens=36
-#     of 1100) with a complete, valid answer.
+#     400 "must be one of low, medium, or high"). Confirmed (2026-08-22,
+#     against gpt-oss-safeguard-20b — since removed from this chain
+#     2026-09-24 as a moderation-only model, see _GROQ_FAST's own
+#     comment; the truncation behavior itself is still real and equally
+#     applicable to gpt-oss-120b/20b, which is why this note is kept): a
+#     1100 max_tokens call returned only 353 chars, truncated mid-string,
+#     with default effort; the identical call with "low" finished
+#     naturally (finish_reason="stop", reasoning_tokens=36 of 1100) with
+#     a complete, valid answer.
 #   - qwen/qwen3.6-27b (2026-08-22 probe): the opposite problem — its
 #     reasoning was NOT separated, it was inlined directly in `content` as
 #     a literal <think>...</think> block (see _strip_reasoning above, which
@@ -749,14 +788,20 @@ _GROQ_FAST = [
 #     its own separate field, Harmony-style), AND even with the param
 #     omitted entirely. Kept "none" for consistency/minimal diff rather
 #     than because "low"/omitted are now unsafe.
-#   - groq/compound / groq/compound-mini: do NOT support this parameter at
-#     all — sending it in ANY value is a 400 "reasoning_effort is not
-#     supported with this model". Deliberately absent from this dict; the
-#     conditional below only sets the param for keys present here.
+#   - groq/compound / groq/compound-mini (removed 2026-09-24, see
+#     _GROQ_HIGH's comment): while still active, neither supported this
+#     parameter at all — sending it in ANY value was a 400 "reasoning_
+#     effort is not supported with this model". Left out of this
+#     historical note's dict entirely; the conditional below only sets
+#     the param for keys actually present here.
+#   - openai/gpt-oss-safeguard-20b (removed 2026-09-24 from _GROQ_FAST —
+#     see that list's own comment: a moderation-only model, never a
+#     general-answer-synthesis one) behaved the same Harmony way as the
+#     other gpt-oss-* models above; kept out of this dict now that it's
+#     no longer called from this chain at all.
 _GROQ_REASONING_EFFORT: dict[str, str] = {
     "openai/gpt-oss-120b": "low",
     "openai/gpt-oss-20b": "low",
-    "openai/gpt-oss-safeguard-20b": "low",
     "qwen/qwen3.8-27b": "none",
 }
 
@@ -1056,6 +1101,53 @@ async def _call_nvidia(prompt: str, system: str = "", max_tokens: int = 900) -> 
     return ""
 
 
+def _deadline_stops_chain(failure_log: list[dict] | None, tier: str, model: str | None = None) -> bool:
+    """True when a request deadline is active and too little usable time is left to start another provider attempt (Step 3.4H.2b). Never true without a deadline."""
+    usable = request_deadline.usable()
+    if usable is None or usable >= request_deadline.min_attempt():
+        return False
+    request_deadline.mark_expired()
+    log.info("ai.deadline_stop", tier=tier, usable_s=round(usable, 2))
+    if failure_log is not None:
+        failure_log.append({"model": model, "provider": tier, "reason": "deadline"})
+    return True
+
+
+async def _attempt(tier: str, provider: str, url: str, key: str, model: str, prompt: str, system: str, max_tokens: int,
+                   headers: dict | None, failure_log: list[dict] | None) -> tuple[str, bool]:
+    """One provider attempt. Returns (text, stop_chain).
+
+    No request deadline: exactly the pre-3.4H.2b call (the provider's own 5 s connect / 30 s read httpx timeouts are the only bound).
+    With a deadline: the attempt runs under asyncio.wait_for(min(attempt cap, usable)), which cancels the HTTP call cleanly (connection closed, tier slot released by the caller's finally).
+    A timeout the PROVIDER caused (the attempt had its full allowance) is charged exactly like any other provider timeout (30 s cooldown). A cancel because the REQUEST budget ran out is logged as
+    reason "deadline" and does not touch provider health: our SLA expiring is not the provider's failure. The httpx read timeout bounds only the gap between bytes, so it cannot be used for this."""
+    args = (url, key, model, prompt, system, max_tokens) + ((headers,) if headers is not None else ())
+    if _deadline_stops_chain(failure_log, tier, model):
+        return "", True
+    usable = request_deadline.usable()
+    if usable is None:
+        return await _call_provider(*args, failure_log=failure_log), False
+    cap = request_deadline.attempt_cap()
+    budget = min(cap, usable)
+    try:
+        return await asyncio.wait_for(_call_provider(*args, failure_log=failure_log), timeout=budget), False
+    except asyncio.TimeoutError:
+        _AI_USAGE["calls_failed"] += 1
+        if budget >= cap:                       # the provider used its whole normal allowance
+            _mark_exhausted(provider, model, "server_error")
+            _AI_USAGE["timeouts"] += 1
+            log.warning("ai.exception", model=model, provider=provider, exc="attempt cap reached", is_timeout=True, cooldown_s=_COOLDOWN_S["server_error"])
+            if failure_log is not None:
+                failure_log.append({"model": model, "provider": tier, "reason": "timeout"})
+            return "", False
+        request_deadline.mark_expired()         # the request budget, not the provider, ended this attempt
+        _AI_USAGE["deadline_cancels"] = _AI_USAGE.get("deadline_cancels", 0) + 1
+        log.warning("ai.deadline_cancel", model=model, provider=provider, budget_s=round(budget, 2))
+        if failure_log is not None:
+            failure_log.append({"model": model, "provider": tier, "reason": "deadline"})
+        return "", True
+
+
 async def _call_with_fallback(
     prompt: str,
     system: str = "",
@@ -1077,7 +1169,7 @@ async def _call_with_fallback(
     headroom). Cerebras and Cloudflare removed 2026-08-30 — see the module
     docstring's 2026-08-30 note for why:
       1. Groq high-quality models      — 120B/20B (1,000 req/day each) — most reliable in testing
-      2. Groq fast models              — qwen3.8-27b/compound/compound-mini/gpt-oss-safeguard-20b (high-volume workhorse)
+      2. Groq fast models              — qwen3.8-27b (high-volume workhorse)
       3. OpenRouter large free models  — 550B/120B/31B (best nominal quality, ~50/day each, but 429s fast)
       4. Mistral La Plateforme
       5. Gemini                        — 1,500 req/day, the demonstrated production workhorse
@@ -1093,95 +1185,35 @@ async def _call_with_fallback(
         "X-Title": "InvestGrids Market Intelligence",
     }
 
-    # ── Tier 1: Groq high-quality (70B+, 1,000 req/day each) ─────────────────
-    if settings.groq_api_key:
-        async with _tier_slot("groq-hq", priority) as acquired:
-            if acquired:
-                for model in _GROQ_HIGH:
-                    if _is_exhausted("groq", model):
-                        if failure_log is not None:
-                            failure_log.append({"model": model, "provider": "groq-hq", "reason": "already_exhausted"})
-                        continue
-                    result = await _call_provider(_GROQ_URL, settings.groq_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
-                    if result:
-                        log.info("ai.success", provider="groq-hq", model=model)
-                        return result
-
-    # Cerebras tier removed 2026-08-30 (never had credentials configured —
-    # see the module-level comment near _OR_SMALL for the full rationale).
-
-    # ── Tier 3: Groq fast (8B, 14,400 req/day — high-volume backstop) ────────
-    if settings.groq_api_key:
-        async with _tier_slot("groq-fast", priority) as acquired:
-            if acquired:
-                for model in _GROQ_FAST:
-                    if _is_exhausted("groq", model):
-                        if failure_log is not None:
-                            failure_log.append({"model": model, "provider": "groq-fast", "reason": "already_exhausted"})
-                        continue
-                    result = await _call_provider(_GROQ_URL, settings.groq_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
-                    if result:
-                        log.info("ai.success", provider="groq-fast", model=model)
-                        return result
-
-    # ── Tier 4: OpenRouter large high-quality models ──────────────────────────
-    if settings.openrouter_api_key:
-        async with _tier_slot("openrouter-hq", priority) as acquired:
-            if acquired:
-                for model in _OR_HIGH_QUALITY:
-                    if _is_exhausted("openrouter", model):
-                        if failure_log is not None:
-                            failure_log.append({"model": model, "provider": "openrouter-hq", "reason": "already_exhausted"})
-                        continue
-                    result = await _call_provider(_OR_URL, settings.openrouter_api_key, model, prompt, system, max_tokens, or_headers, failure_log=failure_log)
-                    if result:
-                        log.info("ai.success", provider="openrouter-hq", model=model)
-                        return result
-
-    # ── Tier 5: Mistral La Plateforme ──────────────────────────────────────
-    if settings.mistral_api_key:
-        async with _tier_slot("mistral", priority) as acquired:
-            if acquired:
-                for model in _MISTRAL_MODELS:
-                    if _is_exhausted("mistral", model):
-                        if failure_log is not None:
-                            failure_log.append({"model": model, "provider": "mistral", "reason": "already_exhausted"})
-                        continue
-                    result = await _call_provider(_MISTRAL_URL, settings.mistral_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
-                    if result:
-                        log.info("ai.success", provider="mistral", model=model)
-                        return result
-
-    # ── Tier 6: Gemini — reliable, 1,500 req/day ─────────────────────────────
-    if settings.gemini_api_key:
-        async with _tier_slot("gemini", priority) as acquired:
-            if acquired:
-                for model in _GEMINI_MODELS:
-                    if _is_exhausted("gemini", model):
-                        if failure_log is not None:
-                            failure_log.append({"model": model, "provider": "gemini", "reason": "already_exhausted"})
-                        continue
-                    result = await _call_provider(_GEMINI_URL, settings.gemini_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
-                    if result:
-                        log.info("ai.success", provider="gemini", model=model)
-                        return result
-
-    # ── Tier 7: OpenRouter smaller free models — final fallback ──────────────
-    if settings.openrouter_api_key:
-        async with _tier_slot("openrouter-small", priority) as acquired:
-            if acquired:
-                for model in _OR_SMALL:
-                    if _is_exhausted("openrouter", model):
-                        if failure_log is not None:
-                            failure_log.append({"model": model, "provider": "openrouter-small", "reason": "already_exhausted"})
-                        continue
-                    result = await _call_provider(_OR_URL, settings.openrouter_api_key, model, prompt, system, max_tokens, or_headers, failure_log=failure_log)
-                    if result:
-                        log.info("ai.success", provider="openrouter-small", model=model)
-                        return result
-
-    # Cloudflare Workers AI tier removed 2026-08-30 (never had credentials
-    # configured — see the module-level comment near _OR_SMALL).
+    # Tier order is the empirical-reliability order described in the docstring above. Each entry is (tier label, exhaustion-registry provider, url, key, models, extra headers or None).
+    # The lists are read at call time, as the seven hand-written loops did. Cerebras and Cloudflare were removed 2026-08-30 (never had credentials configured).
+    tiers = (
+        ("groq-hq", "groq", _GROQ_URL, settings.groq_api_key, _GROQ_HIGH, None),
+        ("groq-fast", "groq", _GROQ_URL, settings.groq_api_key, _GROQ_FAST, None),
+        ("openrouter-hq", "openrouter", _OR_URL, settings.openrouter_api_key, _OR_HIGH_QUALITY, or_headers),
+        ("mistral", "mistral", _MISTRAL_URL, settings.mistral_api_key, _MISTRAL_MODELS, None),
+        ("gemini", "gemini", _GEMINI_URL, settings.gemini_api_key, _GEMINI_MODELS, None),
+        ("openrouter-small", "openrouter", _OR_URL, settings.openrouter_api_key, _OR_SMALL, or_headers),
+    )
+    for tier, provider, url, key, models, headers in tiers:
+        if not key:
+            continue
+        if _deadline_stops_chain(failure_log, tier):
+            return ""
+        async with _tier_slot(tier, priority) as acquired:
+            if not acquired:
+                continue
+            for model in models:
+                if _is_exhausted(provider, model):
+                    if failure_log is not None:
+                        failure_log.append({"model": model, "provider": tier, "reason": "already_exhausted"})
+                    continue
+                result, stop = await _attempt(tier, provider, url, key, model, prompt, system, max_tokens, headers, failure_log)
+                if result:
+                    log.info("ai.success", provider=tier, model=model)
+                    return result
+                if stop:
+                    return ""
 
     log.error("ai.all_providers_failed", exhausted_count=len(_EXHAUSTED))
     return ""

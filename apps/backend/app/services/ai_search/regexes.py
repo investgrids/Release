@@ -55,7 +55,7 @@ _VIX_TRIGGER = re.compile(r"\b(?:vix|volatility index|india vix)\b", re.IGNORECA
 # appended to extra_context, so the general-path LLM explains real numbers
 # instead of free-generating them. None of these change routing/schema —
 # they only ground the existing general/decision prompts with more evidence.
-_SECTOR_TRIGGER = re.compile(r"\b(?:sector|industry)\b", re.IGNORECASE)
+_SECTOR_TRIGGER = re.compile(r"(?<![A-Za-z])(?:sectors?|industry|industries)(?![A-Za-z])", re.IGNORECASE)
 _OPPORTUNITY_TRIGGER = re.compile(r"\bopportunit(?:y|ies)\b", re.IGNORECASE)
 _THEME_TRIGGER = re.compile(r"\btheme\b", re.IGNORECASE)
 _RISK_TRIGGER = re.compile(r"\brisks?\b", re.IGNORECASE)

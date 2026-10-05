@@ -18,13 +18,16 @@ module docstring) per the Phase 1C reliability fix.
 from __future__ import annotations
 
 from app.services.ai_search.schema import (
+    EVIDENCE_GROUP,
     EXTRAS_GROUP,
     MONITORING_COUNT_NOTE,
     TIMELINE_GROUP,
+    CLAIM_SOURCES_GROUP,
     render_decision_group,
     render_investment_group,
 )
-from app.services.ai_search.specialists.base import PRIORITY_INSTRUCTIONS, parse_specialist_json, research_framing_rules
+from app.services.ai_search.evidence import PROMPT_VISIBLE
+from app.services.ai_search.specialists.base import PRIORITY_INSTRUCTIONS, premise_note, parse_specialist_json, research_framing_rules
 
 SPECIALIST_SYSTEM = (
     "You are a senior Indian equity sector strategist at an institutional fund. "
@@ -54,8 +57,10 @@ def build_prompt(query: str, evidence, intent_data: dict, entities: dict) -> str
     target_sector = _identify_sector(query, sector_rows)
     sector_lines = "\n".join(f"- {s['name']}: {s['value']} (1-day change, real live data)" for s in sector_rows[:12]) or "None available"
     # Phase 5E.5: deduped view — see specialists/company.py's comment.
-    evs = "\n".join(f"- [{e['category']}] {e['title']} (score:{e['impact_score']:.0f})" for e in evidence.deduped_events()[:6]) or "None"
-    pols = "\n".join(f"- {p['title']} [{p['ministry']}]" for p in evidence.policies[:4]) or "None"
+    evs = "\n".join(f"- [E{i}] [{e['category']}] {e['title']} (score:{e['impact_score']:.0f})" for i, e in enumerate(evidence.deduped_events()[:PROMPT_VISIBLE["sector"]["events"]], 1)) or "None"
+    # Step 3.4G.2: the selected news headlines now reach the sector specialist (before, they were retrieved and ranked but never shown). Same bounded set, same format as the company prompt.
+    nws = "\n".join(f"- [N{i}] {a['headline']}" for i, a in enumerate(evidence.deduped_news()[:PROMPT_VISIBLE["sector"]["news"]], 1)) or "None"
+    pols = "\n".join(f"- [P{i}] {p['title']} [{p['ministry']}]" for i, p in enumerate(evidence.policies[:PROMPT_VISIBLE["sector"]["policies"]], 1)) or "None"
     extra_context = evidence.to_context_text()
 
     investment_group = render_investment_group()
@@ -70,53 +75,32 @@ Real live sector performance (1-day % change, all tracked sectors — use this t
 
 Related policy actions (real, filed/announced): {pols}
 Related market events (real, from DB): {evs}
+Related market news headlines (real, retrieved): {nws}
 {f"Additional real context: {extra_context}" if extra_context else ""}
+{premise_note(evidence)}
 
 {PRIORITY_INSTRUCTIONS}
 Return ONLY this JSON (no fences, no extra keys):
 {{
 {investment_group}
 {decision_group}
-  "evidence": {{
-    "what_happened": "1 factual sentence",
-    "why_it_happened": "1 contextual sentence",
-    "immediate_impact": "1 sentence on near-term market effect",
-    "medium_term": "1 sentence on 3-12 month outlook",
-    "long_term": "1 sentence on structural implications",
-    "what_priced_in": "1-2 sentences",
-    "key_drivers": [
-      {{"icon": "policy", "title": "2-4 word driver name", "explanation": "1 sentence mechanism", "confidence": 85}},
-      {{"icon": "demand", "title": "2-4 word driver name", "explanation": "1 sentence mechanism", "confidence": 78}}
-    ]
-  }},
+{CLAIM_SOURCES_GROUP}
+{EVIDENCE_GROUP}
   "sector_analysis": {{
-    "sector_score": "0-100 composite score reflecting current momentum + fundamentals + policy tailwind, NOT just the 1-day % change",
     "current_trend": "1-2 sentences citing the REAL % change data above",
-    "money_flow": "1-2 sentences — is institutional money rotating in/out, and why; say plainly if this is inferred from price action rather than confirmed flow data",
-    "government_drivers": ["specific real policy/government driver 1", "specific real policy/government driver 2"],
-    "macro_drivers": ["specific macro driver 1", "specific macro driver 2"],
-    "sector_leaders": [
-      {{"symbol": "SYMBOL1", "name": "Full Company Name", "reason": "why this company leads the sector right now"}},
-      {{"symbol": "SYMBOL2", "name": "Full Company Name", "reason": "specific reason"}}
-    ],
-    "sector_laggards": [
-      {{"symbol": "SYMBOL3", "name": "Full Company Name", "reason": "why this company is lagging"}}
-    ]
+    "government_drivers": ["real policy/government driver that appears in the evidence above (0-2)"],
+    "macro_drivers": ["macro driver that appears in the evidence above (0-2)"]
   }},
   "companies": [
-    {{"symbol": "SYMBOL1", "name": "Full Company Name", "impact_type": "beneficiary", "impact_score": 88, "confidence": 82, "reason": "specific 1-line reason tied to this sector's dynamics"}},
-    {{"symbol": "SYMBOL2", "name": "Full Company Name", "impact_type": "beneficiary", "impact_score": 80, "confidence": 75, "reason": "specific 1-line reason"}}
+    {{"symbol": "SYMBOL1", "name": "Full Company Name", "reason": "1 grounded sentence tied to this sector's dynamics"}}
   ],
   "sectors": [
-    {{"name": "{target_sector or 'Target Sector'}", "score": 78, "confidence": 80, "outlook": "Positive", "positive": true, "explanation": "1 sentence tying sector_score to the mechanism"}}
+    {{"name": "{target_sector or 'Target Sector'}", "explanation": "1 grounded sentence"}}
   ],
 {TIMELINE_GROUP}
   "risks": {{
-    "risks": ["specific sector risk 1", "specific sector risk 2", "specific sector risk 3"],
-    "opportunities": ["specific opportunity 1", "specific opportunity 2"],
-    "opportunity_matrix": {{"high": ["item"], "medium": ["item"], "low": ["item"]}},
-    "risk_matrix": {{"high": ["item"], "medium": ["item"], "low": ["item"]}},
-    "catalysts": ["specific upcoming catalyst 1", "specific upcoming catalyst 2"]
+    "risks": ["grounded sector risk or evidence limitation (0-3)"],
+    "opportunities": ["grounded opportunity (0-2)"]
   }},
 {EXTRAS_GROUP}
 }}
@@ -124,9 +108,7 @@ Return ONLY this JSON (no fences, no extra keys):
 CRITICAL RULES:
 {research_framing_rules(_OUTLOOK_LABELS)}
 {MONITORING_COUNT_NOTE}
-- "sector_analysis.sector_score" must be a number 0-100, not a string, not a letter grade.
-- "sector_analysis.current_trend" and "money_flow" must reference the REAL sector % change data given above — never invent a number not shown.
-- "sector_analysis.sector_leaders"/"sector_laggards" must be real, listed NSE equities genuinely in this sector.
+- "sector_analysis.current_trend" must reference the REAL sector % change data given above — never invent a number not shown.
 - "evidence.key_drivers[].icon" must be ONE lowercase keyword from: procurement, policy, manufacturing, export, valuation, risk, demand, technology, capex, regulation, earnings, supply-chain, currency, commodity, credit.
 - Every field must be SPECIFIC to "{query}" and the identified sector — no generic "the sector faces headwinds and tailwinds" filler."""
 

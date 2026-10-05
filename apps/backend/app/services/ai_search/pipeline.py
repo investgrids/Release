@@ -16,7 +16,18 @@ import uuid
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services import request_deadline
+from app.services.ai_search.macro_drivers import macro_driver
 from app.services.ai_search import cache as cache_mod
+from app.services.ai_search import answer_authorization as auth_mod
+from app.services.ai_search import claim_sources as claim_sources_mod
+from app.services.ai_search import conclusion_scope as scope_mod
+from app.services.ai_search import education as education_mod
+from app.services.ai_search import evidence_sufficiency as suff_mod
+from app.services.ai_search import structured_authorization as struct_mod
+from app.services.ai_search.company_matching import filter_events_to_companies
+from app.services.ai_search.degraded_shape import build_degraded_shape
+from app.services.ai_search.evidence_filter import plan_for
 from app.services.ai_search import entities as entities_mod
 from app.services.ai_search import evidence as evidence_mod
 from app.services.ai_search import followups as followups_mod
@@ -28,6 +39,7 @@ from app.services.ai_search import session_context as session_context_mod
 from app.services.ai_search import postprocess
 from app.services.ai_search import validation as validation_mod
 from app.services.ai_search.schema import SCHEMA_VERSION
+from app.services.ai_search.ui_mode import classify_ui_mode
 from app.services.ai_search.specialists import comparison as comparison_specialist
 from app.services.ai_search.specialists import company as company_specialist
 from app.services.ai_search.specialists import sector as sector_specialist
@@ -46,7 +58,7 @@ def _degraded_shell(query: str, degraded_reason: str, summary: str) -> dict:
     top of this base.
     """
     return {
-        "query": query, "schema_version": SCHEMA_VERSION,
+        "query": query, "schema_version": SCHEMA_VERSION, "response_id": str(uuid.uuid4()),      # Step 5: every final response carries a response_id (feedback correlation)
         "synthesis_incomplete": True, "degraded_reason": degraded_reason,
         "answer": {
             "summary": summary, "bottom_line": summary,
@@ -54,7 +66,7 @@ def _degraded_shell(query: str, degraded_reason: str, summary: str) -> dict:
             "medium_term": "", "long_term": "", "what_priced_in": "",
             "risks": [], "opportunities": [],
             "confidence": None, "confidence_level": "unscored",
-            "sentiment": "neutral", "sources_count": 0,
+            "sentiment": None, "sources_count": 0,
         },
         "key_drivers": [], "insights": [], "companies": [], "sectors": [],
         "related_events": [], "news": [], "policies": [], "timeline": [],
@@ -62,7 +74,7 @@ def _degraded_shell(query: str, degraded_reason: str, summary: str) -> dict:
         "market_impact_horizons": [], "what_to_monitor": [],
         "ai_reasoning_methods": [], "follow_up_questions": [],
         "investment_verdict": {
-            "rating": "Not Applicable", "direction": "neutral", "confidence": None,
+            "rating": "Not Applicable", "direction": None, "confidence": None,
             "horizon": "", "top_picks": [], "risks": [], "catalysts": [],
             "opportunity_score": None, "risk_level": "", "suitable_for": "",
         },
@@ -70,6 +82,9 @@ def _degraded_shell(query: str, degraded_reason: str, summary: str) -> dict:
         "graph": {"nodes": [], "edges": []},
         "citations": [], "decision_intelligence": None,
         "confidence_data": {"level": "unscored", "score": None, "reasons": [], "breakdown": {}, "caveats": []},
+        # Step 5: the same unscored confidence fields as every other class
+        "confidence_breakdown": {"final_confidence": None, "level": "unscored"},
+        "confidence": {"status": "unscored", "score": None, "components": {"evidence_quality": None, "market_confirmation": None, "historical_similarity": None, "data_freshness": None}},
     }
 
 
@@ -149,8 +164,12 @@ def _route_specialist(query: str, intent_data: dict, entities: dict):
             intent_data["holding"], intent_data["target"] = holding, target
         intent_data["is_comparison"] = True
         return comparison_specialist, "comparison"
-    if _SECTOR_TRIGGER.search(query) and not entities.get("companies"):
-        return sector_specialist, "sector"
+    if not entities.get("companies"):
+        if _SECTOR_TRIGGER.search(query):
+            return sector_specialist, "sector"
+        # Step 4A: a resolved sector plus a policy or macro driver is a sector transmission question even without the literal word "sector" ("How would a weaker rupee affect Indian IT exporters?").
+        if entities.get("sectors") and (entities.get("policies") or macro_driver(query)):
+            return sector_specialist, "sector"
     return company_specialist, "company"
 
 
@@ -166,6 +185,14 @@ STAGE_LABELS = {
     "evidence": "Searching MarketRipple database and collecting evidence",
     "reasoning": "Running specialist analysis",
     "finalizing": "Building investment decision and finalizing response",
+    # Step 3.4A: emitted only when the pre-model gate stops the run (no specialist is called), so progress is never faked.
+    "insufficient_evidence": "Evidence is not sufficient to support an analysis",
+    # Step 4B: emitted only when a curated educational/product question is answered by its fixed contract (no retrieval, no model), so progress is never faked.
+    "education": "Answering from MarketRipple's own explanation",
+    # Step 4C: emitted instead of "insufficient_evidence" when a source FAILED during retrieval, so the failure is never reported as an absence of evidence.
+    "retrieval_incomplete": "The evidence search did not complete",
+    # Step 5: a definitional question with no reviewed explanation is answered with that fact, before any retrieval or model call.
+    "education_not_covered": "Checking for a reviewed explanation",
 }
 
 
@@ -193,11 +220,32 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
 
     yield "intent", STAGE_LABELS["intent"], None
 
-    # Market Pulse stays V2's exact mechanism — a different query family,
-    # out of scope for the specialist pipeline (see plan).
+    # Market Pulse stays V2's exact mechanism for real-data collection — a
+    # different query family, out of scope for the specialist pipeline
+    # (see plan) — but joins a cache discipline of its OWN (2026-09-22,
+    # cache-freshness audit): previously this branch never checked or
+    # wrote any query cache at all, so an identical "top gainers today"
+    # asked twice re-fetched every live market feed AND re-called the LLM
+    # synthesis both times. get_market_pulse_response/set_market_pulse_
+    # response (cache.py) are a DEDICATED namespace, never exact_key()'s
+    # — see that module's own docstring for why sharing a namespace with
+    # research-answer caching would be wrong here, not just redundant:
+    # the key itself encodes the current market session + IST trading
+    # date, so a cached entry structurally cannot survive a pre-market ->
+    # open, open -> closed, weekday -> weekend, or one-trading-date ->
+    # another transition, and the TTL within a stable bucket is far
+    # shorter (45s live / 300s closed) than a research answer's 30
+    # minutes.
     if await _detect_market_pulse_async(query):
+        cached_mp = cache_mod.get_market_pulse_response(query)
+        if cached_mp is not None:
+            yield "finalizing", STAGE_LABELS["finalizing"], cached_mp
+            return
         mp_result = await _run_market_pulse_search(query)
         mp_result["schema_version"] = SCHEMA_VERSION
+        mp_result["intent"] = "market_pulse"
+        mp_result["ui_mode"] = "market_pulse"
+        cache_mod.set_market_pulse_response(query, mp_result)
         yield "finalizing", STAGE_LABELS["finalizing"], mp_result
         return
 
@@ -247,6 +295,7 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
     if (
         session_context_mod._REFERENTIAL_RE.search(query)
         and not entities.get("companies") and not entities.get("sectors")
+        and not session_context_mod.referential_has_antecedent(query)
     ):
         log.info("ai_search_v3.referential_no_context", query=query[:80])
         result = _referential_no_context_response(query)
@@ -263,6 +312,29 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
             ) + "?"
             result["company_suggestions"] = suggestions
         cache_mod.set_response(query, result, session_context=session_context)
+        yield "finalizing", STAGE_LABELS["finalizing"], result
+        return
+
+    # Step 4B: a plain educational or product-knowledge question on a curated topic (P/E ratio, FII flows, the MarketRipple Score) is answered by its fixed contract: no retrieval, no model, nothing
+    # invented. Questions naming a company, sector or policy, or asking for current or numeric data, never match and continue through the evidence-gated pipeline unchanged.
+    _edu_topic = education_mod.topic_for(query, entities)
+    if _edu_topic:
+        log.info("ai_search_v3.education_contract", topic=_edu_topic, query=query[:60])
+        yield "education", STAGE_LABELS["education"], None
+        _ui = classify_ui_mode(specialist_kind="company", intent_data=intent_data, entities=entities, query=query)
+        result = education_mod.build_response(query, _edu_topic, schema_version=SCHEMA_VERSION, ui_mode=_ui, intent=intent_data.get("intent", "general"))
+        result["context_used"] = context_used
+        yield "finalizing", STAGE_LABELS["finalizing"], result
+        return
+
+    # Step 5: every other definitional question (the evidence-free explanation plan) has no reviewed source to answer from. It used to reach a model with no evidence and no authorization; it now gets an honest
+    # "not covered yet" response. Current-data wording never gets here (plan_for refuses it the explanation plan).
+    if plan_for(query, intent_data, entities).kind == "explanation":
+        log.info("ai_search_v3.education_not_covered", query=query[:60])
+        yield "education_not_covered", STAGE_LABELS["education_not_covered"], None
+        _ui = classify_ui_mode(specialist_kind="company", intent_data=intent_data, entities=entities, query=query)
+        result = education_mod.build_not_covered_response(query, schema_version=SCHEMA_VERSION, ui_mode=_ui, intent=intent_data.get("intent", "general"))
+        result["context_used"] = context_used
         yield "finalizing", STAGE_LABELS["finalizing"], result
         return
 
@@ -309,10 +381,28 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
     log.info("ai_search_v3.start", query=query[:50])
 
     yield "evidence", STAGE_LABELS["evidence"], None
-    evidence = await evidence_mod.collect(query, intent_data, entities, db)
+    _usable = request_deadline.usable()
+    if _usable is None:
+        evidence = await evidence_mod.collect(query, intent_data, entities, db)
+    else:
+        # Step 3.4H.2b: retrieval may spend what remains minus the smallest provider attempt, so a specialist call can still start. A cut-off is an infrastructure condition, recorded as a
+        # retrieval failure and answered "unavailable": never "no evidence exists" and never an empty bundle sent through Gate A.
+        try:
+            _budget = _usable - (request_deadline.min_attempt() or 0)
+            if _budget <= 0:
+                raise asyncio.TimeoutError
+            evidence = await asyncio.wait_for(evidence_mod.collect(query, intent_data, entities, db), timeout=_budget)
+        except asyncio.TimeoutError:
+            request_deadline.mark_expired()
+            log.warning("ai_search_v3.retrieval_deadline", query=query[:80], budget_s=round(max(_usable - (request_deadline.min_attempt() or 0), 0), 2))
+            _empty = evidence_mod.EvidenceBundle()
+            _empty.retrieval_failures = {"deadline": "TimeoutError"}
+            yield "done", STAGE_LABELS["finalizing"], _deadline_response(query, _empty, entities, intent_data, "retrieval_deadline_exceeded", stage_ms, _t0, context_used)
+            return
     _t_stage = _checkpoint("evidence_collection_ms", _t_stage)
 
     specialist, specialist_kind = _route_specialist(query, intent_data, entities)
+    evidence.prompt_kind = specialist_kind      # Step 3.4G.2: the evidence index and Gate B's corpus are cut to what this specialist's prompt actually shows
     # Free-tier data track, Stage 1 (2026-08-06): same instrumentation as V2's
     # ai_search.done — entities + a thin_evidence flag. Uses evidence.source_count
     # (events+news+policies, this pipeline's own already-computed total) rather
@@ -324,9 +414,40 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
         entities=entities, thin_evidence=(evidence.source_count < 3),
     )
 
+    # Gate A (Step 3.4A): no evidence capable of supporting the requested analysis means no analytical model call.
+    from app.api.companies import _NSE_UNIVERSE as _UNIV
+    suff = suff_mod.assess(query, intent_data, entities, evidence, _UNIV)
+    if suff["status"] == suff_mod.INSUFFICIENT:
+        log.warning("ai_search_v3.insufficient_evidence", query=query[:80], kind=suff["kind"], missing=suff["missing"], reason=suff["reason"],
+                    retrieval_failures=dict(getattr(evidence, "retrieval_failures", {}) or {}))
+        _stage = "retrieval_incomplete" if getattr(evidence, "retrieval_failures", None) else "insufficient_evidence"
+        yield _stage, STAGE_LABELS[_stage], None
+        response = _build_insufficient_response(query, evidence, entities, intent_data, specialist_kind, suff)
+        response["timing"] = {**stage_ms, "total_ms": round((time.monotonic() - _t0) * 1000, 1)}
+        response["context_used"] = context_used
+        response["watch_subject"] = None
+        yield "done", STAGE_LABELS["finalizing"], response      # deliberately not cached and no Investment Watch snapshot: the evidence may change
+        return
+
+    # Step 3.4H.2b checkpoint: do not start a generation that cannot finish inside the request budget.
+    _u = request_deadline.usable()
+    if _u is not None and _u < (request_deadline.min_attempt() or 0):
+        request_deadline.mark_expired()
+        log.warning("ai_search_v3.deadline_before_specialist", query=query[:80], usable_s=round(_u, 2))
+        yield "done", STAGE_LABELS["finalizing"], _deadline_response(query, evidence, entities, intent_data, "deadline_exceeded", stage_ms, _t0, context_used)
+        return
+
     yield "reasoning", STAGE_LABELS["reasoning"], None
     parsed, was_degraded = await specialist.run(query, evidence, intent_data, entities)
     _t_stage = _checkpoint("reasoning_ms", _t_stage)
+    if was_degraded and request_deadline.expired():
+        parsed = {**parsed, "_degraded_reason": "deadline_exceeded"}      # the provider chain stopped because the request budget ran out, not because every provider failed
+    _rem = request_deadline.remaining()
+    if _rem is not None and _rem < _AUTHORIZATION_MIN_S:
+        # Not enough time left to authorize and assemble safely: fail closed. Generated content is never published without Gate B.
+        log.warning("ai_search_v3.deadline_before_authorization", query=query[:80], remaining_s=round(_rem, 2))
+        yield "done", STAGE_LABELS["finalizing"], _deadline_response(query, evidence, entities, intent_data, "deadline_exceeded", stage_ms, _t0, context_used)
+        return
 
     yield "finalizing", STAGE_LABELS["finalizing"], None
     validated, validation_report = validation_mod.validate_and_repair(parsed)
@@ -337,12 +458,52 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
         )
     _t_stage = _checkpoint("validation_ms", _t_stage)
 
+    # Gate B (Step 3.4A): a generated research answer is shown only if its factual claims are traceable to admissible evidence. Otherwise it is withheld (never repaired by another
+    # model, never edited sentence by sentence) and the rejected generation is kept for diagnostics.
+    auth = {"applicable": False, "authorized": True, "reasons": []}
+    if not was_degraded:
+        auth = auth_mod.authorize(validated, evidence, entities, _UNIV, query)
+        # Step 3.4D-2: the conclusion must not be broader than the evidence supports (valuation-only evidence never authorizes an overall company-strength conclusion).
+        cscope = scope_mod.assess(query, intent_data, entities, evidence, _UNIV)
+        overreach = scope_mod.overreach(validated, cscope)
+        if overreach:
+            auth = {**auth, "authorized": False, "reasons": [*auth["reasons"], "conclusion_scope_exceeded"], "conclusion_overreach_count": len(overreach)}
+        if not auth["authorized"]:
+            yield "finalizing", STAGE_LABELS["finalizing"], None
+            response = _build_rejected_response(query, validated, evidence, entities, intent_data, specialist_kind, auth)
+            response["timing"] = {**stage_ms, "total_ms": round((time.monotonic() - _t0) * 1000, 1)}
+            response["context_used"] = context_used
+            response["watch_subject"] = None
+            yield "done", STAGE_LABELS["finalizing"], response
+            return
+
+    # Step 3.4D-2: LLM-generated structured analytical claims (rating, direction, sentiment, confidence, probabilities, scores, winner/preference blocks) are never public by themselves. They are replaced
+    # by an explicit unavailable state before assembly; deterministic producers (confidence breakdown, engine verdict, pairwise decision engine) still run in code.
+    _rem = request_deadline.remaining()
+    if _rem is not None and _rem < 0:
+        log.warning("ai_search_v3.deadline_before_assembly", query=query[:80], remaining_s=round(_rem, 2))
+        yield "done", STAGE_LABELS["finalizing"], _deadline_response(query, evidence, entities, intent_data, "deadline_exceeded", stage_ms, _t0, context_used)
+        return
+
+    cscope = scope_mod.assess(query, intent_data, entities, evidence, _UNIV)
+    public_ai, withheld_structured = (validated, []) if was_degraded else struct_mod.sanitize(validated)
     response = await _assemble_response(
-        query, validated, evidence, specialist_kind, was_degraded, validation_report,
+        query, public_ai, evidence, specialist_kind, was_degraded, validation_report,
         db, entities, dropped_companies=dropped_companies,
-        intent_data=intent_data, is_multi_compare=is_multi_compare,
+        intent_data=intent_data, is_multi_compare=is_multi_compare, conclusion_scope=cscope,
     )
     _checkpoint("assembly_ms", _t_stage)
+    if not was_degraded:
+        response["conclusion_scope"] = scope_mod.public_summary(cscope)
+        response["structured_authorization"] = struct_mod.public_summary(withheld_structured)
+        for s in response.get("sectors") or []:      # a status derived from a withheld LLM outlook would itself be an unauthorized conclusion
+            s.pop("status", None)
+            s.pop("time_horizon", None)
+        note = scope_mod.partial_note(cscope, {m.get("symbol"): m.get("name") for m in (entities.get("company_matches") or []) if m.get("symbol")})
+        if note:
+            response.setdefault("confidence_data", {}).setdefault("caveats", []).append(note)
+    response["evidence_sufficiency"] = _public_sufficiency(suff)
+    response["answer_authorization"] = auth_mod.public_summary(auth)
     response["timing"] = {**stage_ms, "total_ms": round((time.monotonic() - _t0) * 1000, 1)}
     # Phase 1.7 — honestly reports what (if anything) session context
     # contributed to this answer, rather than the frontend guessing.
@@ -391,30 +552,101 @@ async def run_ai_search_v3(query: str, db: AsyncSession, session_context: dict |
         stages_seen.add(stage)
         if payload is not None:
             result = payload
-    was_cached = "reasoning" not in stages_seen
+    was_cached = not stages_seen & {"reasoning", "insufficient_evidence", "education", "retrieval_incomplete", "education_not_covered"}
     return result, was_cached
 
 
+# Step 3.4H.2b: the smallest time left after generation in which Gate B and assembly can still run.
+_AUTHORIZATION_MIN_S = 0.25
+
+
+def _deadline_response(query: str, evidence, entities: dict, intent_data: dict | None, reason: str, stage_ms: dict, t0: float, context_used) -> dict:
+    """Fail-closed response when the request budget ran out (3.4H.2b). Same degraded shape as a capacity failure; never a verdict or a statement about the evidence's existence."""
+    kind = _route_specialist(query, intent_data or {}, entities)[1]
+    response = _build_degraded_response(query, {}, evidence, kind, reason, entities, str(uuid.uuid4()), intent_data)
+    response["timing"] = {**stage_ms, "total_ms": round((time.monotonic() - t0) * 1000, 1)}
+    response["context_used"] = context_used
+    response["watch_subject"] = None
+    failures = dict(getattr(evidence, "retrieval_failures", {}) or {})
+    if failures:
+        response["_retrieval_failures"] = failures
+    return response
+
+
 def _filter_events_to_entities(events: list[dict], symbols: list[str]) -> list[dict]:
-    """Only events whose own structured `companies` field (set at ingestion,
-    ~93% coverage — see retrieval.py's _search_events) names one of the
-    query's resolved symbols. The one real, deterministic company<->event
-    link this pipeline has — never a text/keyword match, and never applied
-    to news/policy rows, which carry no company field at all today."""
-    if not symbols:
-        return []
-    wanted = {s.upper() for s in symbols}
-    out = []
-    for e in events:
-        tagged = {(c.get("symbol") or "").upper() for c in (e.get("companies") or []) if isinstance(c, dict)}
-        if tagged & wanted:
-            out.append(e)
-    return out
+    """Thin wrapper over the shared, deterministic company<->event
+    matching rule (company_matching.py) — extracted there (2026-09-21
+    review) so AEV2's citation validator can reuse the exact same rule
+    instead of maintaining its own copy that could silently drift."""
+    return filter_events_to_companies(events, symbols)
+
+
+def _premise_check(evidence) -> dict:
+    """not_applicable | supported | not_established (no eligible evidence confirms the event the question asserts)."""
+    p = getattr(evidence, "premise", None) or {}
+    if not p.get("required"):
+        return {"status": "not_applicable", "terms": []}
+    return {"status": "supported" if p.get("supported") else "not_established", "terms": p.get("terms") or [], "supporting": p.get("supporting") or []}
+
+
+def _public_sufficiency(suff: dict) -> dict:
+    return {k: suff.get(k) for k in ("status", "kind", "required", "satisfied", "missing", "reason", "missing_entities", "context")}
+
+
+RETRIEVAL_FAILED_TITLE = "The evidence search did not complete"
+RETRIEVAL_FAILED_BODY = ("MarketRipple couldn't finish searching its evidence for this question just now, so it can't tell whether supporting evidence exists. "
+                         "No conclusion was drawn. Please try again in a moment.")
+
+
+def _build_insufficient_response(query: str, evidence, entities: dict, intent_data: dict | None, specialist_kind: str, suff: dict) -> dict:
+    """Deterministic public response when the evidence cannot support the analysis. No model was called. No verdict, confidence, timeline, scenario, figure or forecast: the shared degraded
+    shape carries none. States exactly what cannot be established; verified related evidence (if any) is listed separately as context."""
+    from app.api.companies import _NSE_UNIVERSE
+    title, body = suff_mod.public_message(suff, entities, _NSE_UNIVERSE, getattr(evidence, "premise", None))
+    reason, sufficiency = "insufficient_evidence", _public_sufficiency(suff)
+    if getattr(evidence, "retrieval_failures", None):
+        # Step 4C: Gate A's verdict is unchanged, but when a source failed during retrieval the public answer must not say evidence does not exist: it says the search did not complete.
+        title, body, reason, sufficiency = RETRIEVAL_FAILED_TITLE, RETRIEVAL_FAILED_BODY, "retrieval_failed", None
+    symbols = entities.get("companies") or []
+    related = _filter_events_to_entities(evidence.events, symbols)[:6]
+    return build_degraded_shape(
+        query=query, response_id=str(uuid.uuid4()), schema_version=SCHEMA_VERSION, specialist_kind=specialist_kind, degraded_reason=reason, summary=body,
+        related_events=related, sources_count=len(related), source_attribution=[f"event:{e.get('id')}" for e in related if e.get("id")],
+        intent=(intent_data or {}).get("intent", "general"),
+        ui_mode=classify_ui_mode(specialist_kind=specialist_kind, intent_data=intent_data, entities=entities, query=query),
+        evidence_sufficiency=sufficiency, premise_check=_premise_check(evidence), public_title=title,
+    )
+
+
+def _build_rejected_response(query: str, generation: dict, evidence, entities: dict, intent_data: dict | None, specialist_kind: str, auth: dict) -> dict:
+    """Public response when a generated answer is NOT authorized. Carries the outcome and reason codes only; the withheld generation travels in an internal field the finalizer strips and in
+    answer_authorization.REJECTED_GENERATIONS."""
+    title, body = auth_mod.rejection_message(auth)
+    symbols = entities.get("companies") or []
+    related = _filter_events_to_entities(evidence.events, symbols)[:6]
+    response_id = str(uuid.uuid4())
+    shape = build_degraded_shape(
+        query=query, response_id=response_id, schema_version=SCHEMA_VERSION, specialist_kind=specialist_kind, degraded_reason="claims_not_authorized", summary=body,
+        related_events=related, sources_count=len(related), source_attribution=[f"event:{e.get('id')}" for e in related if e.get("id")],
+        intent=(intent_data or {}).get("intent", "general"),
+        ui_mode=classify_ui_mode(specialist_kind=specialist_kind, intent_data=intent_data, entities=entities, query=query),
+        premise_check=_premise_check(evidence), answer_authorization=auth_mod.public_summary(auth), public_title=title,
+    )
+    auth_mod.remember(response_id, query, auth, generation, evidence.index())
+    shape["_rejected_generation"] = {"generation": generation, "reasons": list(auth["reasons"]), "unsupported_figures": auth.get("unsupported_figures")}
+    return shape
+
+
+def degraded_evidence_sentence(shown_events: int) -> str:
+    """One sentence about the evidence shown with a degraded answer, derived from the count actually displayed."""
+    if shown_events <= 0:
+        return "No supporting evidence is shown for this question."
+    return f"{shown_events} related event{'s' if shown_events != 1 else ''} found for this question {'are' if shown_events != 1 else 'is'} listed below."
 
 
 def _build_degraded_response(
     query: str, ai: dict, evidence, specialist_kind: str, degraded_reason: str,
-    entities: dict, response_id: str,
+    entities: dict, response_id: str, intent_data: dict | None = None,
 ) -> dict:
     """Fail-closed shape for a genuinely failed synthesis (was_degraded=True
     from specialist.run()).
@@ -441,51 +673,32 @@ def _build_degraded_response(
     sources_count = len(related_events)
     summary = (
         ai.get("bottom_line") or ai.get("summary") or
-        "Full AI analysis wasn't available for this query — showing the real evidence "
-        "found, with no generated conclusion, confidence score, or outlook."
+        "Full AI analysis wasn't available for this query, with no generated conclusion, confidence score, or outlook."
     )
-    return {
-        "query": query, "response_id": response_id, "schema_version": SCHEMA_VERSION,
-        "specialist": specialist_kind,
-        "degraded_reason": degraded_reason,
-        "synthesis_incomplete": True,
-        "answer": {
-            "summary": summary, "bottom_line": summary,
-            "what_happened": "", "why_it_happened": "", "immediate_impact": "",
-            "medium_term": "", "long_term": "", "what_priced_in": "",
-            "risks": [], "opportunities": [],
-            "confidence": None, "confidence_level": "unscored",
-            "sentiment": "neutral", "sources_count": sources_count,
-        },
-        "key_drivers": [], "insights": [], "companies": [], "sectors": [],
-        "related_events": related_events, "news": [], "policies": [],
-        "timeline": [], "historical_comparison": [], "ripple_chain": [],
-        "scenarios": {}, "monitoring": {"items": []},
-        "follow_up_questions": [],
-        "investment_verdict": {
-            "rating": "Not Applicable", "direction": "neutral", "confidence": None,
-            "horizon": None, "top_picks": [], "risks": [], "catalysts": [],
-            "opportunity_score": None, "risk_level": "", "suitable_for": "",
-            "engine_verdict": None,
-        },
-        "market_chart": {"labels": [], "series": []},
-        "graph": {"nodes": [], "edges": []},
-        "citations": [],
-        "decision_intelligence": None,
-        "confidence_data": {"level": "unscored", "score": None, "reasons": [], "breakdown": {}, "caveats": []},
-        "decision_engine_v2": {},
-        "timeline_intelligence": {}, "opportunity_risk_matrix": {}, "ai_conclusion": {},
-        "evidence_score": {
-            "stars": None, "checklist": {},
-            "source_count": sources_count, "development_count": sources_count,
-            "corroborating_source_count": sources_count,
-        },
-        "confidence_breakdown": {"final_confidence": None, "level": "unscored"},
-        "source_attribution": [f"event:{e.get('id')}" for e in related_events if e.get("id")],
-        "validation": {"repairs": [], "omissions": [], "contradiction_flagged": False},
-        "market_impact_horizons": {}, "what_to_monitor": [], "ai_reasoning_methods": [],
-        "follow_up_groups": [],
-    }
+    # Step 2: the copy may only describe evidence that is actually displayed below. It used to promise "event and news data is available below" while the
+    # degraded shape shows no news at all and only entity-tagged events (8 of 14 capacity-degraded baseline answers showed nothing).
+    summary = summary + " " + degraded_evidence_sentence(len(related_events))
+    # ui_mode/intent are structural routing metadata, not a verdict —
+    # safe to carry through even here (they only tell the frontend which
+    # shell variant's evidence layout to use, e.g. a comparison-shaped
+    # degraded response still benefits from the 2-entity evidence table
+    # rather than the single-entity one). Passed through the shared
+    # builder itself (not bolted on after) so this stays on the same key
+    # skeleton as safety_gate's degraded response.
+    return build_degraded_shape(
+        query=query, response_id=response_id, schema_version=SCHEMA_VERSION,
+        specialist_kind=specialist_kind, degraded_reason=degraded_reason, summary=summary,
+        related_events=related_events, sources_count=sources_count,
+        source_attribution=[f"event:{e.get('id')}" for e in related_events if e.get("id")],
+        intent=(intent_data or {}).get("intent", "general"),
+        ui_mode=classify_ui_mode(
+            specialist_kind=specialist_kind, intent_data=intent_data, entities=entities, query=query,
+        ),
+    )
+
+
+# Step 3.4D-2.1: ui_modes whose question is itself market-wide, the only scopes where the market-wide engine verdict is a compatible thing to show.
+MARKET_WIDE_UI_MODES = frozenset({"policy_macro_impact", "market_pulse"})
 
 
 async def _assemble_response(
@@ -494,6 +707,7 @@ async def _assemble_response(
     dropped_companies: list[str] | None = None,
     intent_data: dict | None = None,
     is_multi_compare: bool = False,
+    conclusion_scope: dict | None = None,
 ) -> dict:
     """Builds the final response dict — a strict superset of V2's shape
     (see schema.py) plus Phase 1's new fields. Reuses V2's own enrichment/
@@ -509,6 +723,7 @@ async def _assemble_response(
         return _build_degraded_response(
             query, ai, evidence, specialist_kind,
             ai.get("_degraded_reason", "parse_failure"), entities, str(uuid.uuid4()),
+            intent_data=intent_data,
         )
 
     from app.services.ai_search.enrichment import (
@@ -606,16 +821,19 @@ async def _assemble_response(
     # rating-override reconciliation (verdict_basis, tier-disagreement logic)
     # is intentionally NOT ported here — out of this item's stated scope.
     engine_verdict: dict | None = None
-    try:
-        from app.services.investment_verdict_engine import compute_investment_verdict as _compute_engine_verdict
-        engine_verdict = _compute_engine_verdict(
-            direction=(evidence.mie_state or {}).get("signals", {}).get("direction", "sideways"),
-            confidence_score=confidence_breakdown["final_confidence"],
-            opportunity_score=opportunity_score,
-            vix_level=evidence.vix_level,
-        )
-    except Exception as exc:
-        log.warning("ai_search_v3.engine_verdict_fail", exc=str(exc)[:120])
+    # Step 5: the engine rating needs a MEASURED confidence. None exists (see postprocess.compute_confidence_breakdown), and inside the engine a missing direction, confidence, opportunity score and VIX
+    # each fall back to a constant ("sideways", 0, 50, 15), so a rating computed without one would be a neutral conclusion manufactured from defaults. No engine rating is published instead.
+    if confidence_breakdown["final_confidence"] is not None:
+        try:
+            from app.services.investment_verdict_engine import compute_investment_verdict as _compute_engine_verdict
+            engine_verdict = _compute_engine_verdict(
+                direction=(evidence.mie_state or {}).get("signals", {}).get("direction", "sideways"),
+                confidence_score=confidence_breakdown["final_confidence"],
+                opportunity_score=opportunity_score,
+                vix_level=evidence.vix_level,
+            )
+        except Exception as exc:
+            log.warning("ai_search_v3.engine_verdict_fail", exc=str(exc)[:120])
 
     # P5 Stage 3, item 4 — real horizon only when the LLM didn't state one;
     # a real LLM-stated horizon is always kept as-is.
@@ -624,6 +842,12 @@ async def _assemble_response(
         evidence.vix_level, evidence.similar_historical, ai.get("medium_term"), ai.get("long_term"),
     )
 
+    # Claim-level source IDs: the evidence index the prompt used, and the model's claim_sources checked against it (non-blocking, see claim_sources.py).
+    from app.api.companies import _NSE_UNIVERSE as _UNIVERSE
+    evidence_index = evidence.index()
+    claim_validation = claim_sources_mod.validate_claim_sources(ai.get("claim_sources"), evidence_index, ai, entities, _UNIVERSE, getattr(evidence, "premise", None))
+
+    _response_ui_mode = classify_ui_mode(specialist_kind=specialist_kind, intent_data=intent_data, entities=entities, query=query)
     response = {
         "query": query,
         # Identifies this generated ANSWER (stable across repeat cache-hit
@@ -634,6 +858,24 @@ async def _assemble_response(
         "response_id": response_id,
         "schema_version": SCHEMA_VERSION,
         "specialist": specialist_kind,
+        # Additive (2026-09-21, AI Answer UI work): intent is decision_
+        # intent.py's own 12-label classification, unchanged; ui_mode is
+        # ui_mode.py's projection of it (+ specialist_kind + entities)
+        # onto one of the 8 first-release AI Answer layouts. Neither
+        # replaces the other — see ui_mode.py's own docstring for why
+        # this is an interim projection, not the eventual consolidated
+        # IntentResolution contract.
+        "intent": (intent_data or {}).get("intent", "general"),
+        "ui_mode": _response_ui_mode,
+        # Additive (2026-09-22, switch_analysis): the SAME holding/target
+        # company names _route_specialist already resolved into
+        # intent_data for comparison.py's prompt-building — zero new
+        # retrieval. Serialized here specifically so CoreAnswer.
+        # from_v3_response can recover them (intent_data itself is a
+        # local variable that never otherwise reaches this dict) for
+        # aev2/switch_analysis.py's deterministic assembly.
+        "switch_holding": (intent_data or {}).get("holding"),
+        "switch_target": (intent_data or {}).get("target"),
         # P5 Stage 2, item 5: degraded_reason is the single source of truth;
         # synthesis_incomplete is derived from it, never set independently.
         # Priority: was_degraded (failed to generate at all) > grounding_collapsed
@@ -665,7 +907,7 @@ async def _assemble_response(
             "opportunities": ai.get("opportunities", []),
             "confidence": confidence_breakdown["final_confidence"],
             "confidence_level": confidence_breakdown["level"],
-            "sentiment": ai.get("sentiment", "neutral"),
+            "sentiment": ai.get("sentiment"),
             "sources_count": evidence.source_count,
         },
         "key_drivers": ai.get("key_drivers", []),
@@ -675,6 +917,13 @@ async def _assemble_response(
         "related_events": evidence.events[:6],
         "news": evidence.news[:6],
         "policies": evidence.policies[:4],
+        # Additive (2026-09-21, AEV2 citation-coverage extension): the
+        # already-approved per-symbol CompanyAnnouncement relationship
+        # (evidence.collect() fetches these via get_recent_announcements
+        # (sym, ...) — a direct symbol query, not a keyword match). Never
+        # read by V2/V3's own existing rendering, so this cannot change
+        # V3's existing output; AEV2 uses it for claim evidence coverage.
+        "announcements": evidence.announcements[:6],
         "timeline": ai.get("timeline", []),
         "historical_comparison": evidence.similar_historical,
         "ripple_chain": ripple_chain,
@@ -693,12 +942,15 @@ async def _assemble_response(
             "confidence": confidence_breakdown["final_confidence"],
             "horizon": horizon,
             "opportunity_score": opportunity_score,
-            "engine_verdict": engine_verdict,
+            # Step 3.4D-2.1: engine_verdict is a MARKET-WIDE read (market direction, confidence, VIX). Next to a company, comparison, event or sector answer it reads as MarketRipple's view of
+            # those companies, so it is public only for a market-wide / macro scope. The computed value is kept internally (stripped by the finalizer) for diagnostics.
+            "engine_verdict": engine_verdict if _response_ui_mode in MARKET_WIDE_UI_MODES else None,
         },
         "market_chart": chart,
         "graph": graph,
         "citations": list({a.get("source", "") for a in evidence.news if a.get("source")}),
         "decision_intelligence": ai.get("decision_intelligence"),
+        "_engine_verdict_internal": engine_verdict,
         "confidence_data": {
             "level": confidence_breakdown["level"],
             "score": confidence_breakdown["final_confidence"],
@@ -740,7 +992,18 @@ async def _assemble_response(
         "ai_conclusion": ai.get("ai_conclusion", {}),
         "evidence_score": evidence_score,
         "confidence_breakdown": confidence_breakdown,
+        # The frontend-facing confidence contract (2026-09-21 AI Answer UI
+        # work) — same canonical formula aev2/confidence.py uses, shared
+        # via postprocess.build_confidence_contract so the frontend never
+        # recomputes weighting itself. Exposed on every V3 response, not
+        # gated by AEV2 mode, since the new AI Answer shell needs it for
+        # local end-to-end UI work while AEV2 assembly stays off publicly.
+        "confidence": postprocess.build_confidence_contract(confidence_breakdown),
         "source_attribution": evidence.to_source_ids(),
+        "evidence_index": claim_sources_mod.compact_index(evidence_index),
+        "claim_sources": claim_validation["claims"],
+        "claim_validation": {"status": claim_validation["status"], "summary": claim_validation["summary"], "uncovered": claim_validation.get("uncovered", [])},
+        "premise_check": _premise_check(evidence),
         "validation": {
             "repairs": validation_report.repairs,
             "omissions": validation_report.omissions,
@@ -798,6 +1061,8 @@ async def _assemble_response(
     if (
         specialist_kind == "comparison" and not is_multi_compare
         and isinstance(response.get("decision_intelligence"), dict)
+        and (conclusion_scope or {}).get("partial") is not True      # Step 3.4D-2: a winner/preference needs the conclusion to be authorized, valuation-only evidence does not
+        and confidence_breakdown["final_confidence"] is not None     # Step 5: the pairwise engine rates both sides from a measured confidence; with none it would rate from defaults
     ):
         try:
             from app.services.decision_engine import compute_decision
@@ -817,7 +1082,9 @@ async def _assemble_response(
                     # Batch E consumer migration, 2026-08-24 — current_strength
                     # in V2 mode (real V2 field, no opportunity_score concept).
                     return hits[0]["current_strength"] if settings.opportunity_v2_promoted else hits[0]["opportunity_score"]
-                _opp_a, _opp_b = await asyncio.gather(_opp_for(_sym_a), _opp_for(_sym_b))
+                # sequential, not gathered: both lookups share this one AsyncSession and a session cannot run two operations at once (Step 3.4G.3)
+                _opp_a = await _opp_for(_sym_a)
+                _opp_b = await _opp_for(_sym_b)
                 response["decision_intelligence"]["engine_recommendation"] = compute_decision(
                     entity_a_symbol=_sym_a, entity_b_symbol=_sym_b,
                     direction=(evidence.mie_state or {}).get("signals", {}).get("direction", "sideways"),
@@ -851,18 +1118,15 @@ async def _assemble_response(
     else:
         response["follow_up_groups"] = []
 
-    # Asynchronously persist predictions for the learning engine (non-blocking).
-    # Shared with V2 — see prediction_recording.py's module docstring for why
-    # this was missing from V3 (the primary user-facing pipeline) until now.
-    from app.services.ai_search.prediction_recording import store_search_predictions
-    asyncio.create_task(
-        store_search_predictions(
-            result=response,
-            confidence_score=confidence_breakdown["final_confidence"],
-            confidence_level=confidence_breakdown["level"],
-            confidence_breakdown=confidence_breakdown,
-        ),
-        name="prediction-store-v3",
-    )
-
+    # Prediction recording moved to response_finalize.py (2026-09-21) —
+    # scheduling it here, unconditionally, meant a response that parses
+    # cleanly (was_degraded=False, so it reaches this point) but later
+    # fails the recommendation-language safety gate downstream in
+    # response_finalize.py would already have had a prediction recorded
+    # from its pre-gate (unsafe) content by the time the gate ever ran.
+    # response_finalize.py is the one place that knows the FINAL,
+    # post-gate response every route actually returns, and the one place
+    # that knows whether this was a fresh computation or a cache replay
+    # — both required to record "one prediction per fresh, clean answer,
+    # zero on cache hits or a gate rejection." See its own docstring.
     return response

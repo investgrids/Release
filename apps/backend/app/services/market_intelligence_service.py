@@ -254,6 +254,13 @@ async def get_market_pulse() -> dict:
     result = {
         "generated_at":       mie.get("generated_at"),
         "market_status":      status,
+        # The Intelligence Engine's own session-phase classifier
+        # (intelligence/engine.py::_market_session — "live"/"weekend"/
+        # pre-/after-market), a distinct concept from market_status's
+        # "open"/"closed" (2026-09-22, Market Pulse AEV2 audit: AEV2's
+        # contract needs both separately, not one collapsed into the
+        # other).
+        "market_session":     mie.get("market_session"),
         "indices":            display_indices,
         "market_mood":        signals.get("mood"),
         "market_direction":   signals.get("direction"),
@@ -265,6 +272,14 @@ async def get_market_pulse() -> dict:
         "biggest_opportunity": biggest_opportunity,
         "biggest_risk":       mie.get("biggest_risk"),
         "what_to_watch_next": watch_next,
+        # Real ThemeScoringWorker state (2026-09-22, Market Pulse AEV2
+        # audit) — already computed for _verified_drivers_for's own use
+        # above, never previously surfaced on the pulse response itself.
+        # Each entry: {theme, score, price_signal, news_signal,
+        # news_count_24h, top_stocks, momentum} — see theme_worker.py's
+        # own _score_theme() for the real computation (60% live price
+        # change + 40% real 24h news-count match).
+        "theme_momentum":     themes,
         # ── Phase 2: Market Intelligence Scoring Engine ─────────────────────
         # opportunity_score and theme_strength are NOT computed here — they're
         # real numbers already produced by the Opportunity Engine and Theme

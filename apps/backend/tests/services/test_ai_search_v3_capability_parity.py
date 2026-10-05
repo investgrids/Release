@@ -46,7 +46,8 @@ def test_three_or_more_companies_routes_to_multi_compare_prompt():
     }
     prompt = build_prompt("Compare TCS, Infosys, and Wipro", _bundle_stub(), {}, entities)
     assert "MULTI-ENTITY comparison" in prompt
-    assert "entity_analyses" in prompt
+    # Step 3.4D-3: decision blocks (entity_analyses, winner, outlooks, confidences) are no longer part of the model contract
+    assert "entity_analyses" not in prompt and "decision_intelligence" not in prompt
     for name in ("Tata Consultancy Services", "Infosys", "Wipro"):
         assert name in prompt
     # Must NOT contain the pairwise-only fields — this is the whole point
@@ -62,8 +63,10 @@ def test_exactly_two_companies_still_uses_pairwise_prompt():
     ]}
     intent_data = {"holding": "Tata Consultancy Services", "target": "Infosys"}
     prompt = build_prompt("TCS or Infosys?", _bundle_stub(), intent_data, entities)
-    assert "holding_analysis" in prompt
+    # Step 3.4D-3: the pairwise decision block (holding_analysis, winner, comparison rows) is no longer requested from the model
+    assert "holding_analysis" not in prompt and '"winner"' not in prompt and '"advantage"' not in prompt
     assert "entity_analyses" not in prompt
+    assert "Tata Consultancy Services" in prompt and "Infosys" in prompt
 
 
 def test_multi_compare_prompt_falls_back_to_symbols_when_no_names_resolved():
@@ -84,5 +87,6 @@ def test_multi_compare_prompt_caps_at_three_entities_for_token_budget():
         "company_matches": [{"name": n, "symbol": n} for n in ("A", "B", "C", "D")],
     }
     prompt = _build_multi_compare_prompt("Compare A, B, C, D", _bundle_stub(), entities)
-    assert prompt.count('"entity":') == 3
+    # one companies row per capped entity (the per-entity analysis blocks that used to carry '"entity":' are gone in Step 3.4D-3)
+    assert sum(prompt.count(f'"name": "{n}"') for n in ("A", "B", "C")) == 3 and '"name": "D"' not in prompt
     assert "\"D\"" not in prompt.split("COMPANIES TO ANALYZE")[1].split("\n")[0]
