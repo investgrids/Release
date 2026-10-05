@@ -22,6 +22,7 @@ from app.services.ai_search.schema import (
     render_decision_group,
     render_investment_group,
 )
+from app.services.ai_search.evidence import PROMPT_VISIBLE
 from app.services.ai_search.specialists.base import (
     PRIORITY_INSTRUCTIONS,
     premise_note,
@@ -92,8 +93,8 @@ def _build_multi_compare_prompt(query: str, evidence, entities: dict) -> str:
     display_names = (names if names else symbols)[:3]  # capped tighter than other blocks' usual 6 -- see token-budget note above
     entity_list = ", ".join(display_names)
 
-    evs = "\n".join(f"- [E{i}] {e['title']}" for i, e in enumerate(evidence.deduped_events()[:4], 1)) or "None"
-    nws = "\n".join(f"- [N{i}] {a['headline']}" for i, a in enumerate(evidence.deduped_news()[:4], 1)) or "None"
+    evs = "\n".join(f"- [E{i}] {e['title']}" for i, e in enumerate(evidence.deduped_events()[:PROMPT_VISIBLE["comparison"]["events"]], 1)) or "None"
+    nws = "\n".join(f"- [N{i}] {a['headline']}" for i, a in enumerate(evidence.deduped_news()[:PROMPT_VISIBLE["comparison"]["news"]], 1)) or "None"
     extra_context = evidence.to_context_text()
     ctx_block = f"\nCONTEXT:\n{extra_context}\n" if extra_context else ""
 
@@ -369,8 +370,8 @@ def build_prompt(query: str, evidence, intent_data: dict, entities: dict) -> str
     b_label = entity_label(target, target_is_commodity, target_is_sector)
 
     # Phase 5E.5: deduped views — see specialists/company.py's comment.
-    evs = "\n".join(f"- [E{i}] {e['title']}" for i, e in enumerate(evidence.deduped_events()[:4], 1)) or "None"
-    nws = "\n".join(f"- [N{i}] {a['headline']}" for i, a in enumerate(evidence.deduped_news()[:4], 1)) or "None"
+    evs = "\n".join(f"- [E{i}] {e['title']}" for i, e in enumerate(evidence.deduped_events()[:PROMPT_VISIBLE["comparison"]["events"]], 1)) or "None"
+    nws = "\n".join(f"- [N{i}] {a['headline']}" for i, a in enumerate(evidence.deduped_news()[:PROMPT_VISIBLE["comparison"]["news"]], 1)) or "None"
     extra_context = evidence.to_context_text()
     ctx_block = f"\nCONTEXT:\n{extra_context}\n" if extra_context else ""
 

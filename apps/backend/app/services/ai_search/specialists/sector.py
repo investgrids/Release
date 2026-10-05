@@ -26,6 +26,7 @@ from app.services.ai_search.schema import (
     render_decision_group,
     render_investment_group,
 )
+from app.services.ai_search.evidence import PROMPT_VISIBLE
 from app.services.ai_search.specialists.base import PRIORITY_INSTRUCTIONS, premise_note, parse_specialist_json, research_framing_rules
 
 SPECIALIST_SYSTEM = (
@@ -56,8 +57,10 @@ def build_prompt(query: str, evidence, intent_data: dict, entities: dict) -> str
     target_sector = _identify_sector(query, sector_rows)
     sector_lines = "\n".join(f"- {s['name']}: {s['value']} (1-day change, real live data)" for s in sector_rows[:12]) or "None available"
     # Phase 5E.5: deduped view — see specialists/company.py's comment.
-    evs = "\n".join(f"- [E{i}] [{e['category']}] {e['title']} (score:{e['impact_score']:.0f})" for i, e in enumerate(evidence.deduped_events()[:6], 1)) or "None"
-    pols = "\n".join(f"- [P{i}] {p['title']} [{p['ministry']}]" for i, p in enumerate(evidence.policies[:4], 1)) or "None"
+    evs = "\n".join(f"- [E{i}] [{e['category']}] {e['title']} (score:{e['impact_score']:.0f})" for i, e in enumerate(evidence.deduped_events()[:PROMPT_VISIBLE["sector"]["events"]], 1)) or "None"
+    # Step 3.4G.2: the selected news headlines now reach the sector specialist (before, they were retrieved and ranked but never shown). Same bounded set, same format as the company prompt.
+    nws = "\n".join(f"- [N{i}] {a['headline']}" for i, a in enumerate(evidence.deduped_news()[:PROMPT_VISIBLE["sector"]["news"]], 1)) or "None"
+    pols = "\n".join(f"- [P{i}] {p['title']} [{p['ministry']}]" for i, p in enumerate(evidence.policies[:PROMPT_VISIBLE["sector"]["policies"]], 1)) or "None"
     extra_context = evidence.to_context_text()
 
     investment_group = render_investment_group()
@@ -72,6 +75,7 @@ Real live sector performance (1-day % change, all tracked sectors — use this t
 
 Related policy actions (real, filed/announced): {pols}
 Related market events (real, from DB): {evs}
+Related market news headlines (real, retrieved): {nws}
 {f"Additional real context: {extra_context}" if extra_context else ""}
 {premise_note(evidence)}
 

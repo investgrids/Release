@@ -140,6 +140,9 @@ async def run_one(q: dict, prev_titles: dict) -> dict:
             "counts": {"events": len(ev), "news": len(nw), "announcements": len(an)}, "events": ev, "news": nw, "announcements": an, "index_ids": [i["id"] for i in b.index()] if b is not None else [],
             "duplicate_pairs": dup_pairs(allt), "freshness_median_days": round(statistics.median(ages), 1) if ages else None, "freshness_max_days": max(ages) if ages else None,
             "tag_counts": {t: sum(1 for x in ev + nw + an if t in x["tags"]) for t in ("administrative", "operating_result", "outlook_demand", "rate_policy")},
+            "alignment": ({"index_ids": sorted(i["id"] for i in b.index()), "markers_in_prompt": sorted(set(re.findall(r"\[([ENPAC]\d{1,3})\]", prompt))), "prompt_kind": getattr(b, "prompt_kind", None),
+                           "index_not_in_prompt": sorted({i["id"] for i in b.index()} - set(re.findall(r"\[([ENPAC]\d{1,3})\]", prompt))),
+                           "prompt_not_in_index": sorted(set(re.findall(r"\[([ENPAC]\d{1,3})\]", prompt)) - {i["id"] for i in b.index()}), "prompt_chars": len(prompt)} if b is not None else None),
             "rank_trace": getattr(b, "rank_trace", None) if b is not None else None,
             "filter_report": getattr(b, "filter_report", None) if b is not None else None}
 

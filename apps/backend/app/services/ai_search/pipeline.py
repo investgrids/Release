@@ -345,6 +345,7 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
     _t_stage = _checkpoint("evidence_collection_ms", _t_stage)
 
     specialist, specialist_kind = _route_specialist(query, intent_data, entities)
+    evidence.prompt_kind = specialist_kind      # Step 3.4G.2: the evidence index and Gate B's corpus are cut to what this specialist's prompt actually shows
     # Free-tier data track, Stage 1 (2026-08-06): same instrumentation as V2's
     # ai_search.done — entities + a thin_evidence flag. Uses evidence.source_count
     # (events+news+policies, this pipeline's own already-computed total) rather

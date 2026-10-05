@@ -35,7 +35,11 @@ REJECTED_GENERATIONS: deque = deque(maxlen=50)
 
 
 def evidence_corpus(evidence) -> str:
-    """Everything the model was shown, as one string: item titles, summaries and dates, context lines, valuation, sector rows, macro indices, precedents."""
+    """The text a generated figure or date may be grounded in. When the pipeline has told the bundle which prompt it was rendered into (prompt_kind), this is EXACTLY the model-visible
+    evidence (EvidenceBundle.visible_text): nothing the model was not shown, such as hidden ranked items, summaries or item dates the prompt omits, can authorize a claim.
+    A bundle with no prompt_kind (tests, offline tools) keeps the legacy everything-internal corpus."""
+    if getattr(evidence, "prompt_kind", None):
+        return evidence.visible_text()
     parts: list[str] = list(evidence.context_lines or [])
     for e in evidence.events:
         parts += [str(e.get("title") or ""), str(e.get("summary") or ""), str(e.get("event_date") or ""), str(e.get("published_at") or ""), str(e.get("date") or "")]

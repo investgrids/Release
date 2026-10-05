@@ -59,6 +59,15 @@ from app.services.ai_search.retrieval import (
 log = structlog.get_logger(__name__)
 
 
+# Step 3.4G.2: how many of each ranked list a specialist PROMPT actually shows. This is the single source of truth: the prompt builders slice with it, and the evidence index and Gate B's corpus
+# are cut to the same slices, so  retrieved ⊃ selected ⊃ model-visible = claim-authorizable.  Internal traces (rank_trace, filter_report) keep everything.
+PROMPT_VISIBLE = {
+    "company": {"events": 5, "news": 5, "policies": 3},
+    "sector": {"events": 6, "news": 5, "policies": 4},
+    "comparison": {"events": 4, "news": 4, "policies": 0},      # pairwise and multi-entity comparison prompts
+}
+
+
 @dataclass
 class EvidenceBundle:
     events: list[dict] = field(default_factory=list)
@@ -87,6 +96,8 @@ class EvidenceBundle:
     # Step 3.4G.1: per-item ranking components for the selected pools (internal, never in the public response) and how many announcements were dropped as stale before ranking.
     rank_trace: dict = field(default_factory=dict)
     ann_stale: int = 0
+    # Which specialist prompt this bundle is rendered into (set by the pipeline right after routing). When set, index() and the authorization corpus expose ONLY what that prompt shows.
+    prompt_kind: str | None = None
 
     # Phase 5E.5: real developments, not raw row count. Populated by
     # collect() via the shared evidence_clustering primitive (5E.3) —
@@ -147,6 +158,37 @@ class EvidenceBundle:
     def deduped_announcements(self) -> list[dict]:
         return [a for a in self.announcements if not self._is_redundant("announcement", a.get("id"))]
 
+    def _cap(self, kind: str) -> int | None:
+        caps = PROMPT_VISIBLE.get(self.prompt_kind or "")
+        return None if caps is None else caps[kind]
+
+    def visible_events(self) -> list[dict]:
+        rows, n = self.deduped_events(), self._cap("events")
+        return rows if n is None else rows[:n]
+
+    def visible_news(self) -> list[dict]:
+        rows, n = self.deduped_news(), self._cap("news")
+        return rows if n is None else rows[:n]
+
+    def visible_policies(self) -> list[dict]:
+        n = self._cap("policies")
+        return self.policies if n is None else self.policies[:n]
+
+    def visible_text(self) -> str:
+        """The evidence text the model was shown, for Gate B's figure/date check. Only what the prompt renders: titles/headlines (summaries and item dates are NOT shown), the event category and
+        score, the announcement block (subject, category, date), every context line, and, for the sector prompt, the live sector rows."""
+        parts: list[str] = []
+        for e in self.visible_events():
+            parts += [str(e.get("category") or ""), str(e.get("title") or ""), f"{float(e.get('impact_score') or 0):.0f}"]
+        for n in self.visible_news():
+            parts.append(str(n.get("headline") or ""))
+        for p in self.visible_policies():
+            parts += [str(p.get("title") or ""), str(p.get("ministry") or "")]
+        parts.append(self.to_context_text())
+        if self.prompt_kind == "sector":
+            parts += [f"{s.get('name')} {s.get('value')}" for s in (self.sector_rows or [])[:12]]
+        return " ".join(parts)
+
     def to_context_text(self) -> str:
         """Context lines tagged [C1], [C2]... plus the announcement block tagged [A1]... Built AFTER the age/relevance filter, so nothing the filter dropped can reach the prompt
         through free text (announcement lines used to be written into context_lines before filtering)."""
@@ -168,12 +210,12 @@ class EvidenceBundle:
         """Stable evidence IDs for THIS answer. E = events, N = news, P = policies, A = announcements, C = context lines, in the same order the prompt lists them, so an ID
         in the prompt and an ID in claim_sources always mean the same item."""
         out: list[dict] = []
-        for i, e in enumerate(self.deduped_events(), 1):
+        for i, e in enumerate(self.visible_events(), 1):
             out.append({"id": f"E{i}", "kind": "event", "title": e.get("title"), "summary": (e.get("summary") or "")[:200], "date": e.get("event_date") or e.get("published_at") or e.get("date"), "source": e.get("source"),
                         "companies": [c.get("symbol") for c in (e.get("companies") or []) if isinstance(c, dict)], "ref": f"event:{e.get('id')}"})
-        for i, n in enumerate(self.deduped_news(), 1):
+        for i, n in enumerate(self.visible_news(), 1):
             out.append({"id": f"N{i}", "kind": "news", "title": n.get("headline"), "summary": (n.get("summary") or "")[:200], "date": n.get("published_at"), "source": n.get("source"), "companies": [], "ref": f"news:{n.get('id')}"})
-        for i, p in enumerate(self.policies, 1):
+        for i, p in enumerate(self.visible_policies(), 1):
             out.append({"id": f"P{i}", "kind": "policy", "title": p.get("title"), "summary": (p.get("summary") or "")[:200], "date": None, "source": p.get("ministry"), "companies": [], "ref": f"policy:{p.get('id')}"})
         for i, a in enumerate(self.deduped_announcements()[:8], 1):
             out.append({"id": f"A{i}", "kind": "announcement", "title": a.get("subject"), "date": a.get("announcement_date"), "source": "NSE",

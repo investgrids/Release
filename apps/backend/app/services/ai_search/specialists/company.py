@@ -24,6 +24,7 @@ from app.services.ai_search.schema import (
     render_decision_group,
     render_investment_group,
 )
+from app.services.ai_search.evidence import PROMPT_VISIBLE
 from app.services.ai_search.specialists.base import PRIORITY_INSTRUCTIONS, premise_note, parse_specialist_json, research_framing_rules
 
 SPECIALIST_SYSTEM = (
@@ -49,9 +50,9 @@ def build_prompt(query: str, evidence, intent_data: dict, entities: dict) -> str
     # deduped_events/deduped_news's docstring). Citations still read
     # evidence.events/evidence.news directly, unaffected.
     # Every item carries its evidence ID (E/N/P) so the model can cite it in claim_sources; the IDs match EvidenceBundle.index().
-    evs = "\n".join(f"- [E{i}] [{e['category']}] {e['title']} (score:{e['impact_score']:.0f})" for i, e in enumerate(evidence.deduped_events()[:5], 1)) or "None"
-    nws = "\n".join(f"- [N{i}] {a['headline']}" for i, a in enumerate(evidence.deduped_news()[:5], 1)) or "None"
-    pols = "\n".join(f"- [P{i}] {p['title']} [{p['ministry']}]" for i, p in enumerate(evidence.policies[:3], 1)) or "None"
+    evs = "\n".join(f"- [E{i}] [{e['category']}] {e['title']} (score:{e['impact_score']:.0f})" for i, e in enumerate(evidence.deduped_events()[:PROMPT_VISIBLE["company"]["events"]], 1)) or "None"
+    nws = "\n".join(f"- [N{i}] {a['headline']}" for i, a in enumerate(evidence.deduped_news()[:PROMPT_VISIBLE["company"]["news"]], 1)) or "None"
+    pols = "\n".join(f"- [P{i}] {p['title']} [{p['ministry']}]" for i, p in enumerate(evidence.policies[:PROMPT_VISIBLE["company"]["policies"]], 1)) or "None"
     extra_context = evidence.to_context_text()
 
     # Phase 1.7 — when session context merged in companies the query text
