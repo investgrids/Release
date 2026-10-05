@@ -104,7 +104,7 @@ log = structlog.get_logger(__name__)
 # docstring. A set, not a single name, so a future internal-only
 # addition (e.g. a second attribution source) has one obvious place to
 # register rather than a new ad hoc strip somewhere else.
-_INTERNAL_ONLY_FIELDS = frozenset({"announcements", "_rejected_generation"})   # the second holds a withheld model generation: diagnostics only, never sent to a client
+_INTERNAL_ONLY_FIELDS = frozenset({"announcements", "_rejected_generation", "_engine_verdict_internal"})   # the second holds a withheld model generation: diagnostics only, never sent to a client
 
 
 def _strip_internal_only_fields(result: dict) -> dict:

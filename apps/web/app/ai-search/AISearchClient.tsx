@@ -83,7 +83,7 @@ interface AnswerSection {
   what_priced_in: string;
   risks: string[]; opportunities: string[];
   confidence: number | null; confidence_level?: string;
-  sentiment: "bullish" | "bearish" | "neutral";
+  sentiment: "bullish" | "bearish" | "neutral" | null;
   sources_count: number;
 }
 interface KeyDriver    { icon: string; title: string; explanation: string; confidence: number | null; }
@@ -119,7 +119,7 @@ interface MonitorItem   { title: string; why_it_matters: string; importance: str
 interface ReasoningMethod { label: string; used: boolean; }
 interface ConfidenceData  { level: string; score: number | null; reasons: string[]; breakdown: Record<string, number>; caveats: string[]; }
 interface EngineVerdict { tier?: string; rating?: string; [key: string]: unknown; }
-interface InvestmentVerdict { rating: string; direction: string; confidence: number | null; horizon: string; top_picks: string[]; risks: string[]; catalysts: string[]; opportunity_score: number | null; risk_level?: string; suitable_for?: string; verdict_basis?: string; engine_verdict?: EngineVerdict | null; }
+interface InvestmentVerdict { rating: string; direction: string | null; confidence: number | null; horizon: string; top_picks: string[]; risks: string[]; catalysts: string[]; opportunity_score: number | null; risk_level?: string; suitable_for?: string; verdict_basis?: string; engine_verdict?: EngineVerdict | null; }
 interface ChartSeries  { name: string; data: number[]; color: string; }
 interface MarketChart  { labels: string[]; series: ChartSeries[]; }
 interface GraphNode    { id: string; label: string; type: string; x: number; y: number; }
@@ -499,8 +499,20 @@ function RiskSeverity({ text }: { text: string }) {
   return <span className={`rounded border px-1.5 py-0.5 text-[9px] font-semibold ${cls}`}>{level}</span>;
 }
 
-/** Direction icon for the AI Decision card */
-function DirectionIcon({ direction, size = 56 }: { direction: string; size?: number }) {
+/** True only when the backend authorized a verdict. A withheld verdict arrives as rating "Not Applicable" (or empty) with direction and sentiment null. That state means "no verdict is
+ *  authorized" and must never be drawn as Neutral/Cautious or any other conclusion the backend deliberately did not make. */
+function hasAuthorizedVerdict(v: { rating?: string | null } | null | undefined): boolean {
+  const rating = (v?.rating ?? "").trim();
+  return rating !== "" && rating !== "Not Applicable";
+}
+
+function hasKeys(o: object | null | undefined): boolean {
+  return !!o && Object.keys(o).length > 0;
+}
+
+/** Direction icon for the AI Decision card. No direction means no icon: never a neutral stand-in. */
+function DirectionIcon({ direction, size = 56 }: { direction: string | null; size?: number }) {
+  if (!direction) return null;
   const isBull = direction === "bullish";
   const isBear = direction === "bearish";
   const color  = isBull ? "#22c55e" : isBear ? "#f43f5e" : "#f59e0b";
@@ -1308,11 +1320,12 @@ export function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRe
 
   // Verdict direction — drives the icon only; the label itself is always the
   // research-outlook enum (never Buy/Sell/Hold), colored via OUTLOOK_COLOR.
-  const dir = answer?.sentiment ?? investment_verdict?.direction ?? "neutral";
+  const verdictAvailable = hasAuthorizedVerdict(investment_verdict);
+  const dir = verdictAvailable ? (answer?.sentiment ?? investment_verdict?.direction ?? null) : null;
   const isBull = dir === "bullish";
   const isBear = dir === "bearish";
-  const outlookLabel = investment_verdict?.rating || "Neutral";
-  const verdictColor = OUTLOOK_COLOR[outlookLabel] ?? (isBull ? "text-emerald-400" : isBear ? "text-rose-400" : "text-amber-400");
+  const outlookLabel = verdictAvailable ? (investment_verdict?.rating as string) : null;
+  const verdictColor = outlookLabel ? (OUTLOOK_COLOR[outlookLabel] ?? (isBull ? "text-emerald-400" : isBear ? "text-rose-400" : "text-amber-400")) : "text-text-muted";
   const conf = displayConfidence(result);
   const risk = investment_verdict?.risk_level
     ? { label: investment_verdict.risk_level, color:
@@ -1325,7 +1338,7 @@ export function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRe
   // Hero Decision Panel data — only assembled when the V3 fields it needs
   // are present (decision_engine_v2 + ai_conclusion); render site below
   // checks this and shows nothing on V2 responses rather than a stub.
-  const heroData: HeroVerdictData | null = (decision_engine_v2 && ai_conclusion && !result.synthesis_incomplete) ? {
+  const heroData: HeroVerdictData | null = (verdictAvailable && hasKeys(decision_engine_v2) && hasKeys(ai_conclusion) && decision_engine_v2 && ai_conclusion && !result.synthesis_incomplete) ? {
     verdictScale: decision_engine_v2.verdict_scale || "Neutral",
     why: decision_engine_v2.why || "",
     confidence: confidence_breakdown?.final_confidence ?? conf,
@@ -1511,12 +1524,19 @@ export function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRe
         </div>
 
         <div className="flex items-center gap-4 mb-3">
-          <DirectionIcon direction={dir} size={64}/>
+          {dir && <DirectionIcon direction={dir} size={64}/>}
           <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2.5">
-              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${OUTLOOK_DOT[outlookLabel] ?? "bg-amber-400"}`}/>
-              <p className={`text-[26px] font-extrabold leading-tight ${verdictColor}`}>{outlookLabel}</p>
-            </div>
+            {outlookLabel ? (
+              <div className="flex items-center gap-2.5">
+                <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${OUTLOOK_DOT[outlookLabel] ?? "bg-amber-400"}`}/>
+                <p className={`text-[26px] font-extrabold leading-tight ${verdictColor}`}>{outlookLabel}</p>
+              </div>
+            ) : (
+              <div data-testid="verdict-not-available">
+                <p className="text-[18px] font-semibold leading-tight text-text-secondary">Verdict: Not available</p>
+                <p className="mt-1 text-[12px] leading-snug text-text-muted">MarketRipple doesn&apos;t issue a verdict for this question because the available evidence doesn&apos;t support one.</p>
+              </div>
+            )}
             {/* Phase 1 UI fix #2: verdict_basis is the single most trustworthy
                 signal in the response — whether this verdict is backed by
                 MarketRipple's own deterministic data engine, or is an AI-only
@@ -1531,13 +1551,13 @@ export function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRe
         </div>
 
         {/* Stats row */}
-        <div className="grid grid-cols-4 gap-2">
+        <div className={`grid ${verdictAvailable ? "grid-cols-4" : "grid-cols-2"} gap-2`}>
           {[
             { label: "Confidence", value: conf != null ? `${conf}%` : "Unscored", color: confidenceColor(conf), title: "An evidence-based composite with a minor self-assessed component -- see the Confidence Breakdown panel below for the full factor split" as string | undefined },
             { label: "Time Horizon", value: investment_verdict?.horizon || "Not specified", color: investment_verdict?.horizon ? "text-text-primary" : "text-text-muted", title: undefined as string | undefined },
             { label: "Risk Level", value: risk.label, color: risk.color.split(" ")[0], title: undefined as string | undefined },
             { label: "Suitable For", value: suitableForLabel, color: "text-text-primary", title: undefined as string | undefined },
-          ].map(s => (
+          ].filter(s => verdictAvailable || s.label === "Confidence" || (s.label === "Time Horizon" && !!investment_verdict?.horizon)).map(s => (
             <div key={s.label} className="rounded-[12px] border border-surface-border/6 bg-text-primary/[0.02] px-3 py-2" title={s.title}>
               <p className="text-[9px] uppercase tracking-wider text-text-muted mb-0.5">{s.label}</p>
               <p className={`text-[12px] font-semibold ${s.color}`}>{s.value}</p>
@@ -1553,7 +1573,7 @@ export function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRe
           <details className="mt-3 group">
             <summary className="cursor-pointer text-[10.5px] font-medium text-text-muted hover:text-text-secondary transition list-none flex items-center gap-1">
               <span className="inline-block transition-transform group-open:rotate-90">▸</span>
-              Why this rating
+              {verdictAvailable ? "Why this rating" : "Market-level data engine view"}
             </summary>
             <div className="mt-2 rounded-[10px] border border-surface-border/6 bg-text-primary/[0.02] px-3 py-2 text-[11px] text-text-secondary">
               {investment_verdict.engine_verdict.rating && (
@@ -2251,9 +2271,10 @@ export function RightSidebar({ result, onAction, onReopenSearch, activeQuery, se
   // every other confidence display on this page uses — see its definition
   // for the fallback order.
   const score = displayConfidence(result);
-  const verdictLabel = v?.rating || "Neutral";
-  const verdictColor = OUTLOOK_COLOR[verdictLabel] ?? "text-amber-400";
-  const riskInfo = result
+  const sidebarVerdictAvailable = hasAuthorizedVerdict(v);
+  const verdictLabel = sidebarVerdictAvailable ? (v?.rating as string) : null;
+  const verdictColor = verdictLabel ? (OUTLOOK_COLOR[verdictLabel] ?? "text-amber-400") : "text-text-muted";
+  const riskInfo = result && sidebarVerdictAvailable
     ? (v?.risk_level
         ? { label: v.risk_level, color:
             v.risk_level === "Low" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
@@ -2314,10 +2335,14 @@ export function RightSidebar({ result, onAction, onReopenSearch, activeQuery, se
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
                 <p className="text-[9px] uppercase tracking-wider text-text-muted mb-1">Overall View</p>
-                <p className={`flex items-center gap-1.5 text-[14px] font-bold leading-tight ${verdictColor}`}>
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${OUTLOOK_DOT[verdictLabel] ?? "bg-amber-400"}`}/>
-                  {verdictLabel}
-                </p>
+                {verdictLabel ? (
+                  <p className={`flex items-center gap-1.5 text-[14px] font-bold leading-tight ${verdictColor}`}>
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${OUTLOOK_DOT[verdictLabel] ?? "bg-amber-400"}`}/>
+                    {verdictLabel}
+                  </p>
+                ) : (
+                  <p data-testid="sidebar-verdict-not-available" className="text-[13px] font-semibold leading-tight text-text-muted">Not available</p>
+                )}
               </div>
               <div>
                 <p className="text-[9px] uppercase tracking-wider text-text-muted mb-1">Risk</p>
@@ -2338,7 +2363,7 @@ export function RightSidebar({ result, onAction, onReopenSearch, activeQuery, se
               </div>
               <div>
                 <p className="text-[9px] uppercase tracking-wider text-text-muted mb-1">Best For</p>
-                <p className="text-[12px] font-semibold text-text-primary">{v?.suitable_for || suitableFor(v?.horizon || "")}</p>
+                <p className="text-[12px] font-semibold text-text-primary">{sidebarVerdictAvailable ? (v?.suitable_for || suitableFor(v?.horizon || "")) : "—"}</p>
               </div>
             </div>
 

@@ -589,6 +589,10 @@ def _build_degraded_response(
     )
 
 
+# Step 3.4D-2.1: ui_modes whose question is itself market-wide, the only scopes where the market-wide engine verdict is a compatible thing to show.
+MARKET_WIDE_UI_MODES = frozenset({"policy_macro_impact", "market_pulse"})
+
+
 async def _assemble_response(
     query: str, ai: dict, evidence, specialist_kind: str, was_degraded: bool, validation_report,
     db: AsyncSession, entities: dict,
@@ -732,6 +736,7 @@ async def _assemble_response(
     evidence_index = evidence.index()
     claim_validation = claim_sources_mod.validate_claim_sources(ai.get("claim_sources"), evidence_index, ai, entities, _UNIVERSE, getattr(evidence, "premise", None))
 
+    _response_ui_mode = classify_ui_mode(specialist_kind=specialist_kind, intent_data=intent_data, entities=entities, query=query)
     response = {
         "query": query,
         # Identifies this generated ANSWER (stable across repeat cache-hit
@@ -750,9 +755,7 @@ async def _assemble_response(
         # this is an interim projection, not the eventual consolidated
         # IntentResolution contract.
         "intent": (intent_data or {}).get("intent", "general"),
-        "ui_mode": classify_ui_mode(
-            specialist_kind=specialist_kind, intent_data=intent_data, entities=entities, query=query,
-        ),
+        "ui_mode": _response_ui_mode,
         # Additive (2026-09-22, switch_analysis): the SAME holding/target
         # company names _route_specialist already resolved into
         # intent_data for comparison.py's prompt-building — zero new
@@ -828,12 +831,15 @@ async def _assemble_response(
             "confidence": confidence_breakdown["final_confidence"],
             "horizon": horizon,
             "opportunity_score": opportunity_score,
-            "engine_verdict": engine_verdict,
+            # Step 3.4D-2.1: engine_verdict is a MARKET-WIDE read (market direction, confidence, VIX). Next to a company, comparison, event or sector answer it reads as MarketRipple's view of
+            # those companies, so it is public only for a market-wide / macro scope. The computed value is kept internally (stripped by the finalizer) for diagnostics.
+            "engine_verdict": engine_verdict if _response_ui_mode in MARKET_WIDE_UI_MODES else None,
         },
         "market_chart": chart,
         "graph": graph,
         "citations": list({a.get("source", "") for a in evidence.news if a.get("source")}),
         "decision_intelligence": ai.get("decision_intelligence"),
+        "_engine_verdict_internal": engine_verdict,
         "confidence_data": {
             "level": confidence_breakdown["level"],
             "score": confidence_breakdown["final_confidence"],
