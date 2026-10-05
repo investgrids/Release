@@ -28,8 +28,48 @@ _FACT_RE = re.compile(r"\d|%|₹|\brs\.?\b|\bcrore\b|\bannounc|\bwon\b|\bwins?\b
 _PERIOD_LABEL = re.compile(r"(?<![\w.])\d+(?:\s*[-\u2013]\s*\d+)?[- ]?(?:week|day|month|year|quarter|hour|minute)s?(?![a-z])", re.IGNORECASE)
 
 
+# Step 3.4G.2: factual-sentence detection is done per CLAUSE. A figure (digit, %, rupee, crore) makes a clause factual. An event verb makes a clause factual too, UNLESS the clause is an explicit statement
+# about what the EVIDENCE does or does not contain ("The supplied evidence does not include credit-growth data...", "Credit growth was not reported in the supplied evidence"), or is the consequence
+# clause of one ("..., so the reported strengthening cannot be assessed"). Generic negation is not enough: "The company did not report a profit" is itself a claim about the company and stays factual.
+_FIGURE_RE = re.compile(r"\d|%|\u20b9|\brs\.?\b|\bcrore\b", re.IGNORECASE)
+_EVENT_RE = re.compile(
+    r"\bannounc|\bwon\b|\bwins?\b|\bsigned\b|\breported\b|\braised\b|\bdelivered\b|\bacquir|\bapproved\b|\blaunch|\bawarded\b|\bsecured\b|\bfiled\b|\bdisclosed\b|\binformed\b|\bdeclared\b"
+    r"|\bcompleted\b|\bentered into\b|(?:did|does|do|has|have|had)\s+not\s+(?:report|announce|disclose|file|declare|post|deliver|win|sign|raise|launch|complete|approve|acquire|secure)\b"
+    r"|\bnever\s+(?:report|announc|disclos|fil|declar)\w*", re.IGNORECASE)
+_EV_NOUN = r"(?:(?:supplied|available|provided|current|retrieved|recent|this|the)\s+)*(?:evidence|data|information|coverage|context|sources?|material)"
+_ABSENCE_FRAMES = (
+    re.compile(_EV_NOUN + r"\b[^.;]{0,40}?\b(?:does|do|did)\s+not\s+(?:include|contain|show|establish|identify|provide|substantiate|confirm|cover|mention|say|report|explain|support|give|indicate|specify)\b", re.IGNORECASE),
+    re.compile(_EV_NOUN + r"\b[^.;]{0,40}?\b(?:contains?|includes?|provides?|gives?|has|have|shows?)\s+(?:no|nothing)\b", re.IGNORECASE),
+    re.compile(r"\bnot\s+(?:available|reported|included|provided|stated|shown|identified|covered|mentioned|established|disclosed)\s+in\s+(?:the\s+|this\s+)?(?:(?:supplied|available|current|provided|retrieved)\s+)*(?:evidence|data|context|sources?|material|coverage)\b", re.IGNORECASE),
+    re.compile(_EV_NOUN + r"\b[^.;]{0,25}?\b(?:is|are)\s+(?:not\s+available|unavailable|absent|missing|insufficient)\b", re.IGNORECASE),
+)
+_INABILITY = re.compile(r"\bcannot\s+be\s+(?:established|assessed|determined|verified|confirmed|compared|quantified|evaluated)|\bcan(?:'|\u2019)?t\s+be\s+(?:established|assessed|determined)", re.IGNORECASE)
+_CLAUSE_SPLIT = re.compile(r"(;|,\s*(?:but|and|while|so|therefore|thus|as)\b|\s+but\s+|\s+however,?\s+)", re.IGNORECASE)
+_CAUSE_DELIM = re.compile(r",\s*(?:so|therefore|thus)\b", re.IGNORECASE)
+
+
+def _is_absence_clause(clause: str) -> bool:
+    return any(p.search(clause) for p in _ABSENCE_FRAMES)
+
+
 def is_factual(sentence: str) -> bool:
-    return bool(_FACT_RE.search(_PERIOD_LABEL.sub(" ", sentence)))
+    parts = _CLAUSE_SPLIT.split(sentence)
+    prev_absence = False
+    delim = ""
+    for i, part in enumerate(parts):
+        if i % 2 == 1:
+            delim = part
+            continue
+        clause = _PERIOD_LABEL.sub(" ", part)
+        absence = _is_absence_clause(part)
+        if _FIGURE_RE.search(clause):
+            return True
+        if _EVENT_RE.search(clause):
+            consequence_of_absence = prev_absence and bool(_CAUSE_DELIM.fullmatch(delim)) and bool(_INABILITY.search(part))
+            if not absence and not consequence_of_absence:
+                return True
+        prev_absence = absence
+    return False
 
 
 _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9\"'(])")
