@@ -115,6 +115,8 @@ import email.utils
 import re
 import time
 import httpx
+
+from app.services import request_deadline
 import structlog
 from collections import deque
 from contextlib import asynccontextmanager
@@ -1099,6 +1101,53 @@ async def _call_nvidia(prompt: str, system: str = "", max_tokens: int = 900) -> 
     return ""
 
 
+def _deadline_stops_chain(failure_log: list[dict] | None, tier: str, model: str | None = None) -> bool:
+    """True when a request deadline is active and too little usable time is left to start another provider attempt (Step 3.4H.2b). Never true without a deadline."""
+    usable = request_deadline.usable()
+    if usable is None or usable >= request_deadline.min_attempt():
+        return False
+    request_deadline.mark_expired()
+    log.info("ai.deadline_stop", tier=tier, usable_s=round(usable, 2))
+    if failure_log is not None:
+        failure_log.append({"model": model, "provider": tier, "reason": "deadline"})
+    return True
+
+
+async def _attempt(tier: str, provider: str, url: str, key: str, model: str, prompt: str, system: str, max_tokens: int,
+                   headers: dict | None, failure_log: list[dict] | None) -> tuple[str, bool]:
+    """One provider attempt. Returns (text, stop_chain).
+
+    No request deadline: exactly the pre-3.4H.2b call (the provider's own 5 s connect / 30 s read httpx timeouts are the only bound).
+    With a deadline: the attempt runs under asyncio.wait_for(min(attempt cap, usable)), which cancels the HTTP call cleanly (connection closed, tier slot released by the caller's finally).
+    A timeout the PROVIDER caused (the attempt had its full allowance) is charged exactly like any other provider timeout (30 s cooldown). A cancel because the REQUEST budget ran out is logged as
+    reason "deadline" and does not touch provider health: our SLA expiring is not the provider's failure. The httpx read timeout bounds only the gap between bytes, so it cannot be used for this."""
+    args = (url, key, model, prompt, system, max_tokens) + ((headers,) if headers is not None else ())
+    if _deadline_stops_chain(failure_log, tier, model):
+        return "", True
+    usable = request_deadline.usable()
+    if usable is None:
+        return await _call_provider(*args, failure_log=failure_log), False
+    cap = request_deadline.attempt_cap()
+    budget = min(cap, usable)
+    try:
+        return await asyncio.wait_for(_call_provider(*args, failure_log=failure_log), timeout=budget), False
+    except asyncio.TimeoutError:
+        _AI_USAGE["calls_failed"] += 1
+        if budget >= cap:                       # the provider used its whole normal allowance
+            _mark_exhausted(provider, model, "server_error")
+            _AI_USAGE["timeouts"] += 1
+            log.warning("ai.exception", model=model, provider=provider, exc="attempt cap reached", is_timeout=True, cooldown_s=_COOLDOWN_S["server_error"])
+            if failure_log is not None:
+                failure_log.append({"model": model, "provider": tier, "reason": "timeout"})
+            return "", False
+        request_deadline.mark_expired()         # the request budget, not the provider, ended this attempt
+        _AI_USAGE["deadline_cancels"] = _AI_USAGE.get("deadline_cancels", 0) + 1
+        log.warning("ai.deadline_cancel", model=model, provider=provider, budget_s=round(budget, 2))
+        if failure_log is not None:
+            failure_log.append({"model": model, "provider": tier, "reason": "deadline"})
+        return "", True
+
+
 async def _call_with_fallback(
     prompt: str,
     system: str = "",
@@ -1136,95 +1185,35 @@ async def _call_with_fallback(
         "X-Title": "InvestGrids Market Intelligence",
     }
 
-    # ── Tier 1: Groq high-quality (70B+, 1,000 req/day each) ─────────────────
-    if settings.groq_api_key:
-        async with _tier_slot("groq-hq", priority) as acquired:
-            if acquired:
-                for model in _GROQ_HIGH:
-                    if _is_exhausted("groq", model):
-                        if failure_log is not None:
-                            failure_log.append({"model": model, "provider": "groq-hq", "reason": "already_exhausted"})
-                        continue
-                    result = await _call_provider(_GROQ_URL, settings.groq_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
-                    if result:
-                        log.info("ai.success", provider="groq-hq", model=model)
-                        return result
-
-    # Cerebras tier removed 2026-08-30 (never had credentials configured —
-    # see the module-level comment near _OR_SMALL for the full rationale).
-
-    # ── Tier 3: Groq fast (8B, 14,400 req/day — high-volume backstop) ────────
-    if settings.groq_api_key:
-        async with _tier_slot("groq-fast", priority) as acquired:
-            if acquired:
-                for model in _GROQ_FAST:
-                    if _is_exhausted("groq", model):
-                        if failure_log is not None:
-                            failure_log.append({"model": model, "provider": "groq-fast", "reason": "already_exhausted"})
-                        continue
-                    result = await _call_provider(_GROQ_URL, settings.groq_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
-                    if result:
-                        log.info("ai.success", provider="groq-fast", model=model)
-                        return result
-
-    # ── Tier 4: OpenRouter large high-quality models ──────────────────────────
-    if settings.openrouter_api_key:
-        async with _tier_slot("openrouter-hq", priority) as acquired:
-            if acquired:
-                for model in _OR_HIGH_QUALITY:
-                    if _is_exhausted("openrouter", model):
-                        if failure_log is not None:
-                            failure_log.append({"model": model, "provider": "openrouter-hq", "reason": "already_exhausted"})
-                        continue
-                    result = await _call_provider(_OR_URL, settings.openrouter_api_key, model, prompt, system, max_tokens, or_headers, failure_log=failure_log)
-                    if result:
-                        log.info("ai.success", provider="openrouter-hq", model=model)
-                        return result
-
-    # ── Tier 5: Mistral La Plateforme ──────────────────────────────────────
-    if settings.mistral_api_key:
-        async with _tier_slot("mistral", priority) as acquired:
-            if acquired:
-                for model in _MISTRAL_MODELS:
-                    if _is_exhausted("mistral", model):
-                        if failure_log is not None:
-                            failure_log.append({"model": model, "provider": "mistral", "reason": "already_exhausted"})
-                        continue
-                    result = await _call_provider(_MISTRAL_URL, settings.mistral_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
-                    if result:
-                        log.info("ai.success", provider="mistral", model=model)
-                        return result
-
-    # ── Tier 6: Gemini — reliable, 1,500 req/day ─────────────────────────────
-    if settings.gemini_api_key:
-        async with _tier_slot("gemini", priority) as acquired:
-            if acquired:
-                for model in _GEMINI_MODELS:
-                    if _is_exhausted("gemini", model):
-                        if failure_log is not None:
-                            failure_log.append({"model": model, "provider": "gemini", "reason": "already_exhausted"})
-                        continue
-                    result = await _call_provider(_GEMINI_URL, settings.gemini_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
-                    if result:
-                        log.info("ai.success", provider="gemini", model=model)
-                        return result
-
-    # ── Tier 7: OpenRouter smaller free models — final fallback ──────────────
-    if settings.openrouter_api_key:
-        async with _tier_slot("openrouter-small", priority) as acquired:
-            if acquired:
-                for model in _OR_SMALL:
-                    if _is_exhausted("openrouter", model):
-                        if failure_log is not None:
-                            failure_log.append({"model": model, "provider": "openrouter-small", "reason": "already_exhausted"})
-                        continue
-                    result = await _call_provider(_OR_URL, settings.openrouter_api_key, model, prompt, system, max_tokens, or_headers, failure_log=failure_log)
-                    if result:
-                        log.info("ai.success", provider="openrouter-small", model=model)
-                        return result
-
-    # Cloudflare Workers AI tier removed 2026-08-30 (never had credentials
-    # configured — see the module-level comment near _OR_SMALL).
+    # Tier order is the empirical-reliability order described in the docstring above. Each entry is (tier label, exhaustion-registry provider, url, key, models, extra headers or None).
+    # The lists are read at call time, as the seven hand-written loops did. Cerebras and Cloudflare were removed 2026-08-30 (never had credentials configured).
+    tiers = (
+        ("groq-hq", "groq", _GROQ_URL, settings.groq_api_key, _GROQ_HIGH, None),
+        ("groq-fast", "groq", _GROQ_URL, settings.groq_api_key, _GROQ_FAST, None),
+        ("openrouter-hq", "openrouter", _OR_URL, settings.openrouter_api_key, _OR_HIGH_QUALITY, or_headers),
+        ("mistral", "mistral", _MISTRAL_URL, settings.mistral_api_key, _MISTRAL_MODELS, None),
+        ("gemini", "gemini", _GEMINI_URL, settings.gemini_api_key, _GEMINI_MODELS, None),
+        ("openrouter-small", "openrouter", _OR_URL, settings.openrouter_api_key, _OR_SMALL, or_headers),
+    )
+    for tier, provider, url, key, models, headers in tiers:
+        if not key:
+            continue
+        if _deadline_stops_chain(failure_log, tier):
+            return ""
+        async with _tier_slot(tier, priority) as acquired:
+            if not acquired:
+                continue
+            for model in models:
+                if _is_exhausted(provider, model):
+                    if failure_log is not None:
+                        failure_log.append({"model": model, "provider": tier, "reason": "already_exhausted"})
+                    continue
+                result, stop = await _attempt(tier, provider, url, key, model, prompt, system, max_tokens, headers, failure_log)
+                if result:
+                    log.info("ai.success", provider=tier, model=model)
+                    return result
+                if stop:
+                    return ""
 
     log.error("ai.all_providers_failed", exhausted_count=len(_EXHAUSTED))
     return ""

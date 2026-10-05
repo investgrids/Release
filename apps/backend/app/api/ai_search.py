@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services import request_deadline
 from app.core.limiter import limiter
 from app.db.session import get_db
 from app.services.ai_search import instrumentation as ai_search_stats
@@ -65,6 +66,13 @@ class SearchResponse(BaseModel):
 # Layer 1 (exact) + Layer 2 (semantic) caching internally and returns
 # was_cached — keeping V2's pre-checks alongside would just be a second,
 # redundant cache layer with its own separate key scheme.
+async def _bounded(steps):
+    """Run the pipeline's step generator under the request deadline (Step 3.4H.2b). Used by the streaming route; the non-streaming routes wrap the call directly."""
+    with request_deadline.scope():
+        async for item in steps:
+            yield item
+
+
 @router.post("/search", response_model=SearchResponse)
 @limiter.limit("10/minute")
 async def ai_search(
@@ -82,7 +90,8 @@ async def ai_search(
     log.info("ai_search.request", query=query[:50], ip=request.client.host if request.client else "unknown")
     _t0 = time.monotonic()
     try:
-        result, was_cached = await run_ai_search_v3(query, db, body.session_context)
+        with request_deadline.scope():      # Step 3.4H.2b: one absolute budget for this interactive request (no-op when AI_SEARCH_TOTAL_BUDGET_SECONDS is 0)
+            result, was_cached = await run_ai_search_v3(query, db, body.session_context)
     except Exception as exc:
         ai_search_stats.record_error(exc)
         raise
@@ -138,7 +147,8 @@ async def ai_search_v3(
     log.info("ai_search_v3.request", query=query[:50], ip=request.client.host if request.client else "unknown")
     _t0 = time.monotonic()
     try:
-        result, was_cached = await run_ai_search_v3(query, db, body.session_context)
+        with request_deadline.scope():      # Step 3.4H.2b: one absolute budget for this interactive request (no-op when AI_SEARCH_TOTAL_BUDGET_SECONDS is 0)
+            result, was_cached = await run_ai_search_v3(query, db, body.session_context)
     except Exception as exc:
         log.warning("ai_search_v3.error", exc=str(exc)[:200])
         ai_search_stats.record_error(exc)
@@ -215,7 +225,7 @@ async def ai_search_stream(
         _t0 = time.monotonic()
         stages_seen: set[str] = set()
         try:
-            async for stage, label, payload in _run_v3_steps(query, db, parsed_session_context):
+            async for stage, label, payload in _bounded(_run_v3_steps(query, db, parsed_session_context)):
                 stages_seen.add(stage)
                 if payload is None:
                     yield f"event: stage\ndata: {_json.dumps({'stage': stage, 'label': label})}\n\n"

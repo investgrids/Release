@@ -118,6 +118,15 @@ class Settings(BaseSettings):
     # this codebase. Do not point this at a paid provider.
     ai_provider: str = "openrouter"
 
+    # ── AI Search request latency budget (Step 3.4H.2b) ────────────────────
+    # PROVISIONAL starting values, not validated thresholds: 3.4H.4 (production-chain measurement) may change any of them. Set the total to 0 to disable the budget entirely.
+    # Coupling: attempt cap <= total - reserve - min attempt, or the first attempt can consume the whole budget and no fallback is ever tried.
+    ai_search_total_budget_seconds: float = 24.0
+    ai_search_finalization_reserve_seconds: float = 2.0
+    ai_search_classifier_budget_seconds: float = 3.0
+    ai_search_min_provider_attempt_seconds: float = 8.0
+    ai_search_provider_attempt_cap_seconds: float = 14.0
+
     # Legacy providers (kept for future use)
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com/v1"

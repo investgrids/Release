@@ -104,7 +104,7 @@ log = structlog.get_logger(__name__)
 # docstring. A set, not a single name, so a future internal-only
 # addition (e.g. a second attribution source) has one obvious place to
 # register rather than a new ad hoc strip somewhere else.
-_INTERNAL_ONLY_FIELDS = frozenset({"announcements", "_rejected_generation", "_engine_verdict_internal"})   # the second holds a withheld model generation: diagnostics only, never sent to a client
+_INTERNAL_ONLY_FIELDS = frozenset({"announcements", "_rejected_generation", "_engine_verdict_internal", "_retrieval_failures"})   # the second holds a withheld model generation: diagnostics only, never sent to a client
 
 
 def _strip_internal_only_fields(result: dict) -> dict:
@@ -158,7 +158,7 @@ _PRE_RETRIEVAL_DEGRADED_REASONS = frozenset({
 # evidence may already be sitting in `result`, but the ANALYSIS did not
 # complete — the user should be told to retry, never told "no evidence
 # exists" or given a confident "limited" take assembled from nothing.
-_PROVIDER_FAILURE_DEGRADED_REASONS = frozenset({"capacity", "parse_failure"})
+_PROVIDER_FAILURE_DEGRADED_REASONS = frozenset({"capacity", "parse_failure", "deadline_exceeded"})      # deadline_exceeded (3.4H.2b): the request budget ran out after retrieval completed
 
 
 def _research_evidence_count(result: dict) -> int:
@@ -217,6 +217,9 @@ def _derive_answer_availability(result: dict, *, is_market_pulse: bool) -> dict:
 
     if degraded_reason in _PRE_RETRIEVAL_DEGRADED_REASONS:
         return {"state": "no_verified_evidence", "evidence_retrieval_completed": False, "evidence_count": 0}
+
+    if degraded_reason == "retrieval_deadline_exceeded":      # 3.4H.2b: retrieval was cut off by the request budget: unavailable, never "no evidence exists"
+        return {"state": "temporarily_unavailable", "evidence_retrieval_completed": False, "evidence_count": 0}
 
     if degraded_reason in _PROVIDER_FAILURE_DEGRADED_REASONS:
         return {

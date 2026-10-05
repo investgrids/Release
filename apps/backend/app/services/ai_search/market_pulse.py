@@ -18,6 +18,8 @@ import re
 
 import structlog
 
+from app.core.config import settings
+from app.services import request_deadline
 from app.services.ai_service import _call_with_fallback
 from app.services.ai_search.date_context import current_date_context
 
@@ -133,7 +135,10 @@ _MARKET_PULSE_CLASSIFY_SYSTEM = (
 
 async def _classify_market_pulse_llm(query: str) -> bool:
     try:
-        raw = await _call_with_fallback(f'Query: "{query}"', _MARKET_PULSE_CLASSIFY_SYSTEM, max_tokens=5, priority="interactive")
+        # Step 3.4H.2b: a yes/no classifier gets its own small slice of the request budget (a nested, earlier deadline: it can never extend the request deadline or use its finalization reserve).
+        # If it cannot answer in time the result is "" -> False -> the query is NOT treated as market pulse and takes the normal research route, which is the same outcome as any classifier failure.
+        with request_deadline.sub_budget(settings.ai_search_classifier_budget_seconds):
+            raw = await _call_with_fallback(f'Query: "{query}"', _MARKET_PULSE_CLASSIFY_SYSTEM, max_tokens=5, priority="interactive")
         return bool(raw) and raw.strip().lower().lstrip('"\'').startswith("y")
     except Exception as exc:
         log.warning("ai_search.market_pulse_classify_failed", error=str(exc)[:120])

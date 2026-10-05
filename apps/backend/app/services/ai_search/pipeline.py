@@ -16,6 +16,7 @@ import uuid
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services import request_deadline
 from app.services.ai_search import cache as cache_mod
 from app.services.ai_search import answer_authorization as auth_mod
 from app.services.ai_search import claim_sources as claim_sources_mod
@@ -341,7 +342,24 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
     log.info("ai_search_v3.start", query=query[:50])
 
     yield "evidence", STAGE_LABELS["evidence"], None
-    evidence = await evidence_mod.collect(query, intent_data, entities, db)
+    _usable = request_deadline.usable()
+    if _usable is None:
+        evidence = await evidence_mod.collect(query, intent_data, entities, db)
+    else:
+        # Step 3.4H.2b: retrieval may spend what remains minus the smallest provider attempt, so a specialist call can still start. A cut-off is an infrastructure condition, recorded as a
+        # retrieval failure and answered "unavailable": never "no evidence exists" and never an empty bundle sent through Gate A.
+        try:
+            _budget = _usable - (request_deadline.min_attempt() or 0)
+            if _budget <= 0:
+                raise asyncio.TimeoutError
+            evidence = await asyncio.wait_for(evidence_mod.collect(query, intent_data, entities, db), timeout=_budget)
+        except asyncio.TimeoutError:
+            request_deadline.mark_expired()
+            log.warning("ai_search_v3.retrieval_deadline", query=query[:80], budget_s=round(max(_usable - (request_deadline.min_attempt() or 0), 0), 2))
+            _empty = evidence_mod.EvidenceBundle()
+            _empty.retrieval_failures = {"deadline": "TimeoutError"}
+            yield "done", STAGE_LABELS["finalizing"], _deadline_response(query, _empty, entities, intent_data, "retrieval_deadline_exceeded", stage_ms, _t0, context_used)
+            return
     _t_stage = _checkpoint("evidence_collection_ms", _t_stage)
 
     specialist, specialist_kind = _route_specialist(query, intent_data, entities)
@@ -371,9 +389,25 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
         yield "done", STAGE_LABELS["finalizing"], response      # deliberately not cached and no Investment Watch snapshot: the evidence may change
         return
 
+    # Step 3.4H.2b checkpoint: do not start a generation that cannot finish inside the request budget.
+    _u = request_deadline.usable()
+    if _u is not None and _u < (request_deadline.min_attempt() or 0):
+        request_deadline.mark_expired()
+        log.warning("ai_search_v3.deadline_before_specialist", query=query[:80], usable_s=round(_u, 2))
+        yield "done", STAGE_LABELS["finalizing"], _deadline_response(query, evidence, entities, intent_data, "deadline_exceeded", stage_ms, _t0, context_used)
+        return
+
     yield "reasoning", STAGE_LABELS["reasoning"], None
     parsed, was_degraded = await specialist.run(query, evidence, intent_data, entities)
     _t_stage = _checkpoint("reasoning_ms", _t_stage)
+    if was_degraded and request_deadline.expired():
+        parsed = {**parsed, "_degraded_reason": "deadline_exceeded"}      # the provider chain stopped because the request budget ran out, not because every provider failed
+    _rem = request_deadline.remaining()
+    if _rem is not None and _rem < _AUTHORIZATION_MIN_S:
+        # Not enough time left to authorize and assemble safely: fail closed. Generated content is never published without Gate B.
+        log.warning("ai_search_v3.deadline_before_authorization", query=query[:80], remaining_s=round(_rem, 2))
+        yield "done", STAGE_LABELS["finalizing"], _deadline_response(query, evidence, entities, intent_data, "deadline_exceeded", stage_ms, _t0, context_used)
+        return
 
     yield "finalizing", STAGE_LABELS["finalizing"], None
     validated, validation_report = validation_mod.validate_and_repair(parsed)
@@ -405,6 +439,12 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
 
     # Step 3.4D-2: LLM-generated structured analytical claims (rating, direction, sentiment, confidence, probabilities, scores, winner/preference blocks) are never public by themselves. They are replaced
     # by an explicit unavailable state before assembly; deterministic producers (confidence breakdown, engine verdict, pairwise decision engine) still run in code.
+    _rem = request_deadline.remaining()
+    if _rem is not None and _rem < 0:
+        log.warning("ai_search_v3.deadline_before_assembly", query=query[:80], remaining_s=round(_rem, 2))
+        yield "done", STAGE_LABELS["finalizing"], _deadline_response(query, evidence, entities, intent_data, "deadline_exceeded", stage_ms, _t0, context_used)
+        return
+
     cscope = scope_mod.assess(query, intent_data, entities, evidence, _UNIV)
     public_ai, withheld_structured = (validated, []) if was_degraded else struct_mod.sanitize(validated)
     response = await _assemble_response(
@@ -474,6 +514,23 @@ async def run_ai_search_v3(query: str, db: AsyncSession, session_context: dict |
             result = payload
     was_cached = "reasoning" not in stages_seen and "insufficient_evidence" not in stages_seen
     return result, was_cached
+
+
+# Step 3.4H.2b: the smallest time left after generation in which Gate B and assembly can still run.
+_AUTHORIZATION_MIN_S = 0.25
+
+
+def _deadline_response(query: str, evidence, entities: dict, intent_data: dict | None, reason: str, stage_ms: dict, t0: float, context_used) -> dict:
+    """Fail-closed response when the request budget ran out (3.4H.2b). Same degraded shape as a capacity failure; never a verdict or a statement about the evidence's existence."""
+    kind = _route_specialist(query, intent_data or {}, entities)[1]
+    response = _build_degraded_response(query, {}, evidence, kind, reason, entities, str(uuid.uuid4()), intent_data)
+    response["timing"] = {**stage_ms, "total_ms": round((time.monotonic() - t0) * 1000, 1)}
+    response["context_used"] = context_used
+    response["watch_subject"] = None
+    failures = dict(getattr(evidence, "retrieval_failures", {}) or {})
+    if failures:
+        response["_retrieval_failures"] = failures
+    return response
 
 
 def _filter_events_to_entities(events: list[dict], symbols: list[str]) -> list[dict]:
