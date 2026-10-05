@@ -30,7 +30,7 @@ import sys
 
 _KEEP = {"PATH", "PATHEXT", "SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "TEMP", "TMP", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "HOMEDRIVE", "HOMEPATH", "COMPUTERNAME", "OS", "COMSPEC",
          "PROCESSOR_ARCHITECTURE", "NUMBER_OF_PROCESSORS", "PYTHONIOENCODING", "PYTHONPATH", "PROGRAMDATA", "PROGRAMFILES", "PROGRAMFILES(X86)", "COMMONPROGRAMFILES", "USERNAME", "USERDOMAIN",
-         "OPENAI_BENCH_API_KEY", "OPENAI_BENCH_MODEL", "OPENAI_BENCH_MAX_CALLS"}
+         "OPENAI_BENCH_API_KEY", "OPENAI_BENCH_MODEL", "OPENAI_BENCH_MAX_CALLS", "OPENAI_BENCH_QUESTIONS", "OPENAI_BENCH_OUT"}
 for _k in list(os.environ):
     if _k.upper() not in _KEEP:
         del os.environ[_k]
@@ -64,8 +64,10 @@ HERE = Path(__file__).parent
 URL = "https://api.openai.com/v1/chat/completions"
 HTTP_TIMEOUT_S = 120.0                      # harness-only; the production path's 30 s read timeout is recorded per call as would_exceed_30s
 QS = {q["id"]: q for q in json.loads((HERE.parent / "questions.json").read_text(encoding="utf-8"))["questions"]}
-ORDER = ["CR2", "EI1", "CC1"]
+# Step 3.4F: the question list and output name can be set from the environment (default stays CR2, EI1, CC1). A question with no recorded expectation is not scored as_expected.
+ORDER = [q.strip() for q in os.environ.get("OPENAI_BENCH_QUESTIONS", "CR2,EI1,CC1").split(",") if q.strip()]
 EXPECTED_CALLS = {"CR2": 0, "EI1": 0, "CC1": 1}
+OUT_NAME = os.environ.get("OPENAI_BENCH_OUT", "openai_qualification.json")
 _REDACT = re.compile(r"(?:sk|rk|pk)-[A-Za-z0-9_\-]{8,}|[A-Za-z0-9_\-\.]{32,}")
 _LIMIT_HEADER = re.compile(r"^(retry-after|x-ratelimit.*|openai-processing-ms|x-request-id)$", re.IGNORECASE)
 
@@ -184,8 +186,8 @@ async def run(qid: str) -> dict:
     rec["calls"] = current.get("calls", [])
     real = [c for c in rec["calls"] if "refused" not in c]
     rec["model_calls"] = len(real)
-    rec["expected_model_calls"] = EXPECTED_CALLS[qid]
-    rec["call_count_as_expected"] = len(real) == EXPECTED_CALLS[qid]
+    rec["expected_model_calls"] = EXPECTED_CALLS.get(qid)
+    rec["call_count_as_expected"] = (len(real) == EXPECTED_CALLS[qid]) if qid in EXPECTED_CALLS else None
     rec["response"] = res
     r = res or {}
     rec["gate_a"] = r.get("evidence_sufficiency")
@@ -217,15 +219,15 @@ async def main():
         ga = r.get("gate_a") or {}
         print(qid, f'outcome={r["outcome"]} gate_a={ga.get("status")}/{ga.get("kind")} model_calls={r["model_calls"]} (would_call={sum(1 for c in r["calls"] if c.get("dry_run_would_call"))}) '
                    f'expected={r["expected_model_calls"]} as_expected={r["call_count_as_expected"] or DRY}', flush=True)
-        (HERE / ("openai_preflight.json" if DRY else "openai_qualification.json")).write_text(
+        (HERE / ("openai_preflight.json" if DRY else OUT_NAME)).write_text(
             json.dumps({"mode": "dry" if DRY else "live", "model": MODEL, "cap": MAX_CALLS, "model_requests_made": state["calls"], "stopped": state["stopped"], "results": out}, indent=2,
                        ensure_ascii=False, default=str), encoding="utf-8")
         if not DRY and n < len(ORDER) - 1:
             await asyncio.sleep(2)
-    cc1 = out["CC1"]
     if DRY:
-        would = sum(1 for c in cc1["calls"] if c.get("dry_run_would_call"))
-        print("CC1 PREFLIGHT:", "OK, would make", would, "call(s)" if would else "NO CALL: Gate A refused CC1 in this environment; do not force it, restore market data / use a frozen snapshot")
+        for qid, r in out.items():
+            would = sum(1 for c in r["calls"] if c.get("dry_run_would_call"))
+            print(f"{qid} PREFLIGHT:", f"would make {would} call(s)" if would else "NO CALL (Gate A refused or no specialist reached)")
     print(f"model requests made: {state['calls']} | stopped: {state['stopped']}")
 
 
