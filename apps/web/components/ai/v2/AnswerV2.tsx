@@ -150,11 +150,15 @@ function FollowUps({ questions, onAsk, label = "Where to look next" }: { questio
   );
 }
 
+const CRUMB: Record<string, string> = { comparison: "Comparison", sector: "Sector and event impact", company: "Company", market: "Market" };
+
+/** Breadcrumb ("AI Search / Comparison"), then the question as the page title. */
 function Header({ r, kindLabel }: { r: V2Result; kindLabel: string }) {
+  const crumb = (r.specialist && CRUMB[r.specialist]) || kindLabel;
   return (
     <header className="space-y-2" data-testid="answer-header">
-      <p className="text-[13px] text-text-muted">{r.query}</p>
-      <p className={LABEL}>{kindLabel}</p>
+      <p className="text-[12.5px] text-text-muted"><span>AI Search</span><span className="mx-1.5">/</span><span data-testid="crumb">{crumb}</span></p>
+      <h1 className="text-[26px] font-semibold leading-tight tracking-tight text-text-primary sm:text-[30px]">{r.query}</h1>
     </header>
   );
 }
@@ -177,6 +181,73 @@ interface Props {
   feedbackMeta?: Meta;
   /** Today's example questions, offered as next steps on a state that cannot answer. */
   nextQuestions?: string[];
+}
+
+// ── comparison ────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+const compared = (r: V2Result) => (r.specialist === "comparison" ? (r.companies ?? []).filter((c) => c.symbol && c.name).slice(0, 3) : []);
+
+/** Side-by-side, built only from fields the contract carries: live price and today's move, and which kinds of evidence exist for each company. */
+function ComparisonTable({ r }: { r: V2Result }) {
+  const cs = compared(r);
+  if (cs.length < 2) return null;
+  const cov = r.conclusion_scope?.coverage ?? {};
+  const has = (sym: string, k: "valuation" | "operating") => (cov[sym] ? (cov[sym][k] ? "Available" : "Not yet available") : null);
+  const rows: [string, (c: (typeof cs)[number]) => React.ReactNode][] = [
+    ["Latest price", (c) => (c.price ? <span className="tabular-nums">₹{c.price}</span> : "—")],
+    ["Today", (c) => (c.change ? <span className={`tabular-nums ${c.positive ? "text-emerald-600" : "text-rose-600"}`}>{c.change}</span> : "—")],
+    ["Valuation evidence", (c) => has(c.symbol, "valuation") ?? "—"],
+    ["Operating results", (c) => has(c.symbol, "operating") ?? "—"],
+  ];
+  const visible = rows.filter(([, f]) => cs.some((c) => f(c) !== "—"));
+  return (
+    <Section label="Side by side" testId="comparison-table">
+      <div className={`${CARD} overflow-x-auto`}>
+        <table className="w-full min-w-[420px] text-left text-[13.5px]">
+          <thead>
+            <tr className="border-b border-surface-border/10">
+              <th scope="col" className="px-4 py-3 text-[12px] font-medium text-text-muted">Factor</th>
+              {cs.map((c) => (
+                <th key={c.symbol} scope="col" className="px-4 py-3">
+                  <Link href={`/companies/${encodeURIComponent(c.symbol)}`} className="font-semibold text-text-primary hover:text-violet-600">{c.name}</Link>
+                  <span className="block text-[11.5px] font-normal text-text-muted">NSE: {c.symbol}</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-surface-border/10">
+            {visible.map(([label, f]) => (
+              <tr key={label}>
+                <th scope="row" className="px-4 py-2.5 text-[13px] font-medium text-text-primary">{label}</th>
+                {cs.map((c) => <td key={c.symbol} className="px-4 py-2.5 text-text-secondary">{f(c)}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Section>
+  );
+}
+
+/** Right-rail identity card for the companies in the answer (name, symbol, live price). Nothing the contract does not carry. */
+function EntitySnapshot({ r }: { r: V2Result }) {
+  const cs = (r.companies ?? []).filter((c) => c.symbol && c.name && c.price).slice(0, 3);
+  if (!cs.length || r.specialist !== "comparison") return null;
+  return (
+    <Section label="Entity snapshot" testId="entity-snapshot">
+      <ul className={`${CARD} divide-y divide-surface-border/10`}>
+        {cs.map((c) => (
+          <li key={c.symbol} className="flex items-baseline justify-between gap-3 px-4 py-3">
+            <div className="min-w-0">
+              <Link href={`/companies/${encodeURIComponent(c.symbol)}`} className="text-[14px] font-semibold text-text-primary hover:text-violet-600">{c.name}</Link>
+              <p className="text-[11.5px] text-text-muted">NSE: {c.symbol}</p>
+            </div>
+            <p className="shrink-0 text-[13.5px] tabular-nums text-text-secondary">₹{c.price}{c.change && <span className={`ml-2 ${c.positive ? "text-emerald-600" : "text-rose-600"}`}>{c.change}</span>}</p>
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
 }
 
 // ── research and partial research ────────────────────────────────────────────────────────────────────────────────────────
@@ -211,9 +282,10 @@ function ResearchView({ result: r, onFollowUp, feedbackMeta }: Props) {
           </div>
         )}
         <div className="space-y-3">
-          <p className="text-[22px] font-semibold leading-snug tracking-tight text-text-primary sm:text-[26px]" data-testid="lead">{lead}</p>
+          <p className="text-[19px] font-semibold leading-snug tracking-tight text-text-primary sm:text-[21px]" data-testid="lead">{lead}</p>
           {short && <p className={BODY} data-testid="in-short"><span className="font-semibold text-text-primary">In short: </span>{short}</p>}
         </div>
+        <ComparisonTable r={r} />
         {verdict && (
           <Section label="MarketRipple view" testId="verdict">
             <p className={`${CARD} px-5 py-4 text-[15px] text-text-primary`}>
@@ -256,7 +328,8 @@ function ResearchView({ result: r, onFollowUp, feedbackMeta }: Props) {
         <Footer r={r} onFeedbackMeta={feedbackMeta} />
       </article>
       <aside className="min-w-0 space-y-8 lg:pt-14">
-        <Matters r={r} />
+        <EntitySnapshot r={r} />
+        {r.specialist !== "comparison" && <Matters r={r} />}
         <EvidenceList items={listed} count={r.answer_availability?.evidence_count ?? listed.length} />
         <StrengthNote r={r} />
       </aside>

@@ -103,7 +103,7 @@ async def test_get_search_intelligence_falls_back_cleanly_on_exception():
         result = await pis.get_search_intelligence("A query that will fail")
 
     assert result["market_story"] == ""
-    assert result["confidence"]["level"] == "Low"
+    assert result["confidence"]["level"] == "unscored"  # Step 6: no invented confidence on the failure fallback
     assert result["context_type"] == "search"
 
 

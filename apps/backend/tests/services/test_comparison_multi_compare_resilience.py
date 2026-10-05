@@ -150,5 +150,6 @@ def test_two_entity_build_prompt_unchanged():
     """Structural guard: build_prompt's pairwise branch (build_prompt itself,
     not the multi-compare helper) must be untouched by this change."""
     prompt = comparison.build_prompt("TCS vs Infosys", _FakeEvidence(), {"holding": "TCS", "target": "Infosys"}, _entities_2way())
-    assert "holding_analysis" in prompt
+    # Step 3.4D-3 reduced the generation schema: the model writes observations / key_drivers / claims; holding_analysis is no longer in the prompt.
+    assert "observations" in prompt and "holding_analysis" not in prompt
     assert "entity_analyses" not in prompt  # pairwise schema, not multi-compare

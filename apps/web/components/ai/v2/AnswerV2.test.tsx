@@ -240,3 +240,36 @@ describe("kind resolution", () => {
     expect(resolveKind({ ...research(), answer_availability: avail({ kind: "education" }) as never })).toBe("education");
   });
 });
+
+describe("comparison layout (validated against the design mockup, truthful fields only)", () => {
+  const cmp = (): V2Result => research({
+    query: "Compare HDFC Bank and ICICI Bank", specialist: "comparison",
+    answer_availability: avail({ kind: "partial_research", scope: "partial" }) as V2Result["answer_availability"],
+    conclusion_scope: { requested: "overall_strength", authorized: "valuation_comparison", partial: true, missing: ["operating_evidence_HDFCBANK"], coverage: { HDFCBANK: { valuation: true, operating: false }, ICICIBANK: { valuation: true, operating: false } } },
+    companies: [
+      { symbol: "HDFCBANK", name: "HDFC Bank", price: "714.50", change: "-0.93%", positive: false },
+      { symbol: "ICICIBANK", name: "ICICI Bank", price: "1,420.10", change: "+0.40%", positive: true },
+    ],
+  } as never);
+
+  it("shows breadcrumb, the question as the title, and a side-by-side table from real fields", () => {
+    mount(cmp());
+    expect(screen.getByTestId("crumb")).toHaveTextContent("Comparison");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Compare HDFC Bank and ICICI Bank");
+    const t = screen.getByTestId("comparison-table");
+    expect(t).toHaveTextContent("Latest price");
+    expect(t).toHaveTextContent("₹714.50");
+    expect(t).toHaveTextContent("Valuation evidence");
+    expect(t).toHaveTextContent("Not yet available");
+    expect(screen.getByTestId("entity-snapshot")).toHaveTextContent("NSE: ICICIBANK");
+  });
+  it("never invents market cap, analyst coverage, source-integrity grades or confidence", () => {
+    const { container } = mount(cmp());
+    expect(container.textContent).not.toMatch(/market cap|analyst coverage|source integrity|evidence confidence|\d+%\s*confidence/i);
+  });
+  it("is absent for a non-comparison answer and for a single company", () => {
+    mount(research());
+    expect(screen.queryByTestId("comparison-table")).toBeNull();
+    expect(screen.queryByTestId("entity-snapshot")).toBeNull();
+  });
+});

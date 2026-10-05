@@ -46,7 +46,7 @@ export interface V2Result {
   claim_sources?: V2Claim[];
   evidence_index?: V2IndexEntry[];
   evidence_score?: { stars?: number | null; checklist?: Record<string, boolean>; source_count?: number } | null;
-  conclusion_scope?: { requested?: string; authorized?: string; partial?: boolean; missing?: string[]; reason?: string | null } | null;
+  conclusion_scope?: { requested?: string; authorized?: string; partial?: boolean; missing?: string[]; reason?: string | null; coverage?: Record<string, { valuation?: boolean; operating?: boolean }> } | null;
   investment_verdict?: { rating?: string | null; direction?: string | null } | null;
   follow_up_questions?: string[];
   follow_up_groups?: { items?: { query?: string; text?: string }[] }[];

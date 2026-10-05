@@ -563,7 +563,11 @@ def test_new_build1_modules_never_import_provider_or_retrieval_code():
 # (see _derive_answer_availability), not a regression in the pre-
 # existing V3 contract these tests exist to protect. Its own behavior
 # has dedicated coverage in test_answer_availability.py.
-_SNAPSHOT_EXCLUDED_FIELDS = ("answer_experience_v2", "answer_availability")
+# 2026-10-05 (Step 7 integration): Step 5's final answer contract intentionally rewrites two V3 fields in finalize: public answer confidence is removed
+# (confidence_breakdown -> final_confidence None / level "unscored") and the verdict carries no default horizon or confidence (investment_verdict ->
+# "Not Applicable" unless a conclusion is authorized). Their behavior is covered in test_ai_search_final_contract.py, so they are excluded here exactly
+# like answer_availability above.
+_SNAPSHOT_EXCLUDED_FIELDS = ("answer_experience_v2", "answer_availability", "confidence_breakdown", "investment_verdict")
 
 
 def test_v3_snapshot_unchanged_for_successful_response_regardless_of_aev2_mode(monkeypatch):
@@ -581,7 +585,7 @@ def test_v3_snapshot_unchanged_for_successful_response_regardless_of_aev2_mode(m
         # task's own side effects — not what this test is checking.
         result = finalize_v3_response("q", v3, x_admin_key="real-secret", was_cached=True)
         v3_only = {k: v for k, v in result.items() if k not in _SNAPSHOT_EXCLUDED_FIELDS}
-        assert v3_only == before, f"V3 portion changed under mode={mode}"
+        assert v3_only == {k: v for k, v in before.items() if k not in _SNAPSHOT_EXCLUDED_FIELDS}, f"V3 portion changed under mode={mode}"
 
 
 def test_v3_snapshot_unchanged_for_degraded_response():
@@ -594,7 +598,7 @@ def test_v3_snapshot_unchanged_for_degraded_response():
     before = copy.deepcopy(degraded)
     result = finalize_v3_response("q", degraded, was_cached=True)
     v3_only = {k: v for k, v in result.items() if k not in _SNAPSHOT_EXCLUDED_FIELDS}
-    assert v3_only == before
+    assert v3_only == {k: v for k, v in before.items() if k not in _SNAPSHOT_EXCLUDED_FIELDS}
 
 
 def test_v3_snapshot_unchanged_on_a_cache_hit():
@@ -606,4 +610,4 @@ def test_v3_snapshot_unchanged_on_a_cache_hit():
     result = finalize_v3_response("q", cached, was_cached=True)
     assert cached == before, "the cached object itself must never be mutated"
     v3_only = {k: v for k, v in result.items() if k not in _SNAPSHOT_EXCLUDED_FIELDS}
-    assert v3_only == before
+    assert v3_only == {k: v for k, v in before.items() if k not in _SNAPSHOT_EXCLUDED_FIELDS}

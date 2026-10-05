@@ -120,7 +120,7 @@ async def test_p0_priority_and_honest_degradation_under_synthetic_load():
     known_reasons = {
         None, "capacity", "parse_failure", "multi_entity_partial",
         "grounding_collapsed", "ambiguous_entity", "unsupported_entity",
-        "referential_no_context", "scenario_degraded",
+        "referential_no_context", "scenario_degraded", "insufficient_evidence",  # Step 3.4A fail-closed gate reason
     }
     for r in interactive_results:
         reason = r["result"].get("degraded_reason")
