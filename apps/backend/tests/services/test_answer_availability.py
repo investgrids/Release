@@ -21,6 +21,11 @@ from app.services.ai_search.response_finalize import _derive_answer_availability
 
 client = TestClient(app, raise_server_exceptions=False)
 
+
+def _core(avail: dict) -> dict:
+    """The three original answer_availability fields. Step 4C added `reason` and `basis` (covered in test_ai_search_response_semantics.py); these tests guard that the original three are unchanged."""
+    return {k: avail[k] for k in ("state", "evidence_retrieval_completed", "evidence_count")}
+
 # ── 1. Pure function branch coverage ──────────────────────────────────────
 
 _BASE_RESEARCH = {
@@ -34,7 +39,7 @@ _BASE_RESEARCH = {
 def test_available_when_synthesis_completed():
     result = {**_BASE_RESEARCH, "synthesis_incomplete": False}
     avail = _derive_answer_availability(result, is_market_pulse=False)
-    assert avail == {"state": "available", "evidence_retrieval_completed": True, "evidence_count": 2}
+    assert _core(avail) == {"state": "available", "evidence_retrieval_completed": True, "evidence_count": 2}
 
 
 def test_available_with_zero_evidence_is_still_available_not_no_verified_evidence():
@@ -55,7 +60,7 @@ def test_pre_retrieval_reasons_map_to_no_verified_evidence_with_retrieval_not_co
             "related_events": [], "news": [], "policies": [],
         }
         avail = _derive_answer_availability(result, is_market_pulse=False)
-        assert avail == {"state": "no_verified_evidence", "evidence_retrieval_completed": False, "evidence_count": 0}, reason
+        assert _core(avail) == {"state": "no_verified_evidence", "evidence_retrieval_completed": False, "evidence_count": 0}, reason
 
 
 def test_capacity_and_parse_failure_map_to_temporarily_unavailable_even_with_real_evidence():
@@ -68,7 +73,7 @@ def test_capacity_and_parse_failure_map_to_temporarily_unavailable_even_with_rea
             "related_events": [{"id": "e1"}], "news": [{"id": "n1"}], "policies": [],
         }
         avail = _derive_answer_availability(result, is_market_pulse=False)
-        assert avail == {"state": "temporarily_unavailable", "evidence_retrieval_completed": True, "evidence_count": 2}, reason
+        assert _core(avail) == {"state": "temporarily_unavailable", "evidence_retrieval_completed": True, "evidence_count": 2}, reason
 
 
 def test_capacity_with_zero_evidence_is_still_temporarily_unavailable_not_no_verified_evidence():
@@ -88,7 +93,7 @@ def test_grounding_collapsed_with_real_evidence_is_limited_evidence():
         "related_events": [{"id": "e1"}], "news": [], "policies": [{"id": "p1"}],
     }
     avail = _derive_answer_availability(result, is_market_pulse=False)
-    assert avail == {"state": "limited_evidence", "evidence_retrieval_completed": True, "evidence_count": 2}
+    assert _core(avail) == {"state": "limited_evidence", "evidence_retrieval_completed": True, "evidence_count": 2}
 
 
 def test_multi_entity_partial_with_real_evidence_is_limited_evidence():
@@ -110,7 +115,7 @@ def test_recommendation_language_violation_with_real_evidence_is_limited_evidenc
         "related_events": [{"id": "e1"}], "news": [{"id": "n1"}], "policies": [{"id": "p1"}],
     }
     avail = _derive_answer_availability(result, is_market_pulse=False)
-    assert avail == {"state": "limited_evidence", "evidence_retrieval_completed": True, "evidence_count": 3}
+    assert _core(avail) == {"state": "limited_evidence", "evidence_retrieval_completed": True, "evidence_count": 3}
 
 
 def test_a_degraded_reason_with_genuinely_zero_evidence_is_no_verified_evidence_not_limited():
@@ -122,7 +127,7 @@ def test_a_degraded_reason_with_genuinely_zero_evidence_is_no_verified_evidence_
         "related_events": [], "news": [], "policies": [],
     }
     avail = _derive_answer_availability(result, is_market_pulse=False)
-    assert avail == {"state": "no_verified_evidence", "evidence_retrieval_completed": True, "evidence_count": 0}
+    assert _core(avail) == {"state": "no_verified_evidence", "evidence_retrieval_completed": True, "evidence_count": 0}
 
 
 def test_unrecognized_degraded_reason_fails_closed_to_limited_evidence_or_no_verified_evidence_never_available():
@@ -142,7 +147,7 @@ def test_unrecognized_degraded_reason_fails_closed_to_limited_evidence_or_no_ver
 def test_market_pulse_available_when_synthesis_completed():
     result = {"type": "market_pulse", "synthesis_incomplete": False, "market_status": {"status": "open"}, "indices": [{"name": "NIFTY"}]}
     avail = _derive_answer_availability(result, is_market_pulse=True)
-    assert avail == {"state": "available", "evidence_retrieval_completed": True, "evidence_count": 1}
+    assert _core(avail) == {"state": "available", "evidence_retrieval_completed": True, "evidence_count": 1}
 
 
 def test_market_pulse_degraded_is_temporarily_unavailable_never_no_verified_evidence():
@@ -194,7 +199,7 @@ def test_search_v3_route_attaches_answer_availability_on_success():
         resp = client.post("/api/ai/search/v3", json={"query": "Should I invest in Reliance Industries?"})
     assert resp.status_code == 200
     avail = resp.json()["result"]["answer_availability"]
-    assert avail == {"state": "available", "evidence_retrieval_completed": True, "evidence_count": 1}
+    assert _core(avail) == {"state": "available", "evidence_retrieval_completed": True, "evidence_count": 1}
 
 
 def test_search_route_attaches_temporarily_unavailable_on_capacity_failure():

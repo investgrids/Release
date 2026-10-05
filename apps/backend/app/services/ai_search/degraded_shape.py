@@ -33,7 +33,7 @@ def empty_investment_verdict() -> dict:
     decision_engine_v2/ai_conclusion, not this module's full response
     shape, but must still agree on what "no verdict" looks like."""
     return {
-        "rating": "Not Applicable", "direction": "neutral", "confidence": None,
+        "rating": "Not Applicable", "direction": None, "confidence": None,
         "horizon": None, "top_picks": [], "risks": [], "catalysts": [],
         "opportunity_score": None, "risk_level": "", "suitable_for": "",
         "engine_verdict": None,
@@ -97,7 +97,7 @@ def build_degraded_shape(
             "medium_term": "", "long_term": "", "what_priced_in": "",
             "risks": [], "opportunities": [],
             "confidence": None, "confidence_level": "unscored",
-            "sentiment": "neutral", "sources_count": sources_count,
+            "sentiment": None, "sources_count": sources_count,
         },
         "key_drivers": [], "insights": [],
         "companies": companies if companies is not None else [],

@@ -179,8 +179,34 @@ def _market_pulse_evidence_count(result: dict) -> int:
     )
 
 
+# Step 4C: why an answer is not (fully) available, as a short public code. No exception text, no internals. Distinguishes at least: evidence genuinely insufficient after a successful search, the search
+# itself failed or timed out, the provider had no capacity, the request ran out of time, and Gate B rejecting what was generated.
+_AVAILABILITY_REASON = {
+    "insufficient_evidence": "evidence_insufficient",
+    "retrieval_failed": "retrieval_failed",
+    "retrieval_deadline_exceeded": "retrieval_timeout",
+    "capacity": "provider_capacity", "multi_compare_capacity": "provider_capacity",
+    "parse_failure": "generation_failed",
+    "deadline_exceeded": "time_budget_exhausted",
+    "claims_not_authorized": "claims_not_authorized",
+    "referential_no_context": "unsupported_subject", "ambiguous_entity": "unsupported_subject", "unsupported_entity": "unsupported_subject",
+}
+
+
 def _derive_answer_availability(result: dict, *, is_market_pulse: bool) -> dict:
-    """The one function that computes `answer_availability`. Fails
+    """`answer_availability`: the state (see _availability_state), plus Step 4C's `reason` (why it is not fully available; None when it is) and `basis` (what an available answer rests on).
+    evidence_count has ONE public meaning: the number of evidence items (events, news, policy items) listed in this response. It is 0 for an educational answer, which rests on no retrieved evidence."""
+    out = _availability_state(result, is_market_pulse=is_market_pulse)
+    if result.get("education"):
+        return {**out, "reason": None, "basis": "education"}
+    if not result.get("synthesis_incomplete"):
+        return {**out, "reason": None, "basis": "market_data" if is_market_pulse else "retrieved_evidence"}
+    reason = "provider_capacity" if is_market_pulse else _AVAILABILITY_REASON.get(result.get("degraded_reason"), "limited_evidence")
+    return {**out, "reason": reason, "basis": "none"}
+
+
+def _availability_state(result: dict, *, is_market_pulse: bool) -> dict:
+    """The state computation. Fails
     closed on anything it doesn't explicitly recognize: an unrecognized
     degraded_reason with real evidence present lands on the more modest
     `limited_evidence` rather than `available` — see the final branch."""
@@ -221,7 +247,7 @@ def _derive_answer_availability(result: dict, *, is_market_pulse: bool) -> dict:
     if degraded_reason in _PRE_RETRIEVAL_DEGRADED_REASONS:
         return {"state": "no_verified_evidence", "evidence_retrieval_completed": False, "evidence_count": 0}
 
-    if degraded_reason == "retrieval_deadline_exceeded":      # 3.4H.2b: retrieval was cut off by the request budget: unavailable, never "no evidence exists"
+    if degraded_reason in ("retrieval_deadline_exceeded", "retrieval_failed"):      # a cut-off or failed search is unavailable, never "no evidence exists" (3.4H.2b, 4C)
         return {"state": "temporarily_unavailable", "evidence_retrieval_completed": False, "evidence_count": 0}
 
     if degraded_reason in _PROVIDER_FAILURE_DEGRADED_REASONS:
@@ -364,6 +390,14 @@ def finalize_v3_response(
     # ── 5. answer_availability — see this module's own section above for
     # why it must be derived here, fresh, on every call. ─────────────────
     result = {**result, "answer_availability": _derive_answer_availability(result, is_market_pulse=is_market_pulse)}
+    if not is_market_pulse and isinstance(result.get("answer"), dict):
+        # Step 4C: every public count of "sources" is the same number as answer_availability.evidence_count (the evidence items listed in this response). It was three different numbers: the listed items,
+        # the retrieved bundle size, and a development count; the confidence copy now names developments as developments (postprocess.py).
+        n = result["answer_availability"]["evidence_count"]
+        if "sources_count" in result["answer"]:
+            result["answer"] = {**result["answer"], "sources_count": n}
+        if isinstance(result.get("evidence_score"), dict):
+            result["evidence_score"] = {**result["evidence_score"], "source_count": n}
 
     # ── 6. Strip internal-only attribution plumbing — the one point
     # every route, every cache-hit/fresh/mode combination, and both

@@ -197,7 +197,12 @@ export type UIMode =
 export interface AnswerAvailability {
   state: "available" | "temporarily_unavailable" | "no_verified_evidence" | "limited_evidence";
   evidence_retrieval_completed: boolean;
+  /** Evidence items (events, news, policy items) LISTED in this response. 0 for an educational answer, which rests on no retrieved evidence. */
   evidence_count: number;
+  /** Step 4C (additive): why the answer is not fully available; null when it is. */
+  reason?: "evidence_insufficient" | "retrieval_failed" | "retrieval_timeout" | "provider_capacity" | "generation_failed" | "time_budget_exhausted" | "claims_not_authorized" | "unsupported_subject" | "limited_evidence" | null;
+  /** Step 4C (additive): what an available answer rests on. */
+  basis?: "retrieved_evidence" | "market_data" | "education" | "none";
 }
 
 export interface SearchResult {

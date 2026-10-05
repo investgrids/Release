@@ -17,6 +17,8 @@ since that mechanism is untouched and doesn't need a typed wrapper.
 """
 from __future__ import annotations
 
+import re
+
 from datetime import datetime, timezone
 
 
@@ -46,6 +48,24 @@ def compute_evidence_score(evidence) -> dict:
         "development_count": evidence.development_count,
         "corroborating_source_count": evidence.corroborating_source_count,
     }
+
+
+# Step 4C: the shared confidence copy labels a count of independent DEVELOPMENTS (clusters over events, news and exchange filings) as "trusted sources" or "news & event sources", which collides with the
+# public evidence_count (items listed in the response). In AI Search the line names what it counts. The shared confidence_service copy, and its other consumers, are untouched.
+_SOURCE_COUNT_REASON = re.compile(r"^\d+ (?:independent developments?, corroborated by \d+ sources|trusted sources|news & event sources)$")
+
+
+def public_confidence_reasons(reasons: list[str], development_count: int) -> list[str]:
+    out: list[str] = []
+    placed = False
+    for r in reasons:
+        if _SOURCE_COUNT_REASON.match(r):
+            if not placed and development_count >= 1:
+                out.append(f"{development_count} independent development{'s' if development_count != 1 else ''} in MarketRipple's records (events, news and exchange filings)")
+                placed = True
+            continue
+        out.append(r)
+    return out
 
 
 def _freshness_score(evidence) -> float:
@@ -137,6 +157,7 @@ async def compute_confidence_breakdown(evidence, parsed: dict, mie_state: dict |
     result = calculate_confidence(factors)
     cal_data = await get_search_calibration()
     apply_calibration(result, cal_data)
+    result.reasons = public_confidence_reasons(result.reasons, evidence.development_count)
     bd = result.breakdown
 
     # Normalize each raw point-scale to a 0-100 % of its own max (see

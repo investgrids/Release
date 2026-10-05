@@ -65,7 +65,7 @@ def _degraded_shell(query: str, degraded_reason: str, summary: str) -> dict:
             "medium_term": "", "long_term": "", "what_priced_in": "",
             "risks": [], "opportunities": [],
             "confidence": None, "confidence_level": "unscored",
-            "sentiment": "neutral", "sources_count": 0,
+            "sentiment": None, "sources_count": 0,
         },
         "key_drivers": [], "insights": [], "companies": [], "sectors": [],
         "related_events": [], "news": [], "policies": [], "timeline": [],
@@ -73,7 +73,7 @@ def _degraded_shell(query: str, degraded_reason: str, summary: str) -> dict:
         "market_impact_horizons": [], "what_to_monitor": [],
         "ai_reasoning_methods": [], "follow_up_questions": [],
         "investment_verdict": {
-            "rating": "Not Applicable", "direction": "neutral", "confidence": None,
+            "rating": "Not Applicable", "direction": None, "confidence": None,
             "horizon": "", "top_picks": [], "risks": [], "catalysts": [],
             "opportunity_score": None, "risk_level": "", "suitable_for": "",
         },
@@ -185,6 +185,8 @@ STAGE_LABELS = {
     "insufficient_evidence": "Evidence is not sufficient to support an analysis",
     # Step 4B: emitted only when a curated educational/product question is answered by its fixed contract (no retrieval, no model), so progress is never faked.
     "education": "Answering from MarketRipple's own explanation",
+    # Step 4C: emitted instead of "insufficient_evidence" when a source FAILED during retrieval, so the failure is never reported as an absence of evidence.
+    "retrieval_incomplete": "The evidence search did not complete",
 }
 
 
@@ -401,7 +403,8 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
     if suff["status"] == suff_mod.INSUFFICIENT:
         log.warning("ai_search_v3.insufficient_evidence", query=query[:80], kind=suff["kind"], missing=suff["missing"], reason=suff["reason"],
                     retrieval_failures=dict(getattr(evidence, "retrieval_failures", {}) or {}))
-        yield "insufficient_evidence", STAGE_LABELS["insufficient_evidence"], None
+        _stage = "retrieval_incomplete" if getattr(evidence, "retrieval_failures", None) else "insufficient_evidence"
+        yield _stage, STAGE_LABELS[_stage], None
         response = _build_insufficient_response(query, evidence, entities, intent_data, specialist_kind, suff)
         response["timing"] = {**stage_ms, "total_ms": round((time.monotonic() - _t0) * 1000, 1)}
         response["context_used"] = context_used
@@ -532,7 +535,7 @@ async def run_ai_search_v3(query: str, db: AsyncSession, session_context: dict |
         stages_seen.add(stage)
         if payload is not None:
             result = payload
-    was_cached = "reasoning" not in stages_seen and "insufficient_evidence" not in stages_seen and "education" not in stages_seen
+    was_cached = not stages_seen & {"reasoning", "insufficient_evidence", "education", "retrieval_incomplete"}
     return result, was_cached
 
 
@@ -573,19 +576,28 @@ def _public_sufficiency(suff: dict) -> dict:
     return {k: suff.get(k) for k in ("status", "kind", "required", "satisfied", "missing", "reason", "missing_entities", "context")}
 
 
+RETRIEVAL_FAILED_TITLE = "The evidence search did not complete"
+RETRIEVAL_FAILED_BODY = ("MarketRipple couldn't finish searching its evidence for this question just now, so it can't tell whether supporting evidence exists. "
+                         "No conclusion was drawn. Please try again in a moment.")
+
+
 def _build_insufficient_response(query: str, evidence, entities: dict, intent_data: dict | None, specialist_kind: str, suff: dict) -> dict:
     """Deterministic public response when the evidence cannot support the analysis. No model was called. No verdict, confidence, timeline, scenario, figure or forecast: the shared degraded
     shape carries none. States exactly what cannot be established; verified related evidence (if any) is listed separately as context."""
     from app.api.companies import _NSE_UNIVERSE
     title, body = suff_mod.public_message(suff, entities, _NSE_UNIVERSE, getattr(evidence, "premise", None))
+    reason, sufficiency = "insufficient_evidence", _public_sufficiency(suff)
+    if getattr(evidence, "retrieval_failures", None):
+        # Step 4C: Gate A's verdict is unchanged, but when a source failed during retrieval the public answer must not say evidence does not exist: it says the search did not complete.
+        title, body, reason, sufficiency = RETRIEVAL_FAILED_TITLE, RETRIEVAL_FAILED_BODY, "retrieval_failed", None
     symbols = entities.get("companies") or []
     related = _filter_events_to_entities(evidence.events, symbols)[:6]
     return build_degraded_shape(
-        query=query, response_id=str(uuid.uuid4()), schema_version=SCHEMA_VERSION, specialist_kind=specialist_kind, degraded_reason="insufficient_evidence", summary=body,
+        query=query, response_id=str(uuid.uuid4()), schema_version=SCHEMA_VERSION, specialist_kind=specialist_kind, degraded_reason=reason, summary=body,
         related_events=related, sources_count=len(related), source_attribution=[f"event:{e.get('id')}" for e in related if e.get("id")],
         intent=(intent_data or {}).get("intent", "general"),
         ui_mode=classify_ui_mode(specialist_kind=specialist_kind, intent_data=intent_data, entities=entities, query=query),
-        evidence_sufficiency=_public_sufficiency(suff), premise_check=_premise_check(evidence), public_title=title,
+        evidence_sufficiency=sufficiency, premise_check=_premise_check(evidence), public_title=title,
     )
 
 
@@ -875,7 +887,7 @@ async def _assemble_response(
             "opportunities": ai.get("opportunities", []),
             "confidence": confidence_breakdown["final_confidence"],
             "confidence_level": confidence_breakdown["level"],
-            "sentiment": ai.get("sentiment", "neutral"),
+            "sentiment": ai.get("sentiment"),
             "sources_count": evidence.source_count,
         },
         "key_drivers": ai.get("key_drivers", []),

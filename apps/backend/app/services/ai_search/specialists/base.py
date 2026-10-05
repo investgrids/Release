@@ -103,7 +103,7 @@ def degraded_response(query: str) -> dict:
         "risks": ["Execution risk", "Global headwinds", "Regulatory uncertainty"],
         "opportunities": ["Sector rotation", "Infrastructure capex", "Export growth"],
         "key_drivers": [],
-        "confidence": 40, "sentiment": "neutral",
+        "confidence": None, "sentiment": None,
         "insights": [
             {"icon": "\U0001F4CA", "title": "Market Overview", "summary": "Current market conditions reflect mixed global and domestic signals with selective sector strength."},
             {"icon": "\U0001F3DB️", "title": "Policy Framework", "summary": "Government policy remains focused on infrastructure, manufacturing, and economic growth enablement."},
@@ -113,7 +113,7 @@ def degraded_response(query: str) -> dict:
         "companies": [], "sectors": [], "timeline": [],
         "follow_up_questions": ["Which sectors benefit most?", "What is the timeline?", "Key risks?", "Historical precedents?"],
         "investment_verdict": {
-            "rating": "Neutral", "direction": "neutral", "confidence": 40,
+            "rating": "Not Applicable", "direction": None, "confidence": None,
             "horizon": "6-12 months", "top_picks": [],
             "risks": ["Macro uncertainty"], "catalysts": ["Policy clarity"],
             "opportunity_score": 50,
