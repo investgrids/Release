@@ -1,0 +1,382 @@
+[
+ {
+  "tag": "landing_1440",
+  "checks": {
+   "rendered": true,
+   "suggestionsCount": 6,
+   "suggestionsHeading": "TODAY IN THE MARKETupdated 09:43 pm",
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "sector",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 1511,
+  "clientW": 1440,
+  "errors": [],
+  "sample": [
+   "What is driving the FMCG sector today? FMCG +1.1% today",
+   "What is driving the Pharma sector today? Pharma -1.6% today",
+   "What is happening with Wipro? In the news: Wipro to declare Q2 results on October 15; here’s what investors should watch"
+  ]
+ },
+ {
+  "tag": "research_1440",
+  "checks": {
+   "rendered": true,
+   "noForbiddenText": true,
+   "verdictAbsent": true,
+   "evidenceDisclosure": true,
+   "evidenceExpands": true,
+   "followUpsPresent": true,
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "research",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 1511,
+  "clientW": 1440,
+  "errors": []
+ },
+ {
+  "tag": "partial_1440",
+  "checks": {
+   "rendered": true,
+   "noForbiddenText": true,
+   "verdictAbsent": true,
+   "partialNotice": true,
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "partial_research",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 1511,
+  "clientW": 1440,
+  "errors": []
+ },
+ {
+  "tag": "education_1440",
+  "checks": {
+   "rendered": true,
+   "noForbiddenText": true,
+   "noFailureOrVerdictLanguage": true,
+   "verdictAbsent": true,
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "education",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 1511,
+  "clientW": 1440,
+  "errors": []
+ },
+ {
+  "tag": "product_1440",
+  "checks": {
+   "rendered": true,
+   "noForbiddenText": true,
+   "noConfidenceGaugeOrPercent": true,
+   "noFailureOrVerdictLanguage": true,
+   "verdictAbsent": true,
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "product_information",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 1511,
+  "clientW": 1440,
+  "errors": []
+ },
+ {
+  "tag": "insufficient_1440",
+  "checks": {
+   "rendered": true,
+   "noForbiddenText": true,
+   "verdictAbsent": true,
+   "noRetry": true,
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "unavailable",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 1511,
+  "clientW": 1440,
+  "errors": []
+ },
+ {
+  "tag": "temp_retrieval_1440",
+  "checks": {
+   "rendered": true,
+   "noForbiddenText": true,
+   "verdictAbsent": true,
+   "retryShown": true,
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "temporarily_unavailable",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 1511,
+  "clientW": 1440,
+  "errors": []
+ },
+ {
+  "tag": "temp_capacity_1440",
+  "checks": {
+   "rendered": true,
+   "noForbiddenText": true,
+   "verdictAbsent": true,
+   "retryShown": true,
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "temporarily_unavailable",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 1511,
+  "clientW": 1440,
+  "errors": []
+ },
+ {
+  "tag": "gateb_1440",
+  "checks": {
+   "rendered": true,
+   "noForbiddenText": true,
+   "verdictAbsent": true,
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "unavailable",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 1511,
+  "clientW": 1440,
+  "errors": []
+ },
+ {
+  "tag": "landing_390",
+  "checks": {
+   "rendered": true,
+   "suggestionsCount": 6,
+   "suggestionsHeading": "TODAY IN THE MARKETupdated 09:43 pm",
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "sector",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 390,
+  "clientW": 390,
+  "errors": [],
+  "sample": [
+   "What is driving the FMCG sector today? FMCG +1.1% today",
+   "What is driving the Pharma sector today? Pharma -1.6% today",
+   "What is happening with Wipro? In the news: Wipro to declare Q2 results on October 15; here’s what investors should watch"
+  ]
+ },
+ {
+  "tag": "research_390",
+  "checks": {
+   "rendered": true,
+   "noForbiddenText": true,
+   "verdictAbsent": true,
+   "evidenceDisclosure": true,
+   "evidenceExpands": true,
+   "followUpsPresent": true,
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "research",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 390,
+  "clientW": 390,
+  "errors": []
+ },
+ {
+  "tag": "partial_390",
+  "checks": {
+   "rendered": true,
+   "noForbiddenText": true,
+   "verdictAbsent": true,
+   "partialNotice": true,
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "partial_research",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 390,
+  "clientW": 390,
+  "errors": []
+ },
+ {
+  "tag": "education_390",
+  "checks": {
+   "rendered": true,
+   "noForbiddenText": true,
+   "noFailureOrVerdictLanguage": true,
+   "verdictAbsent": true,
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "education",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 390,
+  "clientW": 390,
+  "errors": []
+ },
+ {
+  "tag": "product_390",
+  "checks": {
+   "rendered": true,
+   "noForbiddenText": true,
+   "noConfidenceGaugeOrPercent": true,
+   "noFailureOrVerdictLanguage": true,
+   "verdictAbsent": true,
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "product_information",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 390,
+  "clientW": 390,
+  "errors": []
+ },
+ {
+  "tag": "insufficient_390",
+  "checks": {
+   "rendered": true,
+   "noForbiddenText": true,
+   "verdictAbsent": true,
+   "noRetry": true,
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "unavailable",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 390,
+  "clientW": 390,
+  "errors": []
+ },
+ {
+  "tag": "temp_retrieval_390",
+  "checks": {
+   "rendered": true,
+   "noForbiddenText": true,
+   "verdictAbsent": true,
+   "retryShown": true,
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "temporarily_unavailable",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 390,
+  "clientW": 390,
+  "errors": []
+ },
+ {
+  "tag": "temp_capacity_390",
+  "checks": {
+   "rendered": true,
+   "noForbiddenText": true,
+   "verdictAbsent": true,
+   "retryShown": true,
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "temporarily_unavailable",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 390,
+  "clientW": 390,
+  "errors": []
+ },
+ {
+  "tag": "gateb_390",
+  "checks": {
+   "rendered": true,
+   "noForbiddenText": true,
+   "verdictAbsent": true,
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "unavailable",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 390,
+  "clientW": 390,
+  "errors": []
+ },
+ {
+  "tag": "suggestions_down_1440",
+  "checks": {
+   "rendered": true,
+   "suggestionsCount": 6,
+   "suggestionsHeading": "TRY ASKING",
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "evergreen",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 1511,
+  "clientW": 1440,
+  "errors": [
+   "console: Failed to load resource: net::ERR_FAILED"
+  ],
+  "sample": [
+   "Should I invest in defence stocks after the latest budget?",
+   "I hold Manappuram Finance. Should I switch to Natco Pharma?",
+   "Should I continue holding BEL or switch to HAL?"
+  ]
+ },
+ {
+  "tag": "research_390",
+  "checks": {
+   "rendered": true,
+   "noForbiddenText": true,
+   "verdictAbsent": true,
+   "evidenceDisclosure": true,
+   "evidenceExpands": true,
+   "followUpsPresent": true,
+   "whiteBackground": true,
+   "noAiSearchHorizontalOverflow": true,
+   "noContentOverflow": true,
+   "noConsoleErrors": true
+  },
+  "kind": "research",
+  "bg": "rgb(255, 255, 255)",
+  "scrollW": 390,
+  "clientW": 390,
+  "errors": []
+ }
+]
