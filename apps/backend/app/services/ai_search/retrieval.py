@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.event import Event, GovernmentPolicy
 from app.db.models_legacy import NewsArticle as NewsModel
 from app.services.ai_search.regexes import _STOPWORDS
-from app.services.news_fetcher import get_live_news
+from app.services.news_fetcher import LiveNewsUnavailable, get_live_news, live_news_status, reset_live_news_status
 
 
 def _words(query: str) -> list[str]:
@@ -133,6 +133,7 @@ async def _search_news(
         # retrieval-layer fix — flagged as backlog, not attempted here.
         # Step 3.4G.1: the live-feed candidate window is explicit (live_window) instead of a hard-coded newest-20, and the result is cut AFTER matching/ranking, not before.
         # (get_live_news itself returns its whole 60-item cache on a cold cache and [:limit] on a warm one, so the window must be requested explicitly to be state-independent.)
+        reset_live_news_status()
         live = await get_live_news(limit=live_window or 20) or []
         if live_window:
             live = list(live)[:live_window]
@@ -188,6 +189,11 @@ async def _search_news(
                     "url": None,
                 })
 
+    # Step 3.4H.3: a live feed that could not be obtained (cold start cut off, every source failed) is an infrastructure condition. If it left us with nothing at all, say so (the caller records a
+    # retrieval failure) instead of returning [] that would read as "no news exists". A legitimate empty feed, or rows from the database fallback, are returned as before.
+    status = live_news_status()
+    if not results and status in ("failed", "timeout"):
+        raise LiveNewsUnavailable(f"live news unavailable ({status})")
     return results[:(live_window or limit)]
 
 

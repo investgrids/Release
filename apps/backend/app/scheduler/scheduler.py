@@ -28,6 +28,15 @@ def get_scheduler() -> AsyncIOScheduler:
     return _scheduler
 
 
+async def _job_refresh_live_news() -> None:
+    """Step 3.4H.3 warm-up: join or start the shared live-news refresh. A failure keeps the last known good snapshot (never raises into the scheduler)."""
+    from app.services.news_fetcher import refresh_live_news
+    try:
+        await refresh_live_news()
+    except Exception as exc:
+        log.warning("job.refresh_live_news.failed", exc=str(exc)[:160])
+
+
 def register_jobs(scheduler: AsyncIOScheduler) -> None:
     """Register all background jobs on the scheduler."""
     from app.tasks.ingest_tasks import (
@@ -72,6 +81,16 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         job_ingest_news,
         IntervalTrigger(seconds=settings.ingest_news_interval_sec),
         id="ingest_news",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=120,
+    )
+
+    # Step 3.4H.3: keep the in-process live-news snapshot warm inside its TTL so ordinary AI Search requests never pay for expiry.
+    scheduler.add_job(
+        _job_refresh_live_news,
+        IntervalTrigger(seconds=settings.live_news_warmup_interval_seconds),
+        id="refresh_live_news",
         max_instances=1,
         coalesce=True,
         misfire_grace_time=120,

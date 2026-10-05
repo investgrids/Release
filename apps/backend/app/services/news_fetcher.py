@@ -4,6 +4,7 @@ No API key required. Cache TTL = 15 minutes.
 """
 
 import asyncio
+from contextvars import ContextVar
 import hashlib
 import re
 import time
@@ -252,10 +253,10 @@ def _normalize(headline: str, summary: str, source: str, ts: float, url: str = "
 
 
 def get_cached_article(article_id: str) -> dict | None:
-    """Return a single article from cache by id."""
-    for a in _cache.get("data", []):
+    """Return a single article from cache by id (served form: relative label derived now)."""
+    for a in _snapshot["items"]:
         if a.get("id") == article_id:
-            return a
+            return _served(a)
     return None
 
 
@@ -294,6 +295,12 @@ def _sync_fetch_yfinance() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 async def _fetch_rss(url: str, source: str) -> list[dict]:
+    items, _err = await _fetch_rss_status(url, source)
+    return items
+
+
+async def _fetch_rss_status(url: str, source: str) -> tuple[list[dict], str | None]:
+    """(items, error). error is None for a feed that answered and parsed (even with zero items); otherwise the failure class. Step 3.4H.3: a failure must stay distinguishable from an empty feed."""
     try:
         async with httpx.AsyncClient(
             headers=_HEADERS, follow_redirects=True, timeout=10
@@ -301,8 +308,8 @@ async def _fetch_rss(url: str, source: str) -> list[dict]:
             resp = await client.get(url)
             resp.raise_for_status()
             content = resp.text
-    except Exception:
-        return []
+    except Exception as exc:
+        return [], type(exc).__name__
 
     items: list[dict] = []
     try:
@@ -328,35 +335,30 @@ async def _fetch_rss(url: str, source: str) -> list[dict]:
                 )
             )
     except ET.ParseError:
-        return []
-    return items
+        return [], "ParseError"
+    return items, None
 
 
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
-async def get_live_news(limit: int = 20) -> list[dict]:
-    """Return live news, cached for CACHE_TTL seconds. Empty list on total failure."""
-    now = time.time()
-    if _cache["data"] and now - _cache["ts"] < CACHE_TTL:
-        return _cache["data"][:limit]
+def _served(item: dict) -> dict:
+    """The caller-facing form of a snapshot item: internal `_ts` removed, `published_ts` (absolute epoch) added, and the relative label derived NOW from the stored timestamp, never cached as truth."""
+    out = {k: v for k, v in item.items() if k != "_ts"}
+    ts = item.get("_ts")
+    if ts:
+        out["published_at"] = _time_ago(ts)
+        out["published_ts"] = ts
+    return out
 
-    loop = asyncio.get_event_loop()
 
-    # yfinance (NSE symbols, sync) + India-focused RSS feeds, all concurrent
-    tasks = [loop.run_in_executor(None, _sync_fetch_yfinance)]
-    tasks += [_fetch_rss(url, src) for url, src in RSS_FEEDS]
-
-    raw_results = await asyncio.gather(*tasks, return_exceptions=True)
-
+def _aggregate(batches: list[list[dict]]) -> list[dict]:
+    """Merge, dedupe, India-relevance filter, newest first, keep 60. Items keep their absolute `_ts`."""
     merged: list[dict] = []
     seen_ids: set[str] = set()
-
-    for batch in raw_results:
-        if isinstance(batch, Exception) or not batch:
-            continue
-        for article in batch:
+    for batch in batches:
+        for article in batch or []:
             aid = article["id"]
             if (
                 aid not in seen_ids
@@ -365,13 +367,210 @@ async def get_live_news(limit: int = 20) -> list[dict]:
             ):
                 seen_ids.add(aid)
                 merged.append(article)
-
-    # Sort newest first
     merged.sort(key=lambda x: x.get("_ts", 0), reverse=True)
+    return merged[:60]      # up to 60 so tab filters have enough
 
-    # Strip internal _ts field before caching (store up to 60 so tab filters have enough)
-    clean = [{k: v for k, v in a.items() if k != "_ts"} for a in merged[:60]]
 
+# ---------------------------------------------------------------------------
+# Snapshot lifecycle (Step 3.4H.3): stale-while-revalidate, single flight, last-known-good
+#   fresh (age < CACHE_TTL)            -> serve immediately
+#   stale, age < max stale             -> serve immediately, start (or join) ONE background refresh
+#   none / older than max stale        -> bounded foreground wait for the RSS phase of a shared refresh
+# A refresh publishes the RSS result as soon as feeds answer; yfinance is a separate, bounded, background-only phase that can only add to an already published snapshot.
+# Snapshot age is not article age: every item keeps its own absolute timestamp, and eligibility stays with retrieval and ranking.
+# ---------------------------------------------------------------------------
+
+class LiveNewsUnavailable(RuntimeError):
+    """The live feed could not be obtained (cold start cut off or all sources failed): an infrastructure condition, not evidence that no news exists."""
+
+
+_snapshot: dict = {"items": [], "fetched_at": 0.0, "last_success_at": 0.0, "source_failures": {}, "consecutive_failures": 0, "last_error": None, "installed": False}
+_refresh_task: asyncio.Task | None = None
+_refresh_loop = None
+_rss_event: asyncio.Event | None = None
+_yf_future = None
+_last_status: ContextVar = ContextVar("live_news_status", default=None)
+
+
+def live_news_status() -> str | None:
+    """Outcome of the most recent get_live_news call in this context: ok | empty | stale | failed | timeout (None when not called)."""
+    return _last_status.get()
+
+
+def reset_live_news_status() -> None:
+    _last_status.set(None)
+
+
+def _settings():
+    from app.core.config import settings
+    return settings
+
+
+def _install(items: list[dict], failures: dict, usable: bool) -> None:
+    """Atomically replace the snapshot (one dict assignment). `usable=False` means the refresh produced nothing and failed: keep the last known good items and only record the failure."""
+    global _snapshot
+    now = time.time()
+    if not usable:
+        _snapshot = {**_snapshot, "source_failures": dict(failures), "consecutive_failures": _snapshot["consecutive_failures"] + 1,
+                     "last_error": next(iter(failures.values()), None)}
+        return
+    _snapshot = {"items": list(items), "fetched_at": now, "last_success_at": now, "source_failures": dict(failures), "consecutive_failures": 0, "last_error": None, "installed": True}
     _cache["ts"] = now
-    _cache["data"] = clean
-    return clean
+    _cache["data"] = [_served(a) for a in items]      # legacy mirror; readers should use the snapshot
+
+
+async def _refresh(rss_ready: asyncio.Event, include_yfinance: bool = True) -> None:
+    """One refresh. Phase 1: all RSS feeds concurrently; the snapshot is published as soon as the first window closes (or all feeds answered), stragglers merge in when they finish.
+    Phase 2 (background only): bounded yfinance, merged into the published snapshot, never a precondition for it."""
+    global _yf_future
+    cfg = _settings()
+    failures: dict[str, str] = {}
+    collected: list[list[dict]] = []
+    tasks = {asyncio.ensure_future(_fetch_rss_status(url, src)): url for url, src in RSS_FEEDS}
+    pending = set(tasks)
+    window = cfg.live_news_rss_publish_window_seconds
+    published = False
+    try:
+        started = time.monotonic()
+        first_pass = True
+        while pending:
+            left = cfg.live_news_rss_max_seconds - (time.monotonic() - started)
+            if left <= 0:
+                break
+            if published:
+                done, pending = await asyncio.wait(pending, timeout=left)                                   # stragglers, up to the hard limit
+            elif first_pass:
+                done, pending = await asyncio.wait(pending, timeout=min(window, left))                      # the publish window: ideally every feed
+            else:
+                done, pending = await asyncio.wait(pending, timeout=left, return_when=asyncio.FIRST_COMPLETED)   # nothing usable yet: publish on the first usable answer
+            first_pass = False
+            for t in done:
+                url = tasks[t]
+                try:
+                    items, err = t.result()
+                except Exception as exc:        # a feed task must never take the refresh down
+                    items, err = [], type(exc).__name__
+                if err:
+                    failures[url] = err
+                else:
+                    collected.append(items)
+            merged = _aggregate(collected)
+            if merged:
+                _install(merged, failures, True)
+                published = True
+                rss_ready.set()
+        for t in pending:
+            t.cancel()
+            failures[tasks[t]] = "timeout"
+        merged = _aggregate(collected)
+        if merged:
+            _install(merged, failures, True)
+            published = True
+        elif collected and not failures:
+            _install([], failures, True)         # every feed answered and nothing relevant: a legitimate empty result
+            published = True
+        else:
+            _install([], failures or {"rss": "no usable result"}, False)      # total failure: last known good stays
+    except BaseException:
+        for t in pending:
+            t.cancel()
+        raise
+    finally:
+        rss_ready.set()
+
+    if not include_yfinance or not _snapshot["installed"]:
+        return
+    loop = asyncio.get_running_loop()
+    if _yf_future is not None and not _yf_future.done():
+        return                                      # a previous yfinance thread is still running (threads cannot be cancelled): never stack another
+    fut = loop.run_in_executor(None, _sync_fetch_yfinance)
+    _yf_future = fut
+    try:
+        yf_items = await asyncio.wait_for(asyncio.shield(fut), timeout=cfg.live_news_yfinance_timeout_seconds)
+    except asyncio.TimeoutError:
+        failures["yfinance"] = "timeout"
+        _snapshot["source_failures"]["yfinance"] = "timeout"
+        return
+    except Exception as exc:
+        _snapshot["source_failures"]["yfinance"] = type(exc).__name__
+        return
+    if yf_items:
+        extended = _aggregate([_snapshot["items"], yf_items])
+        _install(extended, {**_snapshot["source_failures"]}, True)
+
+
+def _ensure_refresh() -> tuple[asyncio.Task, asyncio.Event]:
+    """Single flight: start a refresh unless one is already running on this loop. A finished or failed task never counts as running."""
+    global _refresh_task, _refresh_loop, _rss_event
+    loop = asyncio.get_running_loop()
+    if _refresh_task is not None and not _refresh_task.done() and _refresh_loop is loop:
+        return _refresh_task, _rss_event
+    event = asyncio.Event()
+    task = asyncio.ensure_future(_refresh(event))
+
+    def _clear(t: asyncio.Task) -> None:
+        global _refresh_task
+        if _refresh_task is t:
+            _refresh_task = None
+        if not t.cancelled() and t.exception() is not None:
+            logger.warning("live_news.refresh_failed", exc=str(t.exception())[:160])
+
+    task.add_done_callback(_clear)
+    _refresh_task, _refresh_loop, _rss_event = task, loop, event
+    return task, event
+
+
+async def refresh_live_news() -> None:
+    """Warm-up entry point for the scheduler: join or start a refresh and wait for the whole of it (RSS and yfinance phases)."""
+    task, _ = _ensure_refresh()
+    await asyncio.shield(task)
+
+
+def _usable_snapshot(now: float) -> tuple[bool, bool]:
+    """(has_data, fresh). Data older than the max-stale limit is treated as absent."""
+    snap = _snapshot
+    if not snap["installed"]:
+        return False, False
+    age = now - snap["fetched_at"]
+    if age >= _settings().live_news_max_stale_seconds:
+        return False, False
+    return True, age < CACHE_TTL
+
+
+async def get_live_news(limit: int = 20) -> list[dict]:
+    """Return live news. Never raises; [] when nothing could be obtained (live_news_status() says why: failed/timeout are infrastructure conditions, empty is a real empty result).
+    Fresh snapshot: immediate. Stale (within max stale): immediate and one shared background refresh. Cold: a bounded wait for the RSS phase, within the request deadline when one is active."""
+    now = time.time()
+    has_data, fresh = _usable_snapshot(now)
+    if has_data:
+        if not fresh:
+            try:
+                _ensure_refresh()
+            except Exception:
+                pass
+        items = _snapshot["items"]
+        _last_status.set("ok" if fresh and items else ("empty" if fresh else "stale"))
+        return [_served(a) for a in items[:limit]]
+
+    from app.services import request_deadline
+    cfg = _settings()
+    budget = cfg.live_news_cold_rss_cap_seconds
+    usable = request_deadline.usable()
+    if usable is not None:
+        budget = min(budget, usable)
+    if budget <= 0:
+        _last_status.set("timeout")
+        return []
+    _task, event = _ensure_refresh()
+    try:
+        await asyncio.wait_for(event.wait(), timeout=budget)      # waits on the event, not the task: a cancelled or timed-out waiter never cancels the shared refresh
+    except asyncio.TimeoutError:
+        _last_status.set("timeout")
+        return []
+    has_data, _fresh = _usable_snapshot(time.time())
+    if not has_data:
+        _last_status.set("failed")
+        return []
+    items = _snapshot["items"]
+    _last_status.set("ok" if items else "empty")
+    return [_served(a) for a in items[:limit]]

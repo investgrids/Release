@@ -127,6 +127,15 @@ class Settings(BaseSettings):
     ai_search_min_provider_attempt_seconds: float = 8.0
     ai_search_provider_attempt_cap_seconds: float = 14.0
 
+    # ── Live news snapshot (Step 3.4H.3) ────────────────────────────────────
+    # Cache availability limits, not article-freshness rules: every item keeps its own timestamp and eligibility stays with retrieval and ranking.
+    live_news_max_stale_seconds: int = 6 * 3600          # a snapshot older than this is treated as absent
+    live_news_cold_rss_cap_seconds: float = 4.0          # longest a request waits for the first RSS publish when there is no usable snapshot (also bounded by the request deadline)
+    live_news_rss_publish_window_seconds: float = 3.0    # a refresh publishes whatever feeds have answered when this window closes
+    live_news_rss_max_seconds: float = 12.0              # hard limit for stragglers inside one refresh
+    live_news_yfinance_timeout_seconds: float = 20.0     # background-only phase; never a precondition for publishing RSS
+    live_news_warmup_interval_seconds: int = 600         # scheduler refresh, inside the 15-minute TTL
+
     # Legacy providers (kept for future use)
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com/v1"
