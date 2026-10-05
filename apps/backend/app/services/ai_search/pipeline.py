@@ -361,7 +361,8 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
     from app.api.companies import _NSE_UNIVERSE as _UNIV
     suff = suff_mod.assess(query, intent_data, entities, evidence, _UNIV)
     if suff["status"] == suff_mod.INSUFFICIENT:
-        log.warning("ai_search_v3.insufficient_evidence", query=query[:80], kind=suff["kind"], missing=suff["missing"], reason=suff["reason"])
+        log.warning("ai_search_v3.insufficient_evidence", query=query[:80], kind=suff["kind"], missing=suff["missing"], reason=suff["reason"],
+                    retrieval_failures=dict(getattr(evidence, "retrieval_failures", {}) or {}))
         yield "insufficient_evidence", STAGE_LABELS["insufficient_evidence"], None
         response = _build_insufficient_response(query, evidence, entities, intent_data, specialist_kind, suff)
         response["timing"] = {**stage_ms, "total_ms": round((time.monotonic() - _t0) * 1000, 1)}
@@ -971,7 +972,9 @@ async def _assemble_response(
                     # Batch E consumer migration, 2026-08-24 — current_strength
                     # in V2 mode (real V2 field, no opportunity_score concept).
                     return hits[0]["current_strength"] if settings.opportunity_v2_promoted else hits[0]["opportunity_score"]
-                _opp_a, _opp_b = await asyncio.gather(_opp_for(_sym_a), _opp_for(_sym_b))
+                # sequential, not gathered: both lookups share this one AsyncSession and a session cannot run two operations at once (Step 3.4G.3)
+                _opp_a = await _opp_for(_sym_a)
+                _opp_b = await _opp_for(_sym_b)
                 response["decision_intelligence"]["engine_recommendation"] = compute_decision(
                     entity_a_symbol=_sym_a, entity_b_symbol=_sym_b,
                     direction=(evidence.mie_state or {}).get("signals", {}).get("direction", "sideways"),

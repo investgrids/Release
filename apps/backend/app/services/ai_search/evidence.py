@@ -96,6 +96,9 @@ class EvidenceBundle:
     # Step 3.4G.1: per-item ranking components for the selected pools (internal, never in the public response) and how many announcements were dropped as stale before ranking.
     rank_trace: dict = field(default_factory=dict)
     ann_stale: int = 0
+    # Step 3.4G.3: sources whose retrieval RAISED, as {source: exception class}. Empty means every source ran; a source absent here that returned [] genuinely matched nothing.
+    # Internal only (also copied into filter_report), never part of the public response.
+    retrieval_failures: dict = field(default_factory=dict)
     # Which specialist prompt this bundle is rendered into (set by the pipeline right after routing). When set, index() and the authorization corpus expose ONLY what that prompt shows.
     prompt_kind: str | None = None
 
@@ -423,10 +426,24 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
             return []
         return await cache_mod.component("policy", policy_sig, _policies_factory)
 
-    events, news, policies = await asyncio.gather(_events_task(), _news_task(), _policies_task(), return_exceptions=True)
-    bundle.events = events if isinstance(events, list) else []
-    bundle.news = news if isinstance(news, list) else []
-    bundle.policies = policies if isinstance(policies, list) else []
+    # Step 3.4G.3: these three lookups share ONE AsyncSession, and a session must never run two operations at once: on the first use of a cold connection pool the concurrent gather raised
+    # "provisioning a new connection; concurrent operations are not permitted", return_exceptions swallowed it, and a whole source silently became []. They now run one after another
+    # (one connection, no extra pool pressure; these are local queries, so the cost is milliseconds), each guarded so that a failing source:
+    #   - is logged by NAME and exception CLASS only (no query text, no message),
+    #   - is recorded in bundle.retrieval_failures so "the source failed" is never confused with "nothing matched",
+    #   - leaves the other sources' evidence intact.
+    async def _guarded(name: str, task) -> list:
+        try:
+            rows = await task()
+            return rows if isinstance(rows, list) else []
+        except Exception as exc:                                                   # noqa: BLE001: any failure of one source must not kill the request
+            bundle.retrieval_failures[name] = type(exc).__name__
+            log.warning("ai_search_v3.evidence_source_failed", source=name, error_class=type(exc).__name__)
+            return []
+
+    bundle.events = await _guarded("events", _events_task)
+    bundle.news = await _guarded("news", _news_task)
+    bundle.policies = await _guarded("policies", _policies_task)
 
     if plan.valuation_for or _VALUATION_TRIGGERS.search(query):
         co_syms = [c.upper() for c in (plan.valuation_for or entities.get("companies", [])[:2])]
@@ -719,6 +736,7 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
 
     # Step 2: date and relevance checks BEFORE the evidence reaches the prompt or the response.
     bundle.filter_report = evidence_filter.filter_bundle(bundle, plan, query, entities)
+    bundle.filter_report["retrieval_failures"] = dict(bundle.retrieval_failures)       # internal diagnostics: distinguishes "source failed" from "zero matching evidence"
     log.info("ai_search_v3.evidence_filtered", plan=plan.kind, report=bundle.filter_report)
 
     await _apply_clustering(db, bundle)
