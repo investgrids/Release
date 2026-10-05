@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
 from app.services.ai_search import evidence_scope as scope
+from app.services.ai_search.education import CURRENT_DATA_RE
 
 _EXPLAIN_RE = re.compile(
     r"^\s*(?:what\s+(?:is|are|does|do)|explain|define|how\s+(?:does|do|should\s+i\s+(?:read|use|interpret)|to\s+read)|meaning\s+of|difference\s+between)",
@@ -61,7 +62,9 @@ def plan_for(query: str, intent_data: dict, entities: dict) -> RetrievalPlan:
     if companies:
         event_q = intent_data.get("intent") == "news_reaction"
         return RetrievalPlan("company", "tagged", "entity", bool(policies), announcements_for=companies[:2], age_key="company_event" if event_q else "company")
-    if not sectors and not policies and _EXPLAIN_RE.search(query or ""):
+    # Step 4B: the evidence-free explanation plan is for definitions only. A question that asks about now, a price or a quantity ("What is the Nifty today?") is a data question and must take the topic plan, where it is
+    # held to Gate A and Gate B like any other, instead of reaching a model with no evidence and no authorization.
+    if not sectors and not policies and _EXPLAIN_RE.search(query or "") and not CURRENT_DATA_RE.search(query or ""):
         return RetrievalPlan("explanation", "none", "none", False, age_key="explanation")
     return RetrievalPlan("topic", "words", "words", bool(policies), age_key="topic_sector" if sectors else "topic")
 

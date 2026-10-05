@@ -22,6 +22,7 @@ from app.services.ai_search import cache as cache_mod
 from app.services.ai_search import answer_authorization as auth_mod
 from app.services.ai_search import claim_sources as claim_sources_mod
 from app.services.ai_search import conclusion_scope as scope_mod
+from app.services.ai_search import education as education_mod
 from app.services.ai_search import evidence_sufficiency as suff_mod
 from app.services.ai_search import structured_authorization as struct_mod
 from app.services.ai_search.company_matching import filter_events_to_companies
@@ -182,6 +183,8 @@ STAGE_LABELS = {
     "finalizing": "Building investment decision and finalizing response",
     # Step 3.4A: emitted only when the pre-model gate stops the run (no specialist is called), so progress is never faked.
     "insufficient_evidence": "Evidence is not sufficient to support an analysis",
+    # Step 4B: emitted only when a curated educational/product question is answered by its fixed contract (no retrieval, no model), so progress is never faked.
+    "education": "Answering from MarketRipple's own explanation",
 }
 
 
@@ -301,6 +304,18 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
             ) + "?"
             result["company_suggestions"] = suggestions
         cache_mod.set_response(query, result, session_context=session_context)
+        yield "finalizing", STAGE_LABELS["finalizing"], result
+        return
+
+    # Step 4B: a plain educational or product-knowledge question on a curated topic (P/E ratio, FII flows, the MarketRipple Score) is answered by its fixed contract: no retrieval, no model, nothing
+    # invented. Questions naming a company, sector or policy, or asking for current or numeric data, never match and continue through the evidence-gated pipeline unchanged.
+    _edu_topic = education_mod.topic_for(query, entities)
+    if _edu_topic:
+        log.info("ai_search_v3.education_contract", topic=_edu_topic, query=query[:60])
+        yield "education", STAGE_LABELS["education"], None
+        _ui = classify_ui_mode(specialist_kind="company", intent_data=intent_data, entities=entities, query=query)
+        result = education_mod.build_response(query, _edu_topic, schema_version=SCHEMA_VERSION, ui_mode=_ui, intent=intent_data.get("intent", "general"))
+        result["context_used"] = context_used
         yield "finalizing", STAGE_LABELS["finalizing"], result
         return
 
@@ -517,7 +532,7 @@ async def run_ai_search_v3(query: str, db: AsyncSession, session_context: dict |
         stages_seen.add(stage)
         if payload is not None:
             result = payload
-    was_cached = "reasoning" not in stages_seen and "insufficient_evidence" not in stages_seen
+    was_cached = "reasoning" not in stages_seen and "insufficient_evidence" not in stages_seen and "education" not in stages_seen
     return result, was_cached
 
 

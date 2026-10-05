@@ -184,6 +184,9 @@ def _derive_answer_availability(result: dict, *, is_market_pulse: bool) -> dict:
     closed on anything it doesn't explicitly recognize: an unrecognized
     degraded_reason with real evidence present lands on the more modest
     `limited_evidence` rather than `available` — see the final branch."""
+    if result.get("education"):
+        # Step 4B: a curated educational/product answer. It is complete and available, and it deliberately rests on no retrieved market evidence.
+        return {"state": "available", "evidence_retrieval_completed": False, "evidence_count": 0}
     synthesis_incomplete = bool(result.get("synthesis_incomplete"))
     evidence_count = (
         _market_pulse_evidence_count(result) if is_market_pulse else _research_evidence_count(result)
