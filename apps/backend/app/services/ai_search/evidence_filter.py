@@ -216,6 +216,8 @@ def filter_bundle(bundle, plan: RetrievalPlan, query: str, entities: dict, now: 
     """Removes stale and irrelevant items from the bundle IN PLACE and returns a report of what was dropped and why. Events/announcements/news only; policies are kept
     only when the question named a policy and the item mentions it."""
     now = now or datetime.now(timezone.utc)
+    if getattr(bundle, "rank_trace", None) is None:       # minimal stand-in bundles (tests) predate the ranking trace
+        bundle.rank_trace = {}
     limits = MAX_AGE_DAYS[plan.age_key]
     symbols = [c for c in (entities.get("companies") or []) if c]
     words = content_words(query)
@@ -248,7 +250,12 @@ def filter_bundle(bundle, plan: RetrievalPlan, query: str, entities: dict, now: 
             continue
         kept.append(e)
     report["events"] = {"kept": len(kept), "dropped_stale": stale, "dropped_irrelevant": irrelevant, "dropped_tips": tips, "dropped_single_company_filing": filings}
-    bundle.events = kept[:10] if plan.kind != "comparison" else kept[:10]
+    # Step 3.4G.1: the survivors are ranked (coverage, recency, substance, impact; near-duplicates deferred; per company for comparisons) BEFORE the bounded selection, instead of taking the first 10
+    # of an impact-ordered list.
+    from app.services.ai_search import evidence_ranking as ranking
+    bundle.events, ev_trace = ranking.rank_events(kept, query, entities, plan, now)
+    bundle.rank_trace["events"] = ev_trace
+    report["events"]["selected"] = len(bundle.events)
 
     # news
     kept, stale, irrelevant, undated, tips, filings = [], 0, 0, 0, 0, 0
@@ -280,7 +287,9 @@ def filter_bundle(bundle, plan: RetrievalPlan, query: str, entities: dict, now: 
             continue
         kept.append(n)
     report["news"] = {"kept": len(kept), "dropped_stale": stale, "dropped_irrelevant": irrelevant, "dropped_undated": undated, "dropped_tips": tips, "dropped_single_company_filing": filings}
-    bundle.news = kept
+    bundle.news, news_trace = ranking.rank_news(kept, query, entities, plan, now)
+    bundle.rank_trace["news"] = news_trace
+    report["news"]["selected"] = len(bundle.news)
 
     # announcements
     kept, stale = [], 0
@@ -290,7 +299,7 @@ def filter_bundle(bundle, plan: RetrievalPlan, query: str, entities: dict, now: 
             stale += 1
             continue
         kept.append(a_row)
-    report["announcements"] = {"kept": len(kept), "dropped_stale": stale}
+    report["announcements"] = {"kept": len(kept), "dropped_stale": stale + int(getattr(bundle, "ann_stale", 0) or 0)}
     bundle.announcements = kept
 
     # policies

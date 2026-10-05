@@ -55,10 +55,19 @@ def _event_row_to_dict(e: Event) -> dict:
     }
 
 
+# Step 3.4G.1: candidate-pool sizes. The pool is bounded by RECENCY (newest first), never by stored impact_score; relevance and impact are applied afterwards by evidence_ranking.
+POOL_EVENTS_TAGGED = 200
+POOL_EVENTS_TOPIC = 600
+POOL_NEWS_WINDOW = 60
+POOL_ANNOUNCEMENTS = 60
+
+
 async def _search_events(
-    db: AsyncSession, query: str, limit: int = 10, entities: dict | None = None, tagged_only: bool = False, terms: list[str] | None = None,
+    db: AsyncSession, query: str, limit: int = 10, entities: dict | None = None, tagged_only: bool = False, terms: list[str] | None = None, pool_by_recency: bool = False,
 ) -> list[dict]:
     ws = _words(query)
+    from sqlalchemy import func
+    order = (func.coalesce(Event.event_date, Event.published_at).desc(), Event.impact_score.desc()) if pool_by_recency else (Event.impact_score.desc(),)
     symbols = [s for s in (entities or {}).get("companies", []) if s]
 
     # Entity-scoped filter first (P1 fix). Event.companies is a JSON list of
@@ -71,7 +80,7 @@ async def _search_events(
     # accidentally satisfy this company's symbol match.
     if symbols:
         company_conds = [Event.companies.ilike(f'%"symbol": "{s}"%') for s in symbols]
-        stmt = select(Event).where(or_(*company_conds)).order_by(Event.impact_score.desc()).limit(limit)
+        stmt = select(Event).where(or_(*company_conds)).order_by(*order).limit(limit)
         rows = (await db.execute(stmt)).scalars().all()
         if rows:
             return [_event_row_to_dict(e) for e in rows]
@@ -87,9 +96,9 @@ async def _search_events(
     search = list(terms) if terms else ws
     conds = [Event.title.ilike(f"%{w}%") for w in search] + [Event.summary.ilike(f"%{w}%") for w in search]
     stmt = (
-        select(Event).where(or_(*conds)).order_by(Event.impact_score.desc()).limit(limit)
+        select(Event).where(or_(*conds)).order_by(*order).limit(limit)
         if conds else
-        select(Event).order_by(Event.impact_score.desc()).limit(limit)
+        select(Event).order_by(*order).limit(limit)
     )
     rows = (await db.execute(stmt)).scalars().all()
     return [_event_row_to_dict(e) for e in rows]
@@ -102,7 +111,7 @@ def _symbols_to_names(symbols: list[str]) -> list[str]:
 
 
 async def _search_news(
-    db: AsyncSession, query: str, limit: int = 8, entities: dict | None = None, entity_terms: list[str] | None = None,
+    db: AsyncSession, query: str, limit: int = 8, entities: dict | None = None, entity_terms: list[str] | None = None, live_window: int | None = None,
 ) -> list[dict]:
     ws = _words(query)
 
@@ -122,7 +131,11 @@ async def _search_news(
         # entity-scoped filtering. Tagging the live RSS/yfinance cache with
         # resolved entities is a real data-pipeline project, not a
         # retrieval-layer fix — flagged as backlog, not attempted here.
-        live = await get_live_news(limit=20) or []
+        # Step 3.4G.1: the live-feed candidate window is explicit (live_window) instead of a hard-coded newest-20, and the result is cut AFTER matching/ranking, not before.
+        # (get_live_news itself returns its whole 60-item cache on a cold cache and [:limit] on a warm one, so the window must be requested explicitly to be state-independent.)
+        live = await get_live_news(limit=live_window or 20) or []
+        if live_window:
+            live = list(live)[:live_window]
         for a in live:
             if _matches(a.get("headline", "") + " " + a.get("summary", "")):
                 results.append({
@@ -175,7 +188,7 @@ async def _search_news(
                     "url": None,
                 })
 
-    return results[:limit]
+    return results[:(live_window or limit)]
 
 
 async def _search_policies(

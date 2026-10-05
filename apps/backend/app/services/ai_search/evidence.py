@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.ai_search import cache as cache_mod
 from app.services.ai_search import evidence_filter
+from app.services.ai_search import evidence_ranking
 from app.services.evidence_clustering.dedup import cluster_evidence
 from app.services.evidence_clustering.evidence import (
     DETERMINISTIC,
@@ -43,6 +44,10 @@ from app.services.ai_search.regexes import (
     _VIX_TRIGGER,
 )
 from app.services.ai_search.retrieval import (
+    POOL_ANNOUNCEMENTS,
+    POOL_EVENTS_TAGGED,
+    POOL_EVENTS_TOPIC,
+    POOL_NEWS_WINDOW,
     _infer_historical_category,
     _infer_historical_sectors,
     _search_events,
@@ -79,6 +84,9 @@ class EvidenceBundle:
     plan_kind: str | None = None
     filter_report: dict = field(default_factory=dict)
     premise: dict = field(default_factory=dict)
+    # Step 3.4G.1: per-item ranking components for the selected pools (internal, never in the public response) and how many announcements were dropped as stale before ranking.
+    rank_trace: dict = field(default_factory=dict)
+    ann_stale: int = 0
 
     # Phase 5E.5: real developments, not raw row count. Populated by
     # collect() via the shared evidence_clustering primitive (5E.3) —
@@ -352,22 +360,21 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
             return []
         if plan.events == "tagged":
             # Per company, so a comparison gets evidence for EACH side instead of whichever company has the higher-impact events.
-            per = 5 if plan.kind == "comparison" else 30
             out, seen = [], set()
             for sym in companies[:3]:
-                for ev in await _search_events(db, query, limit=per, entities={"companies": [sym]}, tagged_only=True):
+                for ev in await _search_events(db, query, limit=POOL_EVENTS_TAGGED, entities={"companies": [sym]}, tagged_only=True, pool_by_recency=True):
                     if ev["id"] not in seen:
                         seen.add(ev["id"])
                         out.append(ev)
             return out
-        return await _search_events(db, query, limit=30, entities=entities, terms=evidence_filter.topic_search_terms(query, entities) or None)
+        return await _search_events(db, query, limit=POOL_EVENTS_TOPIC, entities=entities, terms=evidence_filter.topic_search_terms(query, entities) or None, pool_by_recency=True)
 
     async def _news_task():
         if plan.news == "none":
             return []
         if plan.news == "entity":
-            return await _search_news(db, query, limit=20, entities=entities, entity_terms=evidence_filter.company_terms(companies))
-        return await _search_news(db, query, limit=20, entities=entities, entity_terms=evidence_filter.topic_search_terms(query, entities) or None)
+            return await _search_news(db, query, limit=20, entities=entities, entity_terms=evidence_filter.company_terms(companies), live_window=POOL_NEWS_WINDOW)
+        return await _search_news(db, query, limit=20, entities=entities, entity_terms=evidence_filter.topic_search_terms(query, entities) or None, live_window=POOL_NEWS_WINDOW)
 
     async def _policies_task():
         if not plan.policies:
@@ -598,7 +605,7 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
 
             async def _company_intel_factory():
                 raw_ctx, raw_ann = await asyncio.gather(
-                    get_symbol_context(sym), get_recent_announcements(sym, limit=5), return_exceptions=True,
+                    get_symbol_context(sym), get_recent_announcements(sym, limit=POOL_ANNOUNCEMENTS), return_exceptions=True,
                 )
                 return {
                     "ctx": raw_ctx if not isinstance(raw_ctx, BaseException) else None,
@@ -618,7 +625,11 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
                         block += f" · Mood: {ctx['market_mood']}"
                     bundle.context_lines.append(block)
             if isinstance(ann, list) and ann:
-                bundle.announcements = [{**a, "symbol": sym} for a in ann]   # rendered after the filter (announcements_block), not as an unfiltered context line
+                # Step 3.4G.1: a 60-row recency pool, ranked (substantive and question-relevant before administrative recency), then the original budget of 5.
+                sel, tr, stale = evidence_ranking.rank_announcements([{**a, "symbol": sym} for a in ann], query, entities, plan, 5)
+                bundle.announcements = sel                                   # rendered after the filter (announcements_block), not as an unfiltered context line
+                bundle.ann_stale += stale
+                bundle.rank_trace.setdefault("announcements", []).extend({**t, "company": sym} for t in tr)
 
             # Phase 6F — Development Memory. Shared builder with V2 (see
             # app/services/development_memory/ai_search_context.py's own
@@ -650,11 +661,15 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
             continue
         try:
             from app.services.company_announcements_service import get_recent_announcements
-            rows = await get_recent_announcements(sym, limit=8)
+            rows = await get_recent_announcements(sym, limit=POOL_ANNOUNCEMENTS)
         except Exception:
             rows = []
         have = {str(a.get("id")) for a in (bundle.announcements or [])}
-        bundle.announcements = (bundle.announcements or []) + [{**r, "symbol": sym} for r in rows if str(r.get("id")) not in have]
+        cand = [{**r, "symbol": sym} for r in rows if str(r.get("id")) not in have]
+        sel, tr, stale = evidence_ranking.rank_announcements(cand, query, entities, plan, 8)      # Step 3.4G.1: ranked pool, same budget of 8 per company
+        bundle.announcements = (bundle.announcements or []) + sel
+        bundle.ann_stale += stale
+        bundle.rank_trace.setdefault("announcements", []).extend({**t, "company": sym} for t in tr)
 
     # results announcements are announcements too: one list, one age filter, one rendering path
     have = {str(a.get("id")) for a in (bundle.announcements or [])}

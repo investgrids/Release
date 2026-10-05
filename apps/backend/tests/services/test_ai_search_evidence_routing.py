@@ -128,12 +128,12 @@ def test_topic_events_need_the_named_sector_or_two_distinctive_question_words():
 def stubbed(monkeypatch):
     calls = {"events": [], "news": [], "policies": 0, "announcements": [], "valuation": []}
 
-    async def fake_events(db, query, limit=10, entities=None, tagged_only=False, terms=None):
+    async def fake_events(db, query, limit=10, entities=None, tagged_only=False, terms=None, pool_by_recency=False):
         sym = ((entities or {}).get("companies") or [None])[0]
         calls["events"].append((sym, tagged_only) if sym or tagged_only else ("topic", tuple(terms or ())))
         return [event(f"{sym} development", 5, [sym])] if sym else [event("Indian Oil approval", 2)]
 
-    async def fake_news(db, query, limit=8, entities=None, entity_terms=None):
+    async def fake_news(db, query, limit=8, entities=None, entity_terms=None, live_window=None):
         calls["news"].append(entity_terms)
         return []
 
