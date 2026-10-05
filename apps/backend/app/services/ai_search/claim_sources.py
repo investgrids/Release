@@ -21,6 +21,7 @@ from __future__ import annotations
 import re
 
 from app.services.ai_search import evidence_scope as scope
+from app.services.ai_search.figures import _FISCAL
 
 _FACT_RE = re.compile(r"\d|%|₹|\brs\.?\b|\bcrore\b|\bannounc|\bwon\b|\bwins?\b|\bsigned\b|\breported\b|\braised\b|\bdelivered\b|\bacquir|\bapproved\b|\blaunch|\bawarded\b|\bsecured\b|\bfiled\b|\bdisclosed\b|\binformed\b|\bdeclared\b|\bcompleted\b|\bentered into\b", re.IGNORECASE)
 # A period label ("52-week", "1-day", "6-12 months") describes the window a statement covers; it is not a figure. It is removed before the digit test, so "52-week ranges only" is not a
@@ -43,7 +44,7 @@ _ABSENCE_FRAMES = (
     re.compile(r"\bnot\s+(?:available|reported|included|provided|stated|shown|identified|covered|mentioned|established|disclosed)\s+in\s+(?:the\s+|this\s+)?(?:(?:supplied|available|current|provided|retrieved)\s+)*(?:evidence|data|context|sources?|material|coverage)\b", re.IGNORECASE),
     re.compile(_EV_NOUN + r"\b[^.;]{0,25}?\b(?:is|are)\s+(?:not\s+available|unavailable|absent|missing|insufficient)\b", re.IGNORECASE),
 )
-_INABILITY = re.compile(r"\bcannot\s+be\s+(?:established|assessed|determined|verified|confirmed|compared|quantified|evaluated)|\bcan(?:'|\u2019)?t\s+be\s+(?:established|assessed|determined)", re.IGNORECASE)
+_INABILITY = re.compile(r"\bcannot\s+be\s+(?:established|assessed|determined|verified|confirmed|compared|quantified|evaluated)|\bcan(?:'|\u2019)?t\s+be\s+(?:established|assessed|determined)|\bcannot\s+(?:establish|assess|determine|verify|confirm|show|support)\b", re.IGNORECASE)
 _CLAUSE_SPLIT = re.compile(r"(;|,\s*(?:but|and|while|so|therefore|thus|as)\b|\s+but\s+|\s+however,?\s+)", re.IGNORECASE)
 _CAUSE_DELIM = re.compile(r",\s*(?:so|therefore|thus)\b", re.IGNORECASE)
 
@@ -52,16 +53,33 @@ def _is_absence_clause(clause: str) -> bool:
     return any(p.search(clause) for p in _ABSENCE_FRAMES)
 
 
+# Step 3.4G.4. A clause is a LIMITATION about the evidence when it is an absence frame, or an inability statement that names the evidence ("cannot be established from the available evidence").
+_EV_WORD = re.compile(r"(?<![a-z])(?:evidence|data|information|coverage|context|material|sources?)(?![a-z])", re.IGNORECASE)
+# A pronoun continuation: "...cannot be established from the evidence; it does not include reported operating results." The pronoun refers to the evidence only when the previous clause was an
+# evidence limitation AND the verb is present-tense negated ("does not"/"do not"): "it did not report a profit" or "it reported record profit" read as events and stay factual.
+_PRONOUN_ABSENCE = re.compile(
+    r"^\s*(?:it|this|these|they|which)\s+(?:does|do)\s+not\s+(?:include|contain|show|establish|identify|provide|substantiate|confirm|cover|mention|say|report|explain|support|give|indicate|specify)\b", re.IGNORECASE)
+
+
+def _is_limitation_clause(clause: str) -> bool:
+    return _is_absence_clause(clause) or (bool(_INABILITY.search(clause)) and bool(_EV_WORD.search(clause)))
+
+
 def is_factual(sentence: str) -> bool:
     parts = _CLAUSE_SPLIT.split(sentence)
     prev_absence = False
+    prev_limitation = False
     delim = ""
     for i, part in enumerate(parts):
         if i % 2 == 1:
             delim = part
             continue
         clause = _PERIOD_LABEL.sub(" ", part)
-        absence = _is_absence_clause(part)
+        pronoun_continuation = prev_limitation and bool(_PRONOUN_ABSENCE.match(part))
+        absence = _is_absence_clause(part) or pronoun_continuation
+        if absence or _is_limitation_clause(part):
+            # inside an evidence limitation a fiscal label ("Q2", "FY27", "H1") describes the window the evidence does not cover; it is not a figure (same definition the figure validator uses)
+            clause = _FISCAL.sub(" ", clause)
         if _FIGURE_RE.search(clause):
             return True
         if _EVENT_RE.search(clause):
@@ -69,6 +87,7 @@ def is_factual(sentence: str) -> bool:
             if not absence and not consequence_of_absence:
                 return True
         prev_absence = absence
+        prev_limitation = absence or _is_limitation_clause(part)
     return False
 
 

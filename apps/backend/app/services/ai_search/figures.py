@@ -31,7 +31,10 @@ _TENS = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "sev
 _NUMWORD = "|".join(sorted(list(_UNITS) + list(_TENS) + ["hundred"], key=len, reverse=True))
 # Bounded: only "<number words> percent / per cent" (1-99 and "one hundred"); other word forms (basis points, fractions, "one hundred and seventy-three point four") are NOT parsed.
 _WORD_PCT = re.compile(r"(?<![a-z])((?:one\s+)?hundred|(?:" + "|".join(_TENS) + r")(?:[-\s](?:" + "|".join(list(_UNITS)[:9]) + r"))?|" + "|".join(_UNITS) + r")\s+(?:percent|per\s*cent)(?![a-z])", re.IGNORECASE)
-_FISCAL = re.compile(r"\b(?:FY\s?\d{2,4}|Q[1-4](?:\s?FY\s?\d{2,4})?|H[12]\s?FY\s?\d{2,4})\b", re.IGNORECASE)
+# Fiscal / period labels are descriptors of a reporting window, not figures: FY26, FY2026, FY26-27, FY26/27, Q1-Q4 (with or without FY: Q2, Q2 FY27, Q2FY27, Q2'27), 1Q-4Q (1Q26), H1/H2 (with or without FY).
+# Single source of truth: the figure validator scrubs them from numeric checks, and claim_sources.is_factual strips them inside evidence-limitation clauses (Step 3.4G.4).
+FISCAL_LABEL_PATTERN = (r"(?<![A-Za-z0-9])(?:FY\s?\d{2,4}(?:\s?[-\u2013/]\s?\d{2,4})?|Q[1-4](?:\s?['\u2019]?\s?(?:FY)?\s?\d{2,4})?|[1-4]Q(?:\s?(?:FY)?\s?\d{2,4})?|H[12](?:\s?(?:FY)?\s?\d{2,4})?)(?![A-Za-z0-9])")
+_FISCAL = re.compile(FISCAL_LABEL_PATTERN, re.IGNORECASE)
 
 # Top-level keys of the flat specialist output whose STRINGS a user can read.
 _TEXT_KEYS = ("summary", "bottom_line", "what_happened", "why_it_happened", "immediate_impact", "medium_term", "long_term", "what_priced_in", "key_drivers", "risks", "opportunities",
