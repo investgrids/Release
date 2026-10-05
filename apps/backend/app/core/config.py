@@ -127,6 +127,9 @@ class Settings(BaseSettings):
     ai_search_min_provider_attempt_seconds: float = 8.0
     ai_search_provider_attempt_cap_seconds: float = 14.0
 
+    # Step 3 closure: longest an interactive AI Search request waits for the optional macro-rate dimension of historical retrieval (the macro fetch continues in the background).
+    macro_rate_interactive_wait_seconds: float = 2.0
+
     # ── Live news snapshot (Step 3.4H.3) ────────────────────────────────────
     # Cache availability limits, not article-freshness rules: every item keeps its own timestamp and eligibility stays with retrieval and ranking.
     live_news_max_stale_seconds: int = 6 * 3600          # a snapshot older than this is treated as absent
