@@ -762,6 +762,7 @@ export default function AISearchClient() {
               result={result as SearchResult}
               onFollowUp={runSearch}
               onRetry={() => runSearch(query)}
+              onNewSearch={resetToEmptySearch}
               nextQuestions={suggestions?.items.map((s) => s.query)}
               feedbackMeta={{
                 responseId: (result as SearchResult).response_id ?? resultMeta?.responseId ?? null,

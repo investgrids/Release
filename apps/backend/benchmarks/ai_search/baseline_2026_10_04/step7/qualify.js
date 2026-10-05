@@ -80,9 +80,10 @@ async function run(width, state, opts = {}) {
     if (state.name.startsWith("temp")) checks.retryShown = !!(await page.$('[data-testid="retry"]'));
     if (state.name === "insufficient") checks.noRetry = !(await page.$('[data-testid="retry"]'));
     if (state.name === "research") {
-      const more = await page.$('[data-testid="evidence-list"] summary');
-      checks.evidenceDisclosure = more ? true : "n/a (<=5 items)";
-      if (more) { await more.click(); checks.evidenceExpands = (await page.$$('[data-testid="evidence-list"] li')).length > 5; }
+      const toggle = await page.$('[data-testid="evidence-toggle"]');
+      checks.evidenceDisclosure = toggle ? true : "n/a (<=6 items)";
+      if (toggle) { const before = (await page.$$('[data-testid="evidence-list"] tbody tr')).length; await toggle.click(); checks.evidenceExpands = (await page.$$('[data-testid="evidence-list"] tbody tr')).length > before; }
+      checks.evidenceTablePresent = !!(await page.$('[data-testid="evidence-list"] table'));
       const fu = await page.$('[data-testid="follow-ups"] button');
       checks.followUpsPresent = !!fu;
     }

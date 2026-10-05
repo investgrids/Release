@@ -539,6 +539,16 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
     yield "done", STAGE_LABELS["finalizing"], response
 
 
+def attach_snapshots(companies: list, valuation: dict | None) -> None:
+    """Expose, per company, the figures the model was already given (P/E, P/B, 52-week range) as a structured `snapshot` for the entity card and comparison table.
+    Only values already in evidence.valuation (the same numbers the model-visible evidence and the Gate B corpus contain); nothing new is fetched or added to the corpus."""
+    for c in companies:
+        v = (valuation or {}).get(str(c.get("symbol", "")).upper()) or {}
+        snap = {k: v[src] for k, src in (("pe", "pe"), ("pb", "pb"), ("week52_low", "52w_low"), ("week52_high", "52w_high")) if v.get(src) is not None}
+        if snap:
+            c["snapshot"] = snap
+
+
 async def run_ai_search_v3(query: str, db: AsyncSession, session_context: dict | None = None) -> tuple[dict, bool]:
     """Non-streaming entry point — used by /api/ai/search/v3. Drains
     _run_v3_steps and returns (response, was_cached). was_cached is
@@ -743,6 +753,7 @@ async def _assemble_response(
     _classify_ripple_position(companies_enriched)
     for c in companies_enriched:
         c.setdefault("why_it_matters", c.get("reason", ""))
+    attach_snapshots(companies_enriched, evidence.valuation)
 
     sectors_raw = ai.get("sectors", [])
     for s in sectors_raw:

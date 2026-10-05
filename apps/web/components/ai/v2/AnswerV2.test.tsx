@@ -67,11 +67,12 @@ describe("verdict", () => {
 describe("evidence strength", () => {
   it("is plain-language evidence strength and is never labelled confidence", () => {
     mount(research());
-    const note = screen.getByTestId("evidence-strength");
-    expect(note).toHaveTextContent(/Evidence strength/);
+    const note = screen.getByTestId("evidence-coverage");
+    expect(note).toHaveTextContent("Evidence coverage");
+    expect(note).toHaveTextContent("1 of 2 kinds of evidence found");
     expect(note).toHaveTextContent(/not how likely the answer is to be right/);
-    expect(note.textContent).not.toMatch(/confidence/i);
-    expect(note).toHaveTextContent("live prices");
+    expect(note.textContent).not.toMatch(/confidence|%|stars/i);
+    expect(note).toHaveTextContent("Company filings");
   });
   it("shows source labels beside cited observations, never raw ids", () => {
     mount(research());
@@ -213,9 +214,13 @@ describe("evidence listing", () => {
   it("lists reviewed evidence with type, source and date, and marks what the answer used", () => {
     mount(research());
     const list = screen.getByTestId("evidence-list");
-    expect(list).toHaveTextContent("Evidence reviewed (3)");
-    expect(list).toHaveTextContent("Market event · NSE · 2026-10-01");
-    expect(list).toHaveTextContent("Used in this answer");
+    expect(list).toHaveTextContent("Key evidence and sources (3)");
+    const row = list.querySelector("tbody tr")!;
+    expect(row).toHaveTextContent("[1]");
+    expect(row).toHaveTextContent("01 Oct 2026");
+    expect(row).toHaveTextContent("NSE");
+    expect(row).toHaveTextContent("HDFC Bank quarterly update");
+    expect(row).toHaveTextContent("Used in this answer");
   });
 });
 
@@ -225,9 +230,10 @@ describe("follow-ups", () => {
     render(<AnswerV2 result={research()} onFollowUp={onFollowUp} />);
     fireEvent.click(screen.getByText("Compare HDFC Bank and ICICI Bank"));
     expect(onFollowUp).toHaveBeenCalledWith("Compare HDFC Bank and ICICI Bank");
-    const article = screen.getByTestId("answer-research").querySelector("article")!;
-    const order = Array.from(article.children).map((c) => c.getAttribute("data-testid"));
-    expect(order.indexOf("follow-ups")).toBeGreaterThan(order.indexOf("limits") >= 0 ? order.indexOf("limits") : 0);
+    const col = screen.getByTestId("answer-card").parentElement!;
+    const order = Array.from(col.children).map((c) => c.getAttribute("data-testid"));
+    expect(order.indexOf("answer-card")).toBeLessThan(order.indexOf("follow-ups"));
+    expect(order.indexOf("follow-ups")).toBeLessThan(order.indexOf("evidence-list"));
   });
   it("de-duplicates and caps", () => {
     expect(followUps({ ...research(), follow_up_questions: ["a", "a", "b", "c", "d", "e"] }).length).toBe(4);
@@ -267,9 +273,69 @@ describe("comparison layout (validated against the design mockup, truthful field
     const { container } = mount(cmp());
     expect(container.textContent).not.toMatch(/market cap|analyst coverage|source integrity|evidence confidence|\d+%\s*confidence/i);
   });
-  it("is absent for a non-comparison answer and for a single company", () => {
-    mount(research());
+  it("has no comparison table for a non-comparison answer, and no entity snapshot when there are no companies", () => {
+    mount(research({ companies: [] }));
     expect(screen.queryByTestId("comparison-table")).toBeNull();
     expect(screen.queryByTestId("entity-snapshot")).toBeNull();
+  });
+});
+
+describe("mockup layout, real fields only", () => {
+  const withSnapshot = (): V2Result => research({
+    query: "Compare HDFC Bank and ICICI Bank", specialist: "comparison",
+    companies: [
+      { symbol: "HDFCBANK", name: "HDFC Bank", price: "714.50", change: "-0.93%", positive: false, snapshot: { pe: 15.6, pb: 1.81, week52_low: 681.9, week52_high: 1020.5 } },
+      { symbol: "ICICIBANK", name: "ICICI Bank", price: "1,315.40", change: "+0.37%", positive: true, snapshot: { pe: 17.0 } },
+    ],
+  } as never);
+
+  it("shows the valuation figures the answer was given, in the table and the entity card, and only where present", () => {
+    mount(withSnapshot());
+    const t = screen.getByTestId("comparison-table");
+    expect(t).toHaveTextContent("P/E");
+    expect(t).toHaveTextContent("15.6");
+    expect(t).toHaveTextContent("₹681.9 – ₹1,020.5");
+    expect(t).toHaveTextContent("17.0");                      // one decimal for P/E, never "17"
+    expect(t).toHaveTextContent("1.81");
+    expect(t).not.toHaveTextContent("P/B2");                 // ICICI has no P/B: a dash, never a placeholder number
+    const card = screen.getByTestId("entity-snapshot");
+    expect(card).toHaveTextContent("52-week range");
+    expect(card).toHaveTextContent("NSE: ICICIBANK");
+  });
+  it("has the page head: breadcrumb, title, answered-at stamp, and New search that calls back", () => {
+    const onNew = vi.fn();
+    render(<AnswerV2 result={withSnapshot()} onFollowUp={vi.fn()} onNewSearch={onNew} />);
+    expect(screen.getByTestId("crumb")).toHaveTextContent("Comparison");
+    expect(screen.getByTestId("answered-at")).toHaveTextContent(/Answered .* IST/);
+    fireEvent.click(screen.getByTestId("new-search"));
+    expect(onNew).toHaveBeenCalledTimes(1);
+  });
+  it("puts chips on the answer card: kind, sources reviewed, not investment advice", () => {
+    mount(withSnapshot());
+    const card = screen.getByTestId("answer-card");
+    expect(card).toHaveTextContent("Evidence-based comparison");
+    expect(card).toHaveTextContent("3 sources reviewed");
+    expect(card).toHaveTextContent("Not investment advice");
+  });
+  it("lists sources by kind without grading them, and offers the methodology page", () => {
+    mount(research());
+    const src = screen.getByTestId("sources-summary");
+    expect(src).toHaveTextContent(/market event/i);
+    expect(src.textContent).not.toMatch(/newss|events?s/i);
+    expect(src.textContent).not.toMatch(/(High|Medium|Low)/);
+    expect(screen.getByTestId("methodology-link")).toHaveAttribute("href", "/ai-methodology");
+  });
+  it("never renders the mockup items the contract cannot support", () => {
+    const { container } = mount(withSnapshot());
+    expect(container.textContent).not.toMatch(/Evidence Confidence|Source Integrity|Market Cap|Analyst coverage|\d+%\s*confidence/i);
+  });
+  it("numbers the next steps and caps the evidence table with a toggle", () => {
+    const many = research({ related_events: Array.from({ length: 9 }, (_, i) => ({ id: String(i), title: `Event ${i}`, source: "NSE", date: "2026-10-01" })) } as never);
+    mount(many);
+    expect(screen.getByTestId("follow-ups").querySelectorAll("ol > li").length).toBeGreaterThan(0);
+    const list = screen.getByTestId("evidence-list");
+    expect(list.querySelectorAll("tbody tr").length).toBe(6);
+    fireEvent.click(screen.getByTestId("evidence-toggle"));
+    expect(list.querySelectorAll("tbody tr").length).toBe(9);
   });
 });

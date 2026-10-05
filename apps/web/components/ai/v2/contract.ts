@@ -21,7 +21,8 @@ export interface V2IndexEntry { id: string; kind: "event" | "news" | "policy" | 
 export interface V2Event { id: string; title: string; date?: string; source?: string; category?: string }
 export interface V2News { id: string; headline: string; source?: string; published_at?: string }
 export interface V2Policy { id: string | number; title: string; ministry?: string; status?: string }
-export interface V2Company { symbol: string; name: string; reason?: string; price?: string | null; change?: string | null; positive?: boolean | null }
+export interface V2Snapshot { pe?: number; pb?: number; week52_low?: number; week52_high?: number }
+export interface V2Company { symbol: string; name: string; reason?: string; price?: string | null; change?: string | null; positive?: boolean | null; snapshot?: V2Snapshot | null }
 export interface V2Sector { name: string; explanation?: string }
 
 export interface V2Result {
