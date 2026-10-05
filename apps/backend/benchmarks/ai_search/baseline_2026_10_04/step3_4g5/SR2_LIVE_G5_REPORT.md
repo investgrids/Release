@@ -26,7 +26,7 @@ Artifact: `../step3_4c/openai_sr2_g5.json`. `gpt-6-luna`, 1 request, HTTP 200, n
 | lists no claim absent from the answer | **no**: "The supplied preview frames revenue and margin outlook as key Q2 questions." (N1) is in `claim_sources` but not in the text |
 | stays uncertain about the overall direction | **yes** |
 
-The failure is exactly one of the model's ten listed claims. The other nine are present in the answer (three of them, "TCS/Infosys/Wipro is named among the top losers...", are accepted only because the claim-in-answer check is still fuzzy: they restate part of the E3 observation rather than appearing verbatim; flagged for the next gate review, unchanged here).
+The failure is exactly one of the model's ten listed claims. The other nine are present in the answer text (per the Gate B result, which flagged only the N1 claim). Whether the claim-in-answer match is stricter or looser than intended was not examined in this step.
 
 ## Interpretation
 - Evidence utilization is fixed: the model used the visible high-information evidence and produced the mixed picture. The 3.4G.5 contract worked on the demonstrated problem.
@@ -36,4 +36,4 @@ The failure is exactly one of the model's ten listed claims. The other nine are 
 ## Options (not started)
 - **A. Make prose and observation claims consistent by construction:** the model emits the observation claims (sentence plus ids) and the synthesis; the code builds `what_happened` from the claim list in order. Nothing can be listed but unwritten, nothing observed can be unlisted, output tokens shrink (no duplicate sentences), and Gate B still checks everything else (synthesis, drivers, risks, limitation sentences). It is a small output-schema change, not a gate change.
 - **B. Accept the near-pass and move to latency/model-configuration benchmarking.** The content bar is met; the gate result is a single bookkeeping slip, but publishing it requires a pass.
-- Either way, latency is a release blocker and the year-less-date gap in Gate B and the fuzzy claim-in-answer match remain tracked.
+- Either way, latency is a release blocker and the year-less-date gap in Gate B remains tracked.
