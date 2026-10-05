@@ -17,6 +17,7 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services import request_deadline
+from app.services.ai_search.macro_drivers import macro_driver
 from app.services.ai_search import cache as cache_mod
 from app.services.ai_search import answer_authorization as auth_mod
 from app.services.ai_search import claim_sources as claim_sources_mod
@@ -158,8 +159,12 @@ def _route_specialist(query: str, intent_data: dict, entities: dict):
             intent_data["holding"], intent_data["target"] = holding, target
         intent_data["is_comparison"] = True
         return comparison_specialist, "comparison"
-    if _SECTOR_TRIGGER.search(query) and not entities.get("companies"):
-        return sector_specialist, "sector"
+    if not entities.get("companies"):
+        if _SECTOR_TRIGGER.search(query):
+            return sector_specialist, "sector"
+        # Step 4A: a resolved sector plus a policy or macro driver is a sector transmission question even without the literal word "sector" ("How would a weaker rupee affect Indian IT exporters?").
+        if entities.get("sectors") and (entities.get("policies") or macro_driver(query)):
+            return sector_specialist, "sector"
     return company_specialist, "company"
 
 

@@ -55,6 +55,8 @@ from __future__ import annotations
 
 import re
 
+from app.services.ai_search.macro_drivers import macro_driver
+
 UI_MODES = (
     "direct_company_research",
     "switch_analysis",
@@ -192,6 +194,10 @@ def classify_ui_mode(
 
     # 3. Explicit policy intent.
     if entities.get("policies"):
+        return "policy_macro_impact"
+    # 3b. Step 4A: a macro DRIVER (crude oil, the rupee) whose effect is asked about is a macro question even with no policy entity. Never when a company is resolved: a company question
+    # stays a company question (policy_macro_impact would also unlock the market-wide engine verdict, which must not appear next to a company answer).
+    if not entities.get("companies") and macro_driver(query):
         return "policy_macro_impact"
 
     # 4. Explicit unsupported intent — a real, named classification,
