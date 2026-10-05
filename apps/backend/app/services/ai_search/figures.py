@@ -23,7 +23,8 @@ _MDY = re.compile(r"(?<![a-z])(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[
 _NUM = re.compile(r"(?<![\w.])[-+]?\d[\d,]*\.?\d*%?")
 _HORIZON = re.compile(r"\d+\s*(?:-|to|–)\s*\d+\s*(?:months?|years?|quarters?|weeks?|days?|yrs?)|\d+\s*(?:months?|years?|quarters?|weeks?|days?|yrs?)", re.IGNORECASE)
 # Step 3.4B.1: a number is supported only by a COMPLETE numeric token with the same canonical value ("18" is never supported by "2,180", "118", "180" or "18.5"); no fuzzy matching.
-_EVNUM = re.compile(r"(?<![\d.,])\d[\d,]*(?:\.\d+)?")
+# Evidence tokens keep an explicit leading sign ("Banking -0.4%", "+1.3%"). A hyphen glued to a digit ("681.9-1020.5", "FY26-27") is a range, not a sign: the lookbehind makes that token unsigned.
+_EVNUM = re.compile(r"(?<![\d.,])[-+]?\d[\d,]*(?:\.\d+)?")
 _UNITS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15,
           "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19}
 _TENS = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90}
@@ -119,11 +120,39 @@ def word_percents_to_digits(text: str) -> str:
 
 
 def canonical_number(tok: str) -> str:
-    """Comma-free, sign/percent/trailing-dot-free, trailing decimal zeros removed: '1,200.50' -> '1200.5', '12.0%' -> '12'."""
-    n = tok.replace(",", "").rstrip(".").lstrip("+").rstrip("%")
+    """Comma-free, percent/trailing-dot-free, trailing decimal zeros removed, explicit sign kept: '1,200.50' -> '1200.5', '12.0%' -> '12', '-0.40%' -> '-0.4'."""
+    n = tok.replace(",", "").rstrip(".").rstrip("%")
+    if n.startswith("+"):
+        n = n[1:]
     if "." in n:
         n = n.rstrip("0").rstrip(".")
     return n
+
+
+def split_sign(canonical: str) -> tuple[str, str]:
+    return ("-", canonical[1:]) if canonical.startswith("-") else ("", canonical)
+
+
+def signed_supported(answer_canonical: str, evidence_tokens: list[str], answer_plus: bool = False) -> bool:
+    """Step 3.4G.1. Is this figure grounded, with its direction?
+      * An unsigned answer figure needs the magnitude somewhere in the evidence (the direction is then carried by words).
+      * A negative answer figure is supported by the same negative figure, or by the magnitude appearing UNSIGNED in the evidence (the upstream text lost its sign: 'fell 0.4%').
+        It is NOT supported when the evidence gives that magnitude only as an explicitly positive figure.
+      * A positive answer figure is supported by the magnitude unsigned or explicitly positive, and NOT when the evidence gives it only as an explicitly negative figure.
+    An explicit opposite sign in the evidence never validates the opposite signed claim."""
+    sign, mag = split_sign(answer_canonical)
+    ev = [(split_sign(canonical_number(t)), t) for t in evidence_tokens]
+    same_mag = [s for (s, m), _t in ev if m == mag]
+    if not same_mag:
+        return False
+    if not sign and not answer_plus:
+        return True            # magnitude only
+    explicit_neg = any(s == "-" for s in same_mag)
+    explicit_pos = any(t.strip().startswith("+") for (s, m), t in ev if m == mag)
+    unsigned = any((s == "" and not t.strip().startswith("+")) for (s, m), t in ev if m == mag)
+    if sign == "-":
+        return explicit_neg or unsigned
+    return explicit_pos or unsigned
 
 
 def unsupported_figures(ai: dict, evidence_text: str, query: str, today: date | None = None) -> list[dict]:
@@ -131,7 +160,7 @@ def unsupported_figures(ai: dict, evidence_text: str, query: str, today: date | 
     today = today or datetime.now(timezone.utc).date()
     ev_dates = find_dates(evidence_text) | find_dates(query) | {today}
     ev_clean = word_percents_to_digits(_strip_dates(evidence_text + " " + query))
-    hay_nums = {canonical_number(t) for t in _EVNUM.findall(ev_clean)}
+    hay_tokens = _EVNUM.findall(ev_clean)
     flagged: list[dict] = []
     seen: set[tuple[str, str]] = set()
     for path, text in public_strings(ai):
@@ -149,7 +178,7 @@ def unsupported_figures(ai: dict, evidence_text: str, query: str, today: date | 
                 continue
             if "." not in n and len(n.lstrip("-")) < 2 and not tok.endswith("%"):
                 continue
-            if cn in hay_nums:
+            if signed_supported(cn, hay_tokens, tok.lstrip().startswith("+")):
                 continue
             if ("number", f"{tok}|{path}") in seen:
                 continue

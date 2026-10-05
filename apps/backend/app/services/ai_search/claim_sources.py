@@ -23,6 +23,15 @@ import re
 from app.services.ai_search import evidence_scope as scope
 
 _FACT_RE = re.compile(r"\d|%|₹|\brs\.?\b|\bcrore\b|\bannounc|\bwon\b|\bwins?\b|\bsigned\b|\breported\b|\braised\b|\bdelivered\b|\bacquir|\bapproved\b|\blaunch|\bawarded\b|\bsecured\b|\bfiled\b|\bdisclosed\b|\binformed\b|\bdeclared\b|\bcompleted\b|\bentered into\b", re.IGNORECASE)
+# A period label ("52-week", "1-day", "6-12 months") describes the window a statement covers; it is not a figure. It is removed before the digit test, so "52-week ranges only" is not a
+# factual sentence, while "the 52-week high is 3350" still is (3350 remains). Deliberately narrow: nothing else is exempted, and a sentence with any other digit, %, rupee or event verb stays factual.
+_PERIOD_LABEL = re.compile(r"(?<![\w.])\d+(?:\s*[-\u2013]\s*\d+)?[- ]?(?:week|day|month|year|quarter|hour|minute)s?(?![a-z])", re.IGNORECASE)
+
+
+def is_factual(sentence: str) -> bool:
+    return bool(_FACT_RE.search(_PERIOD_LABEL.sub(" ", sentence)))
+
+
 _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9\"'(])")
 _ID_RE = re.compile(r"^[ENPAC]\d{1,3}$")
 
@@ -53,6 +62,10 @@ def answer_pieces(d: dict) -> list[str]:
     for c in d.get("companies") or []:
         if isinstance(c, dict) and c.get("reason"):
             out.append(str(c["reason"]))
+    # Step 3.4G.1: sectors[].explanation is public model-written text. Every public factual surface must be inspectable by the same claim authorization.
+    for s in d.get("sectors") or []:
+        if isinstance(s, dict) and s.get("explanation"):
+            out.append(str(s["explanation"]))
     de = d.get("decision_engine_v2") or {}
     if isinstance(de, dict) and de.get("why"):
         out.append(str(de["why"]))
@@ -87,7 +100,7 @@ def factual_sentences(answer: dict) -> list[str]:
     out: list[str] = []
     for p in answer_pieces(answer):
         for s in _sentences(p):
-            if _FACT_RE.search(s):
+            if is_factual(s):
                 out.append(s)
     return list(dict.fromkeys(out))
 
@@ -158,7 +171,7 @@ def validate_claim_sources(raw, index: list[dict], answer: dict, entities: dict,
     uncovered = []
     for p in pieces:
         for s in _sentences(p):
-            if _FACT_RE.search(s) and not any(similar(s, c) for c in claim_texts):
+            if is_factual(s) and not any(similar(s, c) for c in claim_texts):
                 uncovered.append(s[:200])
     uncovered = list(dict.fromkeys(uncovered))
     n_ok = sum(1 for c in claims_out if c["status"] == "ok")
