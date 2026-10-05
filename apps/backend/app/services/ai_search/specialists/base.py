@@ -133,14 +133,10 @@ def degraded_response(query: str) -> dict:
 # generating — the position most likely to actually shape output order/effort.
 PRIORITY_INSTRUCTIONS = (
     "PRIORITY ORDER — read before generating the JSON below:\n"
-    "1. Get \"investment\", \"decision\", and \"evidence\" right first — these are the actual "
-    "answer to the user's question. A sharp, specific, well-reasoned investment conclusion "
-    "matters more than any other field in this schema.\n"
-    "2. \"companies\" and \"sectors\" come next — the concrete entities backing the conclusion.\n"
-    "3. \"timeline\" and \"risks\" matter, but briefly and specifically beats exhaustively.\n"
-    "4. \"extras\" (insights/scenarios/monitoring/follow_up_questions) is the LOWEST priority. "
-    "If you are running low on reasoning budget, abbreviate or thin out \"extras\" first — "
-    "NEVER sacrifice the quality of \"investment\"/\"decision\"/\"evidence\" to fit \"extras\" in.\n"
+    "1. \"investment\" and \"evidence\" are the answer: sourced, specific, limited to what the evidence supports.\n"
+    "2. \"claim_sources\" is part of the answer, not an extra: every factual sentence needs its verbatim entry.\n"
+    "3. \"companies\" and \"sectors\" name the entities and say, in one grounded sentence each, how they relate to the question.\n"
+    "4. \"risks\", \"timeline\" and \"extras\" stay short. Leave a field empty rather than fill it with anything the evidence does not support.\n"
 )
 
 # Shared instruction footer every specialist appends — the research-framing
@@ -148,37 +144,15 @@ PRIORITY_INSTRUCTIONS = (
 # model say Buy/Sell/Hold) so it's centralized rather than copy-pasted 3x.
 # References the NESTED field paths since that's the shape the model
 # actually generates (flatten_nested renames these on the way out).
-def research_framing_rules(outlook_labels: list[str]) -> str:
-    quoted_labels = ", ".join(f'"{l}"' for l in outlook_labels)
+def research_framing_rules(outlook_labels: list[str] | None = None) -> str:
+    """Framing rules for every specialist prompt. `outlook_labels` is kept for call-site compatibility: since Step 3.4D-3 the model is not asked for a rating, so no label list is shown."""
     return (
-        # P4 temporal-context fix — called fresh every prompt build (never
-        # cached/module-level), the confirmed root cause of a real
-        # hallucination: nothing anywhere told the model today's actual
-        # date, producing an "FY25E" reference ~17 months after FY25 had
-        # already ended. See date_context.py's docstring.
         f'- {current_date_context()}\n'
-        f'- "investment.rating" MUST be exactly one of these values, nothing else: '
-        f'{quoted_labels}. '
-        "This is a RESEARCH platform, not an advisory one — never say Buy, Sell, Hold, "
-        "Strong Buy, Strong Sell, Accumulate, or Reduce anywhere in any field.\n"
-        '- "decision.investor_action_note" must be phrased as what to watch for or '
-        "consider — never a direct instruction to buy/sell/hold.\n"
-        '- "investment.verdict_scale" and "decision.current_view" must agree in '
-        "direction with \"investment.direction\" — do not produce a bullish verdict_scale "
-        "alongside a bearish direction, or vice versa.\n"
-        '- "extras.scenarios" probabilities (bull + base + bear) must sum to exactly 100.\n'
-        '- "companies" must ONLY include real, listed NSE equities with a direct, specific, '
-        "mechanistic connection to this exact query — never a government body, ministry, "
-        "or unlisted entity.\n"
-        '- "timeline.immediate"/"one_week"/"one_to_three_months"/"six_to_twelve_months"/'
-        '"one_to_three_years" must each say something genuinely different from the others — '
-        "do not restate the same point in different words across horizons. Keep each entry's "
-        "own stated timeframe consistent with its own label (don't write \"3-6 months\" inside "
-        "the \"one_week\" entry), and keep \"immediate\"'s tone consistent with \"investment.direction\" "
-        "— a bullish call needs a bullish-or-neutral immediate read, not a negative one.\n"
-        '- Every company named in "investment.summary"/"investment.bottom_line" must also appear '
-        'in the "companies" list, and vice versa — don\'t discuss a company in prose that isn\'t '
-        "in the structured list, or list one you never mention.\n"
+        "- This is a RESEARCH platform, not an advisory one. Never say Buy, Sell, Hold, Strong Buy, Strong Sell, Accumulate or Reduce anywhere, and do not give a verdict, rating, direction, "
+        "sentiment, confidence, probability, score, scenario, winner, preference or recommendation: those are not part of your output.\n"
+        '- "companies" must ONLY include real, listed NSE equities with a direct, specific connection to this exact query, never a government body, ministry or unlisted entity. '
+        'Each entry has only "symbol", "name" and a one-sentence "reason" grounded in the evidence.\n'
+        '- Every company named in "investment.summary"/"investment.bottom_line" must also appear in the "companies" list, and vice versa.\n'
         + _claim_rules()
     )
 

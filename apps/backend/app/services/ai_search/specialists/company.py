@@ -89,13 +89,10 @@ Return ONLY this JSON (no fences, no extra keys):
 {CLAIM_SOURCES_GROUP}
 {EVIDENCE_GROUP}
   "companies": [
-    {{"symbol": "SYMBOL1", "name": "Full Company Name", "impact_type": "beneficiary", "impact_score": 90, "confidence": 85, "reason": "specific 1-line reason tied to the query"}},
-    {{"symbol": "SYMBOL2", "name": "Full Company Name", "impact_type": "beneficiary", "impact_score": 85, "confidence": 80, "reason": "specific 1-line reason"}},
-    {{"symbol": "SYMBOL3", "name": "Full Company Name", "impact_type": "neutral", "impact_score": 65, "confidence": 60, "reason": "specific 1-line reason"}}
+    {{"symbol": "SYMBOL1", "name": "Full Company Name", "reason": "1 grounded sentence tied to the query"}}
   ],
   "sectors": [
-    {{"name": "Most Relevant Sector", "score": 90, "confidence": 85, "outlook": "Strong Growth", "positive": true, "explanation": "1 sentence"}},
-    {{"name": "Second Sector", "score": 70, "confidence": 65, "outlook": "Moderate", "positive": true, "explanation": "1 sentence"}}
+    {{"name": "Most Relevant Sector", "explanation": "1 grounded sentence"}}
   ],
 {TIMELINE_GROUP}
 {RISKS_GROUP}
@@ -106,7 +103,7 @@ CRITICAL RULES:
 {research_framing_rules(_OUTLOOK_LABELS)}
 {MONITORING_COUNT_NOTE}
 - "evidence.key_drivers[].icon" must be ONE lowercase keyword from: procurement, policy, manufacturing, export, valuation, risk, demand, technology, capex, regulation, earnings, supply-chain, currency, commodity, credit.
-- "extras.insights" titles must be SPECIFIC to the query "{query}". Ground every fact, figure and date in the evidence above; do not use outside knowledge to supply company facts, dates, financial figures, events or forecasts.{_commodity_safety_note(query)}{_intent_overlay(intent_data, extra_context)}{session_note}"""
+- Ground every fact, figure and date in the evidence above; do not use outside knowledge to supply company facts, dates, financial figures, events or forecasts.{_commodity_safety_note(query)}{_intent_overlay(intent_data, extra_context)}{session_note}"""
 
 
 async def run(query: str, evidence, intent_data: dict, entities: dict) -> tuple[dict, bool]:

@@ -46,6 +46,11 @@ def is_well_formed(parsed: dict) -> bool:
     return isinstance(parsed, dict) and all(k in parsed for k in REQUIRED_KEYS)
 
 
+def _present(block: dict) -> dict:
+    """Keep only the entries the model actually supplied; an all-empty block becomes {}."""
+    return {k: v for k, v in block.items() if v not in (None, "", [], {})}
+
+
 def flatten_nested(nested: dict) -> dict:
     """Translates the nested LLM-facing schema back into the flat internal
     shape pipeline.py/validation.py/postprocess.py already expect — the one
@@ -63,9 +68,10 @@ def flatten_nested(nested: dict) -> dict:
     flat = {
         "summary": inv.get("summary", ""),
         "bottom_line": inv.get("bottom_line", inv.get("summary", "")),
-        "confidence": inv.get("confidence", 50),
-        "confidence_self_rating": inv.get("confidence_self_rating", 5),
-        "sentiment": inv.get("sentiment", "neutral"),
+        # Step 3.4D-3: the model is no longer asked for confidence, self-rating or sentiment, so an absent value is None (an unauthorized claim is never defaulted into a neutral one).
+        "confidence": inv.get("confidence"),
+        "confidence_self_rating": inv.get("confidence_self_rating"),
+        "sentiment": inv.get("sentiment"),
         "what_happened": evd.get("what_happened", ""),
         "why_it_happened": evd.get("why_it_happened", ""),
         "immediate_impact": evd.get("immediate_impact", ""),
@@ -78,9 +84,9 @@ def flatten_nested(nested: dict) -> dict:
         "companies": nested.get("companies", []),
         "sectors": nested.get("sectors", []),
         "investment_verdict": {
-            "rating": inv.get("rating", "Neutral"),
-            "direction": inv.get("direction", "neutral"),
-            "confidence": inv.get("confidence", 50),
+            "rating": inv.get("rating"),
+            "direction": inv.get("direction"),
+            "confidence": inv.get("confidence"),
             # P5 Stage 3: no hardcoded fallback here anymore — None when the
             # LLM didn't state one is the honest intermediate value; a real
             # deterministic horizon gets computed and injected in
@@ -103,31 +109,33 @@ def flatten_nested(nested: dict) -> dict:
         "insights": ext.get("insights", []),
         "scenarios": ext.get("scenarios", {}),
         "monitoring": ext.get("monitoring", {"items": []}),
-        "decision_engine_v2": {
-            "verdict_scale": inv.get("verdict_scale", "Neutral"),
-            "why": inv.get("why", ""),
-            "what_changes_the_view": dec.get("what_changes_the_view", []),
-            "what_invalidates_the_thesis": dec.get("what_invalidates_the_thesis", []),
+        # Step 3.4D-3: these blocks are no longer part of the model contract. A block is present only if the model actually wrote something into it, otherwise it is {} (never a shell of empty
+        # strings that would look like a generated claim).
+        "decision_engine_v2": _present({
+            "verdict_scale": inv.get("verdict_scale"),
+            "why": inv.get("why"),
+            "what_changes_the_view": dec.get("what_changes_the_view"),
+            "what_invalidates_the_thesis": dec.get("what_invalidates_the_thesis"),
             "explain_why_not": dec.get("explain_why_not"),
-        },
-        "timeline_intelligence": {
-            "immediate": tl.get("immediate", ""),
-            "one_week": tl.get("one_week", ""),
-            "one_to_three_months": tl.get("one_to_three_months", ""),
-            "six_to_twelve_months": tl.get("six_to_twelve_months", ""),
-            "one_to_three_years": tl.get("one_to_three_years", ""),
-        },
-        "opportunity_risk_matrix": {
-            "opportunity": rsk.get("opportunity_matrix", {}),
-            "risk": rsk.get("risk_matrix", {}),
-        },
-        "ai_conclusion": {
-            "current_view": dec.get("current_view", ""),
-            "reason": dec.get("reason", ""),
-            "biggest_opportunity": dec.get("biggest_opportunity", ""),
-            "biggest_risk": dec.get("biggest_risk", ""),
-            "investor_action_note": dec.get("investor_action_note", ""),
-        },
+        }),
+        "timeline_intelligence": _present({
+            "immediate": tl.get("immediate"),
+            "one_week": tl.get("one_week"),
+            "one_to_three_months": tl.get("one_to_three_months"),
+            "six_to_twelve_months": tl.get("six_to_twelve_months"),
+            "one_to_three_years": tl.get("one_to_three_years"),
+        }),
+        "opportunity_risk_matrix": _present({
+            "opportunity": rsk.get("opportunity_matrix"),
+            "risk": rsk.get("risk_matrix"),
+        }),
+        "ai_conclusion": _present({
+            "current_view": dec.get("current_view"),
+            "reason": dec.get("reason"),
+            "biggest_opportunity": dec.get("biggest_opportunity"),
+            "biggest_risk": dec.get("biggest_risk"),
+            "investor_action_note": dec.get("investor_action_note"),
+        }),
     }
     # decision_intelligence (comparison specialist only) is already a
     # reasonably-nested, proven-since-V2 structure — pass through unchanged
@@ -149,28 +157,14 @@ def flatten_nested(nested: dict) -> dict:
 # those with .format()'s own {..} placeholder syntax is a real footgun (a
 # lone "{" anywhere in the template raises at format-time). .replace() with
 # an unambiguous token sidesteps that entirely.
+# Step 3.4D-3: the V2 model output contract carries only what the model has authority to publish (sourced prose). It is NOT asked for a rating, direction, sentiment, confidence, verdict scale,
+# scenarios/probabilities, impact or outlook scores, a winner/preference, decision blocks, matrices or an AI conclusion: those are produced by code or not published (structured_authorization.py).
 INVESTMENT_GROUP = """  "investment": {
-    "summary": "2-3 sentence executive summary specific to the query",
-    "bottom_line": "MAX 120 WORDS. ONE paragraph answering ONLY this exact question, directly and specifically.",
-    "confidence": 78,
-    "confidence_self_rating": 7,
-    "sentiment": "bullish",
-    "rating": "<one of the 8 rating labels listed in the rules below>",
-    "direction": "bullish",
-    "horizon": "12-18 months",
-    "verdict_scale": "<EXACTLY one of these 6 words/phrases, a SEPARATE scale from 'rating' above: __VERDICT_SCALE_OPTIONS__>",
-    "why": "1-2 sentences — the core reasoning behind verdict_scale"
+    "summary": "1-2 sentences, specific to the query. Every fact in it is a verbatim claim_sources entry.",
+    "bottom_line": "MAX 80 WORDS. Answers ONLY this exact question, limited to what the evidence below supports. Do not give a verdict, rating, direction or recommendation."
   },"""
 
-DECISION_GROUP = """  "decision": {
-    "what_changes_the_view": ["specific event/data point 1", "specific event/data point 2"],
-    "what_invalidates_the_thesis": ["specific condition 1", "specific condition 2"],
-    "current_view": "1 phrase, mirrors investment.verdict_scale",
-    "reason": "1 sentence",
-    "biggest_opportunity": "1 sentence, specific",
-    "biggest_risk": "1 sentence, specific",
-    "investor_action_note": "1 sentence, framed as what to watch for/consider — never 'Buy'/'Sell'/'Hold'"__EXPLAIN_WHY_NOT__
-  },"""
+DECISION_GROUP = ""      # removed from the model contract in Step 3.4D-3 (current view, action note, explain-why-not, view-changers are conclusions the model has no authority to publish)
 
 DECISION_GROUP_EXPLAIN_WHY_NOT = """,
     "explain_why_not": {"alternative": "the non-winning entity's name", "reason_rejected": "1-2 sentences, specific"}"""
@@ -183,10 +177,16 @@ CLAIM_SOURCES_GROUP = """  "claim_sources": [
   ],"""
 
 CLAIM_SOURCES_RULES = (
-    '- "claim_sources": list every sentence of your answer that states a fact, number, date, order, announcement or result. For each one, copy the sentence EXACTLY and list the '
-    "evidence IDs (E = event, N = news, P = policy, A = announcement, C = context line) from the lists above that support it. Use only IDs that appear above and never invent one. "
-    "If no listed item supports a fact, do not state it as fact. Opinions and reasoning need no entry. A stock-tips article, a filing by a different company, or a brand name inside "
-    "another firm's name does not support a claim about the company or the sector."
+    '- "claim_sources": every sentence anywhere in your answer text (summary, bottom_line, what_happened, why_it_happened, key_drivers explanations, risks, opportunities, companies reasons) that states a '
+    "fact, number, date, order, announcement, result or comparison of figures needs ONE entry: copy the sentence EXACTLY (character for character) and list the evidence IDs "
+    "(E = event, N = news, P = policy, A = announcement, C = context line) from the lists above that support it. Use only IDs that appear above and never invent one. "
+    "CANONICAL CLAIMS: state each fact once. If you need it in more than one field, repeat the IDENTICAL sentence word for word; never restate it in different words, and never combine two claims "
+    "or add a clause to a claimed sentence. Other fields may point back to it without new numbers or dates (for example: 'the valuation gap noted above'). "
+    "A sentence that only says something is missing or not established (for example: 'recent operating results are not in the current evidence') is a limitation, not a fact: write it plainly, "
+    "without the words announced, disclosed or filed. If no listed item supports a fact, do not state it. "
+    "SCOPE: conclude only what the evidence covers. If it holds only valuation multiples for the compared companies, compare valuation and say plainly that operating results are not in the evidence; "
+    "do not say which company is stronger, better or preferred overall. A stock-tips article, a filing by a different company, or a brand name inside another firm's name does not support a claim "
+    "about the company or the sector."
 )
 
 
@@ -195,62 +195,33 @@ def render_investment_group() -> str:
 
 
 def render_decision_group(is_comparison: bool = False) -> str:
-    extra = DECISION_GROUP_EXPLAIN_WHY_NOT if is_comparison else ""
-    return DECISION_GROUP.replace("__EXPLAIN_WHY_NOT__", extra)
+    return ""       # Step 3.4D-3: no decision group in the model contract
 
 EVIDENCE_GROUP = """  "evidence": {
-    "what_happened": "1 factual sentence",
-    "why_it_happened": "1 contextual sentence",
-    "immediate_impact": "1 sentence on near-term market effect",
-    "medium_term": "1 sentence on 3-12 month outlook",
-    "long_term": "1 sentence on structural implications",
-    "what_priced_in": "1-2 sentences: has the market already priced this in?",
+    "what_happened": "1 factual sentence (a claim_sources entry), or empty if the evidence does not say",
+    "why_it_happened": "1 sentence tied to the evidence, or empty",
     "key_drivers": [
-      {"icon": "procurement", "title": "2-4 word driver name", "explanation": "1 sentence mechanism", "confidence": 92},
-      {"icon": "policy", "title": "2-4 word driver name", "explanation": "1 sentence mechanism", "confidence": 87}
+      {"icon": "valuation", "title": "2-4 word driver name", "explanation": "1 sentence grounded in the evidence; no new numbers or dates"}
     ]
   },"""
 
 TIMELINE_GROUP = """  "timeline": {
-    "milestones": [
-      {"date": "Near-term date", "title": "First milestone", "description": "What happens"},
-      {"date": "Later date", "title": "Second milestone", "description": "What happens next"}
-    ],
-    "immediate": "1 sentence — right now / today",
-    "one_week": "1 sentence — this week",
-    "one_to_three_months": "1 sentence",
-    "six_to_twelve_months": "1 sentence",
-    "one_to_three_years": "1 sentence"
-  },"""
+    "milestones": []
+  },"""      # milestones only for dated events that appear in the evidence; otherwise leave empty. Horizon narratives (timeline intelligence) are not part of the contract.
 
 RISKS_GROUP = """  "risks": {
-    "risks": ["specific risk 1", "specific risk 2", "specific risk 3"],
-    "opportunities": ["specific opportunity 1", "specific opportunity 2"],
-    "opportunity_matrix": {"high": ["item"], "medium": ["item"], "low": ["item"]},
-    "risk_matrix": {"high": ["item"], "medium": ["item"], "low": ["item"]}
+    "risks": ["grounded risk or evidence limitation, 1 sentence each (0-3)"],
+    "opportunities": ["grounded opportunity, 1 sentence each (0-2)"]
   },"""
 
 # EXTRAS — explicitly the lowest-priority group; see PRIORITY_INSTRUCTIONS
 # in specialists/base.py for the prompt text that tells the model it's fine
 # to abbreviate this group under time/token pressure.
 EXTRAS_GROUP = """  "extras": {
-    "insights": [
-      {"icon": "<single emoji>", "title": "4-6 words", "summary": "max 20 words"},
-      {"icon": "<single emoji>", "title": "4-6 words", "summary": "max 20 words"}
-    ],
-    "scenarios": {
-      "bull": {"probability": 30, "outcome": "...", "key_drivers": ["..."], "confidence": 65},
-      "base": {"probability": 50, "outcome": "...", "key_drivers": ["..."], "confidence": 70},
-      "bear": {"probability": 20, "outcome": "...", "key_drivers": ["..."], "confidence": 60}
-    },
     "monitoring": {"items": [{"label": "Quarterly Results", "importance": "critical", "why_it_matters": "...", "frequency": "Every 3 months"}]},
-    "follow_up_questions": ["Specific follow-up 1?", "Specific follow-up 2?"],
-    "top_picks": ["SYMBOL1", "SYMBOL2"]
+    "follow_up_questions": ["Specific follow-up 1?", "Specific follow-up 2?"]
   }"""
 
 MONITORING_COUNT_NOTE = (
-    '- "extras.monitoring.items": 5-8 items when you have token budget to spare — cover earnings, '
-    "FII/DII activity, sector policy, commodity prices, interest rates, promoter holding, debt "
-    "levels, order book as relevant. This is an EXTRAS field — never sacrifice the investment/"
-    "decision/evidence groups to pad this one out."
+    '- "extras.monitoring.items": at most 3 items, each a thing to watch (what data would settle an open question in the evidence). No numbers, dates or forecasts that are not in the evidence.'
 )

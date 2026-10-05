@@ -176,6 +176,8 @@ def _check_verdict_consistency(out: dict, report: ValidationReport) -> None:
     if not isinstance(dev2, dict):
         return
     scale = dev2.get("verdict_scale")
+    if not scale and not verdict.get("direction"):
+        return      # Step 3.4D-3: the model no longer generates a verdict, so there is nothing to reconcile
     direction = verdict.get("direction", "neutral")
     confidence = verdict.get("confidence")
     if scale not in VERDICT_SCALE:
@@ -427,7 +429,7 @@ def _check_grounding_collapse(out: dict, report: ValidationReport) -> None:
 
     verdict = out.get("investment_verdict") or {}
     direction = verdict.get("direction", "neutral")
-    if direction == "neutral":
+    if not direction or direction == "neutral":
         # A neutral/cautious call has no confident directional tone to be
         # ungrounded — nothing to temper.
         return
@@ -436,6 +438,9 @@ def _check_grounding_collapse(out: dict, report: ValidationReport) -> None:
 
     report.grounding_collapsed = True
     rating = verdict.get("rating", "")
+    if not rating:
+        report.repairs.append("grounding collapsed; no model verdict to downgrade")
+        return
     try:
         idx = _OUTLOOK_LABELS.index(rating)
         new_idx = min(idx + 2, len(_OUTLOOK_LABELS) - 1)
