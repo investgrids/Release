@@ -172,5 +172,5 @@ GROUNDING_RULES = (
 
 
 def _claim_rules() -> str:
-    from app.services.ai_search.schema import CLAIM_SOURCES_RULES
-    return GROUNDING_RULES + "\n" + CLAIM_SOURCES_RULES
+    from app.services.ai_search.schema import CLAIM_SOURCES_RULES, COMPOSITION_RULES
+    return GROUNDING_RULES + "\n" + COMPOSITION_RULES + "\n" + CLAIM_SOURCES_RULES

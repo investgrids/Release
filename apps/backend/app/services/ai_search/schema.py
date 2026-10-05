@@ -160,8 +160,8 @@ def flatten_nested(nested: dict) -> dict:
 # Step 3.4D-3: the V2 model output contract carries only what the model has authority to publish (sourced prose). It is NOT asked for a rating, direction, sentiment, confidence, verdict scale,
 # scenarios/probabilities, impact or outlook scores, a winner/preference, decision blocks, matrices or an AI conclusion: those are produced by code or not published (structured_authorization.py).
 INVESTMENT_GROUP = """  "investment": {
-    "summary": "1-2 sentences, specific to the query. Every fact in it is a verbatim claim_sources entry.",
-    "bottom_line": "MAX 80 WORDS. Answers ONLY this exact question, limited to what the evidence below supports. Do not give a verdict, rating, direction or recommendation."
+    "summary": "SYNTHESIS: 1-2 hedged sentences saying what the observations in evidence.what_happened collectively suggest. No new figures, dates or events; no verdict or recommendation.",
+    "bottom_line": "MAX 80 WORDS. Answers ONLY this exact question from those observations, limited to what the evidence supports, and says plainly where it is mixed or incomplete. No verdict, rating, direction or recommendation."
   },"""
 
 DECISION_GROUP = ""      # removed from the model contract in Step 3.4D-3 (current view, action note, explain-why-not, view-changers are conclusions the model has no authority to publish)
@@ -190,6 +190,25 @@ CLAIM_SOURCES_RULES = (
 )
 
 
+# Step 3.4G.5: composition contract. SR2 showed the model can have the strongest evidence in front of it and still answer generically ("cannot be established"). This makes evidence utilization part of the
+# contract: observations first (chosen from what is visible, by informativeness for THIS question), synthesis second (built only from those observations, hedged), prose and claims consistent in both
+# directions. It names no expected fact: the model chooses from the visible evidence ids, so it keeps working when live evidence changes.
+COMPOSITION_RULES = (
+    '- COMPOSITION, observations first, synthesis second. '
+    '(1) OBSERVATIONS: in "evidence.what_happened" write the most decision-relevant facts that the evidence lists above actually state, as separate factual sentences: usually 3 to 5, fewer when the '
+    "evidence holds fewer informative facts, none when it holds none. Each sentence reports one fact from one or two listed items (a headline's reported fact, a live figure, a filing) and is copied exactly "
+    'into "claim_sources" with those ids. Choose by how informative an item is for THIS question: prefer concrete, quantified, dated or directional items over generic market commentary, and when items '
+    "point in different directions include both. The lists are ordered by relevance. Do not pad, do not repeat a fact in different words, and do not state something because it is typical of the topic. "
+    '(2) SYNTHESIS: "investment.summary" and "investment.bottom_line" answer the question using only those observations: one or two hedged sentences on what they collectively suggest (for example that '
+    "the evidence is mixed or incomplete), with no new figure, date or event and no verdict, forecast, winner or recommendation. Refer to observations in words (for example "
+    "'the earlier fall' or 'the positive external read-through'), not by repeating numbers. "
+    '(3) CONSISTENCY: every factual sentence anywhere in your answer must be listed in "claim_sources", and every "claim_sources" entry must be a sentence you actually wrote in the answer text: never '
+    "list a claim you did not write and never write a fact you did not list. "
+    "(4) LIMITS: in a comparison describe each side only as far as the evidence covers it and never name a winner; for a single company report what the evidence says, not an outlook it does not state; "
+    "for a macro question state a causal link only if a listed item states it; if the evidence cannot answer the question, say so briefly instead of filling space with unrelated facts."
+)
+
+
 def render_investment_group() -> str:
     return INVESTMENT_GROUP.replace("__VERDICT_SCALE_OPTIONS__", " | ".join(VERDICT_SCALE))
 
@@ -198,7 +217,7 @@ def render_decision_group(is_comparison: bool = False) -> str:
     return ""       # Step 3.4D-3: no decision group in the model contract
 
 EVIDENCE_GROUP = """  "evidence": {
-    "what_happened": "1 factual sentence (a claim_sources entry), or empty if the evidence does not say",
+    "what_happened": "OBSERVATIONS: the most decision-relevant facts the listed evidence states, as separate factual sentences (usually 3-5, fewer if the evidence holds fewer, none if none), each a verbatim claim_sources entry",
     "why_it_happened": "1 sentence tied to the evidence, or empty",
     "key_drivers": [
       {"icon": "valuation", "title": "2-4 word driver name", "explanation": "1 sentence grounded in the evidence; no new numbers or dates"}
