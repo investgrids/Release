@@ -1,0 +1,710 @@
+{
+  "mode": "live",
+  "model": "gpt-6-luna",
+  "cap": 1,
+  "model_requests_made": 1,
+  "stopped": null,
+  "results": {
+    "SR2": {
+      "id": "SR2",
+      "query": "What is the outlook for the IT services sector?",
+      "entities": {
+        "companies": [],
+        "sectors": [
+          "it"
+        ],
+        "policies": []
+      },
+      "wall_s": 59.11,
+      "calls": [
+        {
+          "provider": "openai-benchmark-project",
+          "model": "gpt-6-luna",
+          "max_completion_tokens": 6500,
+          "prompt_chars": 9215,
+          "approx_input_tokens": 2304,
+          "latency_ms": 44265,
+          "status": 200,
+          "limit_headers": {
+            "openai-processing-ms": "42384",
+            "x-ratelimit-limit-requests": "50",
+            "x-ratelimit-limit-tokens": "100000",
+            "x-ratelimit-remaining-requests": "49",
+            "x-ratelimit-remaining-tokens": "47753",
+            "x-ratelimit-reset-requests": "28m48s",
+            "x-ratelimit-reset-tokens": "376h10m42.24s",
+            "x-request-id": "req_e0b7eca6a5f44928a14041231e0fe9a6"
+          },
+          "response_model": "gpt-6-luna",
+          "finish_reason": "stop",
+          "output_chars": 2571,
+          "usage": {
+            "prompt_tokens": 2312,
+            "completion_tokens": 4014,
+            "total_tokens": 6326
+          },
+          "reasoning_tokens": 3335,
+          "would_exceed_30s": true,
+          "raw_output": "{\n  \"investment\": {\n    \"summary\": \"The supplied headlines link Indian IT share moves to Accenture earnings and forecasts and highlight Q2 results expectations. The available evidence does not establish actual operating results or a full-year IT-services outlook.\",\n    \"bottom_line\": \"A forward outlook for IT services cannot be established from the available evidence; it does not include reported operating results.\"\n  },\n  \"claim_sources\": [\n    {\n      \"claim\": \"The supplied headlines link Indian IT share moves to Accenture earnings and forecasts and highlight Q2 results expectations.\",\n      \"sources\": [\"E1\", \"E4\", \"E5\", \"E6\", \"N1\", \"N2\", \"N3\"]\n    },\n    {\n      \"claim\": \"IT was flat at +0.0% over one day, compared with FMCG at +1.3% and Banking at +0.2%.\",\n      \"sources\": [\"C1\", \"C2\"]\n    },\n    {\n      \"claim\": \"The supplied coverage names the Nifty IT index and Indian IT shares, matching the IT-services query.\",\n      \"sources\": [\"E3\", \"N1\"]\n    }\n  ],\n  \"evidence\": {\n    \"what_happened\": \"The supplied headlines link Indian IT share moves to Accenture earnings and forecasts and highlight Q2 results expectations.\",\n    \"why_it_happened\": \"\",\n    \"key_drivers\": [\n      {\n        \"icon\": \"earnings\",\n        \"title\": \"Accenture read-through\",\n        \"explanation\": \"The supplied headlines link Indian IT share moves to Accenture earnings and forecasts and highlight Q2 results expectations.\"\n      }\n    ]\n  },\n  \"sector_analysis\": {\n    \"current_trend\": \"IT was flat at +0.0% over one day, compared with FMCG at +1.3% and Banking at +0.2%.\",\n    \"government_drivers\": [],\n    \"macro_drivers\": []\n  },\n  \"companies\": [],\n  \"sectors\": [\n    {\n      \"name\": \"IT Services\",\n      \"explanation\": \"The supplied coverage names the Nifty IT index and Indian IT shares, matching the IT-services query.\"\n    }\n  ],\n  \"timeline\": {\n    \"milestones\": []\n  },\n  \"risks\": {\n    \"risks\": [\n      \"The available evidence does not establish actual Q2 operating results or a full-year sector forecast.\"\n    ],\n    \"opportunities\": []\n  },\n  \"extras\": {\n    \"monitoring\": {\n      \"items\": [\n        {\n          \"label\": \"Q2 results\",\n          \"importance\": \"critical\",\n          \"why_it_matters\": \"Results would help address the operating-results gap in the available evidence.\",\n          \"frequency\": \"Each results cycle\"\n        }\n      ]\n    },\n    \"follow_up_questions\": [\n      \"What do the Q2 results show on revenue, margins and demand?\",\n      \"How much of the share-price response is tied to Accenture read-throughs versus Indian IT results?\"\n    ]\n  }\n}"
+        }
+      ],
+      "model_calls": 1,
+      "expected_model_calls": null,
+      "call_count_as_expected": null,
+      "response": {
+        "query": "What is the outlook for the IT services sector?",
+        "response_id": "4bde861d-eff2-428d-ace8-68fe5f2a02c9",
+        "schema_version": "v3.0",
+        "specialist": "sector",
+        "degraded_reason": "claims_not_authorized",
+        "intent": "general",
+        "ui_mode": "sector_theme_research",
+        "switch_holding": null,
+        "switch_target": null,
+        "synthesis_incomplete": true,
+        "answer": {
+          "summary": "The analysis that was generated included statements MarketRipple's retrieved evidence doesn't support, such as specific figures or dates, or company facts without a traceable source, so it isn't being shown. The evidence that was found is listed below.",
+          "bottom_line": "The analysis that was generated included statements MarketRipple's retrieved evidence doesn't support, such as specific figures or dates, or company facts without a traceable source, so it isn't being shown. The evidence that was found is listed below.",
+          "what_happened": "",
+          "why_it_happened": "",
+          "immediate_impact": "",
+          "medium_term": "",
+          "long_term": "",
+          "what_priced_in": "",
+          "risks": [],
+          "opportunities": [],
+          "confidence": null,
+          "confidence_level": "unscored",
+          "sentiment": "neutral",
+          "sources_count": 0
+        },
+        "key_drivers": [],
+        "insights": [],
+        "companies": [],
+        "sectors": [],
+        "related_events": [],
+        "news": [],
+        "policies": [],
+        "timeline": [],
+        "historical_comparison": [],
+        "ripple_chain": [],
+        "scenarios": {},
+        "monitoring": {
+          "items": []
+        },
+        "follow_up_questions": [],
+        "follow_up_groups": [],
+        "investment_verdict": {
+          "rating": "Not Applicable",
+          "direction": "neutral",
+          "confidence": null,
+          "horizon": null,
+          "top_picks": [],
+          "risks": [],
+          "catalysts": [],
+          "opportunity_score": null,
+          "risk_level": "",
+          "suitable_for": "",
+          "engine_verdict": null
+        },
+        "market_chart": {
+          "labels": [],
+          "series": []
+        },
+        "graph": {
+          "nodes": [],
+          "edges": []
+        },
+        "citations": [],
+        "decision_intelligence": null,
+        "confidence_data": {
+          "level": "unscored",
+          "score": null,
+          "reasons": [],
+          "breakdown": {},
+          "caveats": []
+        },
+        "decision_engine_v2": {},
+        "timeline_intelligence": {},
+        "opportunity_risk_matrix": {},
+        "ai_conclusion": {},
+        "evidence_score": {
+          "stars": null,
+          "checklist": {},
+          "source_count": 0,
+          "development_count": 0,
+          "corroborating_source_count": 0
+        },
+        "confidence_breakdown": {
+          "final_confidence": null,
+          "level": "unscored"
+        },
+        "confidence": {
+          "status": "unscored",
+          "score": null,
+          "components": {
+            "evidence_quality": null,
+            "market_confirmation": null,
+            "historical_similarity": null,
+            "data_freshness": null
+          }
+        },
+        "source_attribution": [],
+        "validation": {
+          "repairs": [],
+          "omissions": [],
+          "contradiction_flagged": false
+        },
+        "market_impact_horizons": {},
+        "what_to_monitor": [],
+        "ai_reasoning_methods": [],
+        "evidence_sufficiency": null,
+        "premise_check": {
+          "status": "not_applicable",
+          "terms": []
+        },
+        "answer_authorization": {
+          "applicable": true,
+          "authorized": false,
+          "reasons": [
+            "claim_not_in_answer",
+            "uncovered_factual_sentences"
+          ],
+          "unsupported_figure_count": 0,
+          "factual_sentences": 4
+        },
+        "public_title": "This analysis couldn't be verified",
+        "conclusion_scope": null,
+        "structured_authorization": null,
+        "timing": {
+          "intent_detection_ms": 0.0,
+          "entity_detection_ms": 16.0,
+          "evidence_collection_ms": 14766.0,
+          "reasoning_ms": 44265.0,
+          "validation_ms": 31.0,
+          "total_ms": 59078.0
+        },
+        "context_used": {
+          "companies": [],
+          "sectors": []
+        },
+        "watch_subject": null,
+        "answer_availability": {
+          "state": "no_verified_evidence",
+          "evidence_retrieval_completed": true,
+          "evidence_count": 0
+        }
+      },
+      "gate_a": null,
+      "premise_check": {
+        "status": "not_applicable",
+        "terms": []
+      },
+      "gate_b": {
+        "applicable": true,
+        "authorized": false,
+        "reasons": [
+          "claim_not_in_answer",
+          "uncovered_factual_sentences"
+        ],
+        "unsupported_figure_count": 0,
+        "factual_sentences": 4
+      },
+      "claim_validation": null,
+      "claim_sources": null,
+      "degraded_reason": "claims_not_authorized",
+      "rejected_generation": [
+        {
+          "reasons": [
+            "claim_not_in_answer",
+            "uncovered_factual_sentences"
+          ],
+          "generation": {
+            "summary": "The supplied headlines link Indian IT share moves to Accenture earnings and forecasts and highlight Q2 results expectations. The available evidence does not establish actual operating results or a full-year IT-services outlook.",
+            "bottom_line": "A forward outlook for IT services cannot be established from the available evidence; it does not include reported operating results.",
+            "confidence": null,
+            "confidence_self_rating": null,
+            "sentiment": null,
+            "what_happened": "The supplied headlines link Indian IT share moves to Accenture earnings and forecasts and highlight Q2 results expectations.",
+            "why_it_happened": "",
+            "immediate_impact": "",
+            "medium_term": "",
+            "long_term": "",
+            "what_priced_in": "",
+            "key_drivers": [
+              {
+                "icon": "earnings",
+                "title": "Accenture read-through",
+                "explanation": "The supplied headlines link Indian IT share moves to Accenture earnings and forecasts and highlight Q2 results expectations."
+              }
+            ],
+            "risks": [
+              "The available evidence does not establish actual Q2 operating results or a full-year sector forecast."
+            ],
+            "opportunities": [],
+            "companies": [],
+            "sectors": [
+              {
+                "name": "IT Services",
+                "explanation": "The supplied coverage names the Nifty IT index and Indian IT shares, matching the IT-services query."
+              }
+            ],
+            "investment_verdict": {
+              "rating": null,
+              "direction": null,
+              "confidence": null,
+              "horizon": null,
+              "top_picks": [],
+              "risks": [
+                "The available evidence does not establish actual Q2 operating results or a full-year sector forecast."
+              ],
+              "catalysts": [],
+              "opportunity_score": null
+            },
+            "follow_up_questions": [
+              "What do the Q2 results show on revenue, margins and demand?",
+              "How much of the share-price response is tied to Accenture read-throughs versus Indian IT results?"
+            ],
+            "claim_sources": [
+              {
+                "claim": "The supplied headlines link Indian IT share moves to Accenture earnings and forecasts and highlight Q2 results expectations.",
+                "sources": [
+                  "E1",
+                  "E4",
+                  "E5",
+                  "E6",
+                  "N1",
+                  "N2",
+                  "N3"
+                ]
+              },
+              {
+                "claim": "IT was flat at +0.0% over one day, compared with FMCG at +1.3% and Banking at +0.2%.",
+                "sources": [
+                  "C1",
+                  "C2"
+                ]
+              },
+              {
+                "claim": "The supplied coverage names the Nifty IT index and Indian IT shares, matching the IT-services query.",
+                "sources": [
+                  "E3",
+                  "N1"
+                ]
+              }
+            ],
+            "timeline": [],
+            "insights": [],
+            "scenarios": {},
+            "monitoring": {
+              "items": [
+                {
+                  "label": "Q2 results",
+                  "importance": "critical",
+                  "why_it_matters": "Results would help address the operating-results gap in the available evidence.",
+                  "frequency": "Each results cycle"
+                }
+              ]
+            },
+            "decision_engine_v2": {},
+            "timeline_intelligence": {},
+            "opportunity_risk_matrix": {},
+            "ai_conclusion": {},
+            "sector_score": null,
+            "current_trend": "IT was flat at +0.0% over one day, compared with FMCG at +1.3% and Banking at +0.2%.",
+            "money_flow": "",
+            "government_drivers": [],
+            "macro_drivers": [],
+            "sector_leaders": [],
+            "sector_laggards": []
+          }
+        }
+      ],
+      "evidence": {
+        "plan_kind": "topic",
+        "filter_report": {
+          "plan": "topic",
+          "events": {
+            "kept": 11,
+            "dropped_stale": 1,
+            "dropped_irrelevant": 1,
+            "dropped_tips": 0,
+            "dropped_single_company_filing": 33,
+            "selected": 10
+          },
+          "news": {
+            "kept": 5,
+            "dropped_stale": 18,
+            "dropped_irrelevant": 1,
+            "dropped_undated": 0,
+            "dropped_tips": 1,
+            "dropped_single_company_filing": 0,
+            "selected": 5
+          },
+          "announcements": {
+            "kept": 0,
+            "dropped_stale": 0
+          },
+          "policies": {
+            "kept": 0,
+            "dropped_irrelevant": 0
+          },
+          "premise": {
+            "required": false,
+            "terms": [],
+            "supported": null,
+            "supporting": []
+          },
+          "retrieval_failures": {}
+        },
+        "events": [
+          {
+            "id": "rss-a8c58e2416c6",
+            "title": "TCS, Infosys, Wipro shares ahead of Q2 results: Explained | What Accenture's strong earnings mean for Indian IT stocks",
+            "summary": "Accenture's fourth-quarter results reflect a rising trend in AI adoption, marking a shift from pilot projects to larger implementations, positively impacting Indian IT stocks. Despite the optimism, concerns about pricing pressure and sluggish discretionary spending suggest a cautious outlook.",
+            "date": "2026-10-03T11:55:14.621954",
+            "source": "Livemint",
+            "companies": []
+          },
+          {
+            "id": "rss-1079b327d09c",
+            "title": "IT Q2 Results Dates: When TCS, Infosys, Wipro, HCLTech, Tech Mahindra Will Report FY27 Earnings",
+            "summary": "India's Q2 FY27 IT earnings season begins Oct. 8 with TCS, followed by HCLTech, Wipro, Infosys and other major technology companies. Investors will track revenue growth, deal wins, margins, AI demand and dividends as India's top IT firms report September-quarter earnings.",
+            "date": "2026-10-03T06:19:05.781349",
+            "source": "NDTV Profit",
+            "companies": []
+          },
+          {
+            "id": "rss-19fb07b037d7",
+            "title": "Nifty IT crashes 11% in September: TCS, Infosys, Wipro among top losers — Can Q2 earnings spark a rebound?",
+            "summary": "The IT sector has been hit hard in September, with the Nifty IT index down 11%. High interest rates, global growth fears, and generative AI pressures have impacted technology spending. Investors are looking to upcoming Q2 earnings for insights into demand and AI-led transformations.",
+            "date": "2026-10-01T12:33:25.959941",
+            "source": "Livemint",
+            "companies": []
+          },
+          {
+            "id": "rss-d9a35126553d",
+            "title": "Infosys, Wipro ADRs soar up to 8% as strong Accenture earnings forecast lifts mood",
+            "summary": "Infosys and Wipro ADRs rallied in US premarket trading after Accenture forecast stronger-than-expected annual revenue growth. Its upbeat outlook eased concerns over global technology spending, while steady consulting, managed-services and AI demand improved sentiment toward Indian IT exporters.",
+            "date": "2026-10-01T12:03:29.351497",
+            "source": "Economic Times",
+            "companies": []
+          },
+          {
+            "id": "rss-27e54ddf0419",
+            "title": "Nifty IT jumps 2%; Mphasis, Coforge, Infosys, TCS among top gainers - Reason behind the rally, Q2 results expectations",
+            "summary": "Despite a shaky market, the Nifty IT index rose over 2% intraday on October 1st, buoyed by a weaker rupee and positive forecasts from major financial firms, with Mphasis, Coforge, and Infosys leading the charge.",
+            "date": "2026-10-01T11:02:03.219213",
+            "source": "Livemint",
+            "companies": []
+          },
+          {
+            "id": "rss-d719afdc49b7",
+            "title": "Accenture Shares Jump Record 22% On Earnings Boost; Infosys, Wipro ADRs Spike Up To 10%",
+            "summary": "Accenture shares surge a record 22% after earnings, lifting Indian IT names Infosys and Wipro, whose US-listed shares also rally.",
+            "date": "2026-10-01T14:18:26.778652",
+            "source": "NDTV Profit",
+            "companies": []
+          },
+          {
+            "id": "rss-dff9fe778b4b",
+            "title": "Infosys, Wipro ADRs jump up to 10% after Accenture Q4 results beat Wall Street estimates",
+            "summary": "Accenture's strong fiscal fourth-quarter performance boosted Infosys and Wipro ADRs significantly as they rebounded from losses. Infosys ADRs rose 8% and Wipro ADRs jumped 10%, suggesting improved market sentiment ahead of the upcoming earnings season.",
+            "date": "2026-10-01T13:03:26.920623",
+            "source": "Livemint",
+            "companies": []
+          },
+          {
+            "id": "rss-2eb04109e831",
+            "title": "Infosys, Wipro ADRs Spike Over 8% Pre-Market As Solid Accenture Earnings Boosts IT Outlook",
+            "summary": "Infosys, Wipro ADRs rose over 8% before the opening bell on Thursday, October 1.",
+            "date": "2026-10-01T12:48:28.954799",
+            "source": "NDTV Profit",
+            "companies": []
+          },
+          {
+            "id": "nse-40750723f2",
+            "title": "Release:  HCLTech report reveals telecom leaders identify AI as top revenue driver, but only 25% ready to scale '.",
+            "summary": "Release:  HCLTech report reveals telecom leaders identify AI as top revenue driver, but only 25% ready to scale '.",
+            "date": "2026-08-17T13:51:44.585497",
+            "source": "NSE",
+            "companies": []
+          },
+          {
+            "id": "rss-c81c984686f8",
+            "title": "Stock Market Crash Live: Nifty Falls Below 24,200, Sensex Slumps Nearly 500 Points From Day's High",
+            "summary": "HDFC Bank added 24.88 points to the Nifty 50, while Infosys contributed 13.97 points. SBI, Bajaj Finance, Cipla, Titan and Apollo Hospitals limited the advance.",
+            "date": "2026-08-24T07:50:34.515135",
+            "source": "NDTV Profit",
+            "companies": []
+          }
+        ],
+        "news": [
+          {
+            "id": "live-eac025626272",
+            "title": "IT Q2 Preview: From Revenue To Margin Outook, How Will TCS, Infosys, Tech Mahindra And Other Peers Perform",
+            "summary": "Motilal Oswal expect demand commentary to remain soft into Q2 FY27, despite it being a seasonally strong quarter, as macro pressures, interest rate hikes, AI-related disruptions, and geopolitical over",
+            "date": "2h ago",
+            "source": "NDTV Profit"
+          },
+          {
+            "id": "live-5a80116ce0fc",
+            "title": "TCS, Wipro, Infosys, HCL, Tech Mahindra shares: Accenture Q4 strong show impact on Indian IT stocks decoded by experts",
+            "summary": "Accenture's impressive Q4 earnings and upward revenue forecast signal cautious optimism for Indian IT stocks. However, experts urge investors to focus on deal conversions and overall demand dynamics a",
+            "date": "1h ago",
+            "source": "Livemint"
+          },
+          {
+            "id": "live-5eaae49b4a5f",
+            "title": "Accenture's Growth Beat Sparks Rally, But Street Divided On Indian IT's Fortunes: Here's Why",
+            "summary": "Global brokerage CLSA CLSA warned that while TCS and Infosys currently trade at valuations comparable to Accenture, they risk trading at a marked discount if market share erosion persists into FY28, c",
+            "date": "2h ago",
+            "source": "NDTV Profit"
+          },
+          {
+            "id": "live-a829d14c5ffd",
+            "title": "TCS dividend 2026 record date, Q2 FY 2027 results announcement date and time, schedule, dividend history - Details",
+            "summary": "Shares of Tata Consultancy Services (TCS) rose during Monday's trading session ahead of its Q2FY27 results and dividend announcement. The board will meet on October 8, 2026, to discuss a second interi",
+            "date": "1h ago",
+            "source": "Livemint"
+          },
+          {
+            "id": "live-606a1783175c",
+            "title": "Weekly Market Wrap: NIFTY50, SENSEX end lower as metal, IT indices fall 4%; Infosys leads losses - Upstox",
+            "summary": "Weekly Market Wrap: NIFTY50, SENSEX end lower as metal, IT indices fall 4%; Infosys leads losses&nbsp;&nbsp;Upstox",
+            "date": "1d ago",
+            "source": "Google News"
+          }
+        ],
+        "announcements": [],
+        "policies": [],
+        "valuation": {},
+        "vix": 14.95,
+        "sector_rows": [
+          {
+            "id": "it",
+            "name": "IT",
+            "value": "+0.0%",
+            "positive": true
+          },
+          {
+            "id": "banking",
+            "name": "Banking",
+            "value": "+0.2%",
+            "positive": true
+          },
+          {
+            "id": "pharma",
+            "name": "Pharma",
+            "value": "-1.6%",
+            "positive": false
+          },
+          {
+            "id": "auto",
+            "name": "Auto",
+            "value": "-0.9%",
+            "positive": false
+          },
+          {
+            "id": "energy",
+            "name": "Energy",
+            "value": "-0.6%",
+            "positive": false
+          },
+          {
+            "id": "fmcg",
+            "name": "FMCG",
+            "value": "+1.3%",
+            "positive": true
+          },
+          {
+            "id": "infra",
+            "name": "Infra",
+            "value": "+0.3%",
+            "positive": true
+          },
+          {
+            "id": "metal",
+            "name": "Metal",
+            "value": "-0.2%",
+            "positive": false
+          },
+          {
+            "id": "realty",
+            "name": "Realty",
+            "value": "+0.0%",
+            "positive": true
+          },
+          {
+            "id": "psu-bank",
+            "name": "PSU Bank",
+            "value": "+0.1%",
+            "positive": true
+          },
+          {
+            "id": "private-bank",
+            "name": "Private Bank",
+            "value": "-0.1%",
+            "positive": false
+          }
+        ],
+        "macro_indices": [],
+        "context_lines": [
+          "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+          "Sector performance (real, live 1-day change): Pharma -1.6%; FMCG +1.3%; Auto -0.9%; Energy -0.6%; Infra +0.3%"
+        ],
+        "premise": {
+          "required": false,
+          "terms": [],
+          "supported": null,
+          "supporting": []
+        },
+        "index": [
+          {
+            "id": "E1",
+            "kind": "event",
+            "title": "TCS, Infosys, Wipro shares ahead of Q2 results: Explained | What Accenture's strong earnings mean for Indian IT stocks",
+            "summary": "Accenture's fourth-quarter results reflect a rising trend in AI adoption, marking a shift from pilot projects to larger implementations, positively impacting Indian IT stocks. Despite the optimism, co",
+            "date": "2026-10-03T11:55:14.621954",
+            "source": "Livemint",
+            "companies": [],
+            "ref": "event:rss-a8c58e2416c6"
+          },
+          {
+            "id": "E2",
+            "kind": "event",
+            "title": "IT Q2 Results Dates: When TCS, Infosys, Wipro, HCLTech, Tech Mahindra Will Report FY27 Earnings",
+            "summary": "India's Q2 FY27 IT earnings season begins Oct. 8 with TCS, followed by HCLTech, Wipro, Infosys and other major technology companies. Investors will track revenue growth, deal wins, margins, AI demand ",
+            "date": "2026-10-03T06:19:05.781349",
+            "source": "NDTV Profit",
+            "companies": [],
+            "ref": "event:rss-1079b327d09c"
+          },
+          {
+            "id": "E3",
+            "kind": "event",
+            "title": "Nifty IT crashes 11% in September: TCS, Infosys, Wipro among top losers — Can Q2 earnings spark a rebound?",
+            "summary": "The IT sector has been hit hard in September, with the Nifty IT index down 11%. High interest rates, global growth fears, and generative AI pressures have impacted technology spending. Investors are l",
+            "date": "2026-10-01T12:33:25.959941",
+            "source": "Livemint",
+            "companies": [],
+            "ref": "event:rss-19fb07b037d7"
+          },
+          {
+            "id": "E4",
+            "kind": "event",
+            "title": "Infosys, Wipro ADRs soar up to 8% as strong Accenture earnings forecast lifts mood",
+            "summary": "Infosys and Wipro ADRs rallied in US premarket trading after Accenture forecast stronger-than-expected annual revenue growth. Its upbeat outlook eased concerns over global technology spending, while s",
+            "date": "2026-10-01T12:03:29.351497",
+            "source": "Economic Times",
+            "companies": [],
+            "ref": "event:rss-d9a35126553d"
+          },
+          {
+            "id": "E5",
+            "kind": "event",
+            "title": "Nifty IT jumps 2%; Mphasis, Coforge, Infosys, TCS among top gainers - Reason behind the rally, Q2 results expectations",
+            "summary": "Despite a shaky market, the Nifty IT index rose over 2% intraday on October 1st, buoyed by a weaker rupee and positive forecasts from major financial firms, with Mphasis, Coforge, and Infosys leading ",
+            "date": "2026-10-01T11:02:03.219213",
+            "source": "Livemint",
+            "companies": [],
+            "ref": "event:rss-27e54ddf0419"
+          },
+          {
+            "id": "E6",
+            "kind": "event",
+            "title": "Accenture Shares Jump Record 22% On Earnings Boost; Infosys, Wipro ADRs Spike Up To 10%",
+            "summary": "Accenture shares surge a record 22% after earnings, lifting Indian IT names Infosys and Wipro, whose US-listed shares also rally.",
+            "date": "2026-10-01T14:18:26.778652",
+            "source": "NDTV Profit",
+            "companies": [],
+            "ref": "event:rss-d719afdc49b7"
+          },
+          {
+            "id": "N1",
+            "kind": "news",
+            "title": "IT Q2 Preview: From Revenue To Margin Outook, How Will TCS, Infosys, Tech Mahindra And Other Peers Perform",
+            "summary": "Motilal Oswal expect demand commentary to remain soft into Q2 FY27, despite it being a seasonally strong quarter, as macro pressures, interest rate hikes, AI-related disruptions, and geopolitical over",
+            "date": "2h ago",
+            "source": "NDTV Profit",
+            "companies": [],
+            "ref": "news:live-eac025626272"
+          },
+          {
+            "id": "N2",
+            "kind": "news",
+            "title": "TCS, Wipro, Infosys, HCL, Tech Mahindra shares: Accenture Q4 strong show impact on Indian IT stocks decoded by experts",
+            "summary": "Accenture's impressive Q4 earnings and upward revenue forecast signal cautious optimism for Indian IT stocks. However, experts urge investors to focus on deal conversions and overall demand dynamics a",
+            "date": "1h ago",
+            "source": "Livemint",
+            "companies": [],
+            "ref": "news:live-5a80116ce0fc"
+          },
+          {
+            "id": "N3",
+            "kind": "news",
+            "title": "Accenture's Growth Beat Sparks Rally, But Street Divided On Indian IT's Fortunes: Here's Why",
+            "summary": "Global brokerage CLSA CLSA warned that while TCS and Infosys currently trade at valuations comparable to Accenture, they risk trading at a marked discount if market share erosion persists into FY28, c",
+            "date": "2h ago",
+            "source": "NDTV Profit",
+            "companies": [],
+            "ref": "news:live-5eaae49b4a5f"
+          },
+          {
+            "id": "N4",
+            "kind": "news",
+            "title": "TCS dividend 2026 record date, Q2 FY 2027 results announcement date and time, schedule, dividend history - Details",
+            "summary": "Shares of Tata Consultancy Services (TCS) rose during Monday's trading session ahead of its Q2FY27 results and dividend announcement. The board will meet on October 8, 2026, to discuss a second interi",
+            "date": "1h ago",
+            "source": "Livemint",
+            "companies": [],
+            "ref": "news:live-a829d14c5ffd"
+          },
+          {
+            "id": "N5",
+            "kind": "news",
+            "title": "Weekly Market Wrap: NIFTY50, SENSEX end lower as metal, IT indices fall 4%; Infosys leads losses - Upstox",
+            "summary": "Weekly Market Wrap: NIFTY50, SENSEX end lower as metal, IT indices fall 4%; Infosys leads losses&nbsp;&nbsp;Upstox",
+            "date": "1d ago",
+            "source": "Google News",
+            "companies": [],
+            "ref": "news:live-606a1783175c"
+          },
+          {
+            "id": "C1",
+            "kind": "context",
+            "title": "LIVE MARKET INTELLIGENCE (MIE):\n[MARKET MOOD] Cautious Bull · SIDEWAYS · Risk: LOW · AI confidence: 75%\n[TOP THEME] Metals & Mining (score 57)",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:1"
+          },
+          {
+            "id": "C2",
+            "kind": "context",
+            "title": "Sector performance (real, live 1-day change): Pharma -1.6%; FMCG +1.3%; Auto -0.9%; Energy -0.6%; Infra +0.3%",
+            "date": null,
+            "source": "MarketRipple data",
+            "companies": [],
+            "ref": "context:2"
+          }
+        ],
+        "historical": []
+      },
+      "model_result": {
+        "status": 200,
+        "classification": null,
+        "finish_reason": "stop",
+        "latency_ms": 44265,
+        "usage": {
+          "prompt_tokens": 2312,
+          "completion_tokens": 4014,
+          "total_tokens": 6326
+        },
+        "reasoning_tokens": 3335,
+        "would_exceed_30s": true
+      },
+      "outcome": "generation_rejected_by_gate_b"
+    }
+  }
+}
