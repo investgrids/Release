@@ -54,3 +54,26 @@ Global 1440px header overflow (pre-existing); streamed `meta` identity root caus
 ## 17. Final release verdict
 **AI SEARCH V2: BLOCKED — push to `origin/main` denied by the local auto-mode classifier.** Candidate commit `8ac35cb` on local branch `release/ai-v2-integration` (worktree `D:\IG-ai-v2-release`) is GREEN and ready.
 To proceed, the owner can either push that branch themselves, or add a permission rule that allows the push, then ask for Step 7 to resume at the push gate.
+
+---
+
+## Addendum — final HEAD re-qualification (2026-10-06)
+
+After the report commit `1b17a66`, five commits were added at the owner's request, and the candidate that is pushed is the final HEAD, not `1b17a66`:
+
+| Commit | Change |
+|---|---|
+| `8ab4597` | White AI Search page (html and body), white feedback strip, suggestions placeholder instead of a static-then-live swap |
+| `3af8a70` | Researching card (question, real timer, real stages, slow notice) |
+| `52e57e3` | Research layout from the design mockup; company figures snapshot (P/E, P/B, 52-week range) from evidence already given |
+| `f6e9564` | Richer visuals (sparklines, range bar, change pills, evidence-type badges, icon headings); market cap and sector (display-only, kept out of the Gate B corpus); relative P/E and P/B colour |
+| `ce93e1e` | Entity card: price, market cap, sector, 52-week range; factor table: no 52-week range, market cap or sector; legend under the table |
+
+Backend files touched since the qualified candidate: `enrichment.py`, `pipeline.py` (snapshot only) and one new test file. No retrieval, Gate A/B, routing, prompt, provider or Company Score change.
+
+Re-qualification of the final HEAD (zero provider calls):
+- Frontend: 53 files / 517 tests pass, `tsc` 0 errors, production build succeeds (stream-enabled and plain builds).
+- Backend full suite (excluding the live end-to-end tier): 3,775 passed, 33 failed. Every failure is either on pristine `origin/main` or is one of 7 timing-sensitive tests (live-news snapshot, seed guard) that pass in isolation (28 passed) and failed only under concurrent load; nothing fails that does not fail on main.
+- Browser: all states at 1440 and 390, 0 failed checks on both transports.
+- Streamed-result stress: 125 loads, 0 "Maximum update depth", 0 other console errors (a first run showed 625 console errors that were 502s from a stopped dev backend, not the application).
+- Provider calls: 0.

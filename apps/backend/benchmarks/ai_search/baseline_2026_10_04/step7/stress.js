@@ -14,7 +14,7 @@ const PLAN = [["01", 60], ["02", 25], ["10", 25], ["11", 15]];
       const ctx = await browser.newContext({ viewport: { width: i % 2 ? 390 : 1440, height: 900 } });
       const page = await ctx.newPage();
       let d = 0, o = 0, streamed = 0;
-      page.on("console", (m) => { if (m.type() === "error") { if (/Maximum update depth/.test(m.text())) d++; else if (!/ERR_FAILED/.test(m.text())) o++; } });
+      page.on("console", (m) => { if (m.type() === "error") { if (/Maximum update depth/.test(m.text())) d++; else if (!/ERR_FAILED/.test(m.text())) { o++; if (!globalThis.__ex) { globalThis.__ex = m.text().slice(0, 140); console.log("first other error:", globalThis.__ex); } } } });
       page.on("pageerror", () => o++);
       await page.route("**/api/ai/search/stream**", (r) => { streamed++; r.fulfill({ status: 200, contentType: "text/event-stream", headers: { "access-control-allow-origin": "*" }, body: "event: stage\ndata: " + JSON.stringify({ stage: "intent", label: "Understanding your question" }) + "\n\nevent: answer\ndata: " + JSON.stringify({ result, cached: false, response_id: result.response_id }) + "\n\nevent: done\ndata: {}\n\n" }); });
       await page.goto(BASE + "/ai-search?q=" + encodeURIComponent(result.query), { waitUntil: "domcontentloaded" });
