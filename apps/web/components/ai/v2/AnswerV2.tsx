@@ -225,16 +225,15 @@ function ComparisonTable({ r }: { r: V2Result }) {
     }],
     ["Latest price", (c) => (c.price ? <span className="tabular-nums">₹{c.price}</span> : "—")],
     ["Today", (c) => (c.change ? <ChangePill text={c.change} up={!!c.positive} /> : "—")],
-    ["Sector", (c) => c.snapshot?.sector ?? "—"],
-    ["Market cap", (c) => (c.snapshot?.market_cap_cr != null ? <span className="tabular-nums">{capText(c.snapshot.market_cap_cr)}</span> : "—")],
     ["P/E", (c) => (c.snapshot?.pe != null ? <Multiple label="" value={pe1(c.snapshot.pe)} rel={relPe.get(c.symbol)} /> : "—")],
     ["P/B", (c) => (c.snapshot?.pb != null ? <Multiple label="" value={pb2(c.snapshot.pb)} rel={relPb.get(c.symbol)} /> : "—")],
-    ["52-week range", (c) => (c.snapshot?.week52_low != null && c.snapshot?.week52_high != null ? <span className="tabular-nums">{inr(c.snapshot.week52_low)} – {inr(c.snapshot.week52_high)}</span> : "—")],
     ["Valuation evidence", (c) => has(c.symbol, "valuation") ?? "—"],
     ["Operating results", (c) => has(c.symbol, "operating") ?? "—"],
   ];
   const visible = rows.filter(([, f]) => cs.some((c) => f(c) !== "—"));
+  const anyRel = relPe.size > 0 || relPb.size > 0;
   return (
+    <div data-testid="comparison">
     <div className="overflow-x-auto rounded-xl border border-surface-border/10" data-testid="comparison-table">
       <table className="w-full table-fixed text-left text-[12.5px] sm:text-[13.5px]">
         <thead>
@@ -263,6 +262,8 @@ function ComparisonTable({ r }: { r: V2Result }) {
         </tbody>
       </table>
     </div>
+    {anyRel && <p className="mt-2 text-[11.5px] leading-4 text-text-muted" data-testid="multiple-legend">Colour compares the companies in this table: green is the lower multiple, amber the higher. A lower multiple is a cheaper valuation, not automatically a better company.</p>}
+    </div>
   );
 }
 
@@ -282,9 +283,6 @@ function EntitySnapshot({ r }: { r: V2Result }) {
   const cs = (r.companies ?? []).filter((c) => c.symbol && c.name).slice(0, 3);
   if (!cs.length) return null;
   const comparison = r.specialist === "comparison";
-  const relPe = relativeMultiples(cs, "pe");
-  const relPb = relativeMultiples(cs, "pb");
-  const anyRel = relPe.size > 0 || relPb.size > 0;
   return (
     <RailCard title="Entity snapshot" testId="entity-snapshot">
       <ul className="space-y-4">
@@ -310,12 +308,6 @@ function EntitySnapshot({ r }: { r: V2Result }) {
               {s.market_cap_cr != null && (
                 <div className="mt-3 flex items-center justify-between text-[12.5px]"><span className="text-text-muted">Market cap</span><span className="font-semibold tabular-nums text-text-primary" data-testid="market-cap">{capText(s.market_cap_cr)}</span></div>
               )}
-              {(s.pe != null || s.pb != null) && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {s.pe != null && <Multiple label="P/E" value={pe1(s.pe)} rel={relPe.get(c.symbol)} />}
-                  {s.pb != null && <Multiple label="P/B" value={pb2(s.pb)} rel={relPb.get(c.symbol)} />}
-                </div>
-              )}
               {s.week52_low != null && s.week52_high != null && (
                 <div className="mt-3">
                   <p className="mb-1.5 text-[11.5px] font-medium text-text-muted">52-week range</p>
@@ -327,7 +319,6 @@ function EntitySnapshot({ r }: { r: V2Result }) {
           );
         })}
       </ul>
-      {anyRel && <p className="mt-3 text-[11.5px] leading-4 text-text-muted" data-testid="multiple-legend">Colour compares the companies above: green is the lower multiple, amber the higher. A lower multiple is a cheaper valuation, not automatically a better company.</p>}
     </RailCard>
   );
 }

@@ -289,18 +289,22 @@ describe("mockup layout, real fields only", () => {
     ],
   } as never);
 
-  it("shows the valuation figures the answer was given, in the table and the entity card, and only where present", () => {
+  it("puts P/E and P/B in the factor table only, and the 52-week range in the entity card only", () => {
     mount(withSnapshot());
     const t = screen.getByTestId("comparison-table");
     expect(t).toHaveTextContent("P/E");
     expect(t).toHaveTextContent("15.6");
-    expect(t).toHaveTextContent("₹681.9 – ₹1,020.5");
     expect(t).toHaveTextContent("17.0");                      // one decimal for P/E, never "17"
     expect(t).toHaveTextContent("1.81");
+    expect(t).not.toHaveTextContent("52-week");              // removed from the factor table
+    expect(t).not.toHaveTextContent("₹681.9");
     expect(t).not.toHaveTextContent("P/B2");                 // ICICI has no P/B: a dash, never a placeholder number
     const card = screen.getByTestId("entity-snapshot");
     expect(card).toHaveTextContent("52-week range");
+    expect(card).toHaveTextContent("₹681.9");
     expect(card).toHaveTextContent("NSE: ICICIBANK");
+    expect(card).not.toHaveTextContent("P/E");               // removed from the entity card
+    expect(card).not.toHaveTextContent("P/B");
   });
   it("has the page head: breadcrumb, title, answered-at stamp, and New search that calls back", () => {
     const onNew = vi.fn();
@@ -427,27 +431,30 @@ describe("market cap, sector and relative P/E and P/B colour", () => {
     ],
   } as never);
 
-  it("shows sector and market cap in the entity card and the table, in lakh crore above one lakh crore", () => {
+  it("shows sector and market cap in the entity card only, in lakh crore above one lakh crore", () => {
     mount(pair());
     const card = screen.getByTestId("entity-snapshot");
     expect(card.querySelectorAll('[data-testid="sector-chip"]').length).toBe(2);
     expect(card).toHaveTextContent("₹13.80 lakh Cr");
     expect(card).toHaveTextContent("₹9.40 lakh Cr");
     const t = screen.getByTestId("comparison-table");
-    expect(t).toHaveTextContent("Sector");
-    expect(t).toHaveTextContent("Market cap");
+    expect(t).not.toHaveTextContent("Sector");
+    expect(t).not.toHaveTextContent("Market cap");
+    expect(t).not.toHaveTextContent("lakh Cr");
   });
   it("colours each multiple against the other company, and writes the word as well as the colour", () => {
     mount(pair());
-    const pes = Array.from(screen.getByTestId("entity-snapshot").querySelectorAll("[data-rel]")).map((e) => [e.textContent, e.getAttribute("data-rel")]);
-    expect(pes[0]).toEqual([expect.stringContaining("P/E 15.6"), "lower"]);
-    expect(pes[0][0]).toContain("lower");
-    expect(pes[2]).toEqual([expect.stringContaining("P/E 17.0"), "higher"]);
-    expect(pes[2][0]).toContain("higher");
+    const chips = Array.from(screen.getByTestId("comparison-table").querySelectorAll("[data-rel]")).map((e) => [e.textContent, e.getAttribute("data-rel")]);
+    // table order: P/E for HDFC, P/E for ICICI, then P/B for each
+    expect(chips[0]).toEqual([expect.stringContaining("15.6"), "lower"]);
+    expect(chips[0][0]).toContain("lower");
+    expect(chips[1]).toEqual([expect.stringContaining("17.0"), "higher"]);
+    expect(chips[1][0]).toContain("higher");
   });
   it("says nothing relative when the values are equal (P/B 2.48 on both), and explains the colours", () => {
     mount(pair());
-    const pbs = Array.from(screen.getByTestId("entity-snapshot").querySelectorAll("[data-rel]")).filter((e) => e.textContent?.includes("P/B"));
+    const chips = Array.from(screen.getByTestId("comparison-table").querySelectorAll("[data-rel]"));
+    const pbs = chips.slice(2);                                   // the two P/B cells (2.48 on both)
     expect(pbs.length).toBe(2);
     pbs.forEach((e) => expect(e.getAttribute("data-rel")).toBe("none"));
     expect(screen.getByTestId("multiple-legend")).toHaveTextContent(/not automatically a better company/);
@@ -455,7 +462,7 @@ describe("market cap, sector and relative P/E and P/B colour", () => {
   it("a single company gets neutral multiples and no legend: there is nothing to compare against", () => {
     mount(research({ companies: [{ symbol: "WIPRO", name: "Wipro", price: "248.30", change: "+0.20%", positive: true, snapshot: { pe: 21.4, pb: 3.6, sector: "Technology" } }] } as never));
     const card = screen.getByTestId("entity-snapshot");
-    card.querySelectorAll("[data-rel]").forEach((e) => expect(e.getAttribute("data-rel")).toBe("none"));
+    expect(card.querySelectorAll("[data-rel]").length).toBe(0);
     expect(screen.queryByTestId("multiple-legend")).toBeNull();
     expect(card).toHaveTextContent("Technology");
     expect(card.textContent).not.toMatch(/·\s*(lower|higher)/);
