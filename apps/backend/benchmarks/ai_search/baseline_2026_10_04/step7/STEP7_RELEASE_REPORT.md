@@ -77,3 +77,20 @@ Re-qualification of the final HEAD (zero provider calls):
 - Browser: all states at 1440 and 390, 0 failed checks on both transports.
 - Streamed-result stress: 125 loads, 0 "Maximum update depth", 0 other console errors (a first run showed 625 console errors that were 502s from a stopped dev backend, not the application).
 - Provider calls: 0.
+
+---
+
+## Publication status (2026-10-06) — push done, backend deploy BLOCKED by Railway billing
+
+**Push (owner-authorised, retried after explicit instruction):** `8bbe68b..8387cb6  release/ai-v2-integration -> main`, a fast-forward of 93 commits. Verified afterwards: `origin/main` = `8387cb6c517b8bbaf51946c5c57a3fed01e9bff7`, tree identical to the qualified candidate, 93 commits, no commit outside the reviewed lineage.
+
+**Backend deploy: NOT DONE.** `serviceInstanceDeployV2(environmentId, serviceId, commitSha=8387cb6…)` was rejected by Railway: *"Your trial has expired. Please select a plan to continue using Railway."* This is a billing action only the account owner can take; no other deploy route avoids it, so none was attempted. A read-only check of the running container (`railway ssh`) was also denied by the local classifier ("Production Reads") and was not retried.
+
+**Observed production state right now (public HTTP only):**
+- Backend `/health`: ok. `GET /api/ai/search/suggestions`: **404** (old backend code still running; none of the Step 3–5 backend contract is live).
+- Frontend `https://www.marketripple.in/ai-search`: serves the **new** landing page (Vercel auto-deployed the push). So production is currently the new UI on the old backend.
+- With the old backend the new UI degrades safely by design (no confidence display, verdict hidden unless `conclusion_authorized === true`, static example questions when the suggestions endpoint is missing), but the backend protections (evidence gates, 24 s deadline, deterministic education/product answers, no default verdicts) are not live.
+
+**To finish:** choose a Railway plan (owner), then deploy exactly `8387cb6c517b8bbaf51946c5c57a3fed01e9bff7` to service `backend` (`serviceInstanceDeployV2` with the full SHA), verify `meta.commitHash` and the running source, confirm `GET /api/ai/search/suggestions` returns 200 in production, then run the bounded production verification. The frontend needs no further deploy.
+
+**Verdict: AI SEARCH V2: BLOCKED — Railway trial expired; backend cannot be deployed until a plan is selected.**
