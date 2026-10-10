@@ -341,6 +341,15 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
+from app.core.robots_guard import ROBOTS_TXT, RobotsHeaderMiddleware  # noqa: E402
+app.add_middleware(RobotsHeaderMiddleware)
+
+
+@app.get("/robots.txt", include_in_schema=False)
+async def robots_txt():
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(ROBOTS_TXT)
+
 from app.core.config import _default_cors  # noqa: E402
 _cors_origins = list({*_default_cors(), *settings.backend_cors_origins})
 

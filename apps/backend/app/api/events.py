@@ -9,6 +9,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.redis import cache_get, cache_set
 from app.db.crud import get_events
 from app.db.session import get_db
 from app.schemas.event import CompanyImpact, EventSummary
@@ -245,15 +246,28 @@ async def get_event_deep_research(
     return result
 
 
+EVENT_DETAIL_CACHE_PREFIX = "events:detail:v1:"
+EVENT_DETAIL_CACHE_TTL = 120   # seconds
+
+
 @router.get("/{event_id}", response_model=EventDetailResponse)
 async def get_event_detail(
     event_id: str,
     db: AsyncSession = Depends(get_db),
 ):
     logger.info("GET /api/events/%s", event_id)
+    # Short Redis cache: every crawler or page view used to run the full detail build. A miss builds and stores it; a 404 is never cached.
+    key = f"{EVENT_DETAIL_CACHE_PREFIX}{event_id}"
+    cached = await cache_get(key)
+    if cached is not None:
+        return cached
     service = EventService(db)
     detail = await service.get_event_detail(event_id)
     if detail is None:
         raise HTTPException(status_code=404, detail=f"Event '{event_id}' not found")
+    try:
+        await cache_set(key, detail.model_dump(mode="json"), ttl=EVENT_DETAIL_CACHE_TTL)
+    except Exception:
+        pass   # a cache failure must never fail the request
     return detail
 

@@ -73,9 +73,21 @@ def _serialize_score_update(update: ScoreUpdate) -> str:
     })
 
 
-async def _generate(queue: asyncio.Queue):  # type: ignore[type-arg]
-    yield "event: connected\ndata: {\"status\":\"connected\"}\n\n"
+# One connection must not stay open forever: a 900-second stream was seen holding a worker, and every idle heartbeat is billed egress. EventSource reconnects by itself (the `retry:` hint below),
+# so closing after this lifetime costs a client nothing it can notice.
+SSE_MAX_SECONDS = 300.0
+SSE_RETRY_MS = 5000
+
+
+async def _generate(queue: asyncio.Queue, max_seconds: float | None = None):  # type: ignore[type-arg]
+    import time
+    limit = SSE_MAX_SECONDS if max_seconds is None else max_seconds
+    started = time.monotonic()
+    yield f"retry: {SSE_RETRY_MS}\nevent: connected\ndata: {{\"status\":\"connected\"}}\n\n"
     while True:
+        if time.monotonic() - started >= limit:
+            yield "event: reconnect\ndata: {\"reason\":\"max_lifetime\"}\n\n"
+            break
         try:
             item = await asyncio.wait_for(queue.get(), timeout=30.0)
             if isinstance(item, ScoreUpdate):
