@@ -48,6 +48,7 @@ async function getQuotesFor(symbols: string[]): Promise<Map<string, QuoteRow>> {
   if (symbols.length === 0) return new Map();
   const data = await fetchAPI<{ quotes: QuoteRow[] }>(
     `/api/data/quotes?symbols=${encodeURIComponent(symbols.join(","))}`,
+    { revalidate: 30 },   // prices: shorter than the 60 s default, still shared across renders
   ).catch(() => null);
   const map = new Map<string, QuoteRow>();
   for (const q of data?.quotes ?? []) {
