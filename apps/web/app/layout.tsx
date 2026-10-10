@@ -77,6 +77,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // causing a harmless but noisy hydration mismatch warning.
     <html lang="en-IN" className={cn("font-sans", geist.variable)} suppressHydrationWarning>
       <head>
+        {/* Google AdSense. A plain server-rendered async script in <head> (not next/script, which injects after load) because AdSense's site verification looks for it in the page source. */}
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4678095524898812" crossOrigin="anonymous" />
         {/* Theme FOUC prevention — must run before first paint, so it's a
             plain blocking inline script, not next/script (which defers).
             Light is the default (bare :root, no attribute needed in

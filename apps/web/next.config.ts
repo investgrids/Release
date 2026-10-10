@@ -118,7 +118,8 @@ const nextConfig: NextConfig = {
     // blocked by CSP and no events ever send, even though the tag is there.
     const csp = [
       "default-src 'self'",
-      `script-src 'self' 'unsafe-inline' https://www.googletagmanager.com${isDev ? " 'unsafe-eval'" : ""}`,
+      // AdSense (app/layout.tsx <head>): the loader, its partner scripts, and Google's ad-quality scripts.
+      `script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://pagead2.googlesyndication.com https://partner.googleadservices.com https://tpc.googlesyndication.com https://www.googletagservices.com https://*.adtrafficquality.google${isDev ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline'",
       // Explicit apiOrigin (not just "https:") so this holds in local dev
       // too, where the backend is plain http://localhost:8000 — confirmed
@@ -139,7 +140,9 @@ const nextConfig: NextConfig = {
       // stats.g.doubleclick.net and www.google.com are gtag's documented
       // redundant-delivery beacon targets (Google's own CSP guidance
       // lists all of these for gtag.js/GA4).
-      `connect-src 'self' ${apiOrigin} https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com https://stats.g.doubleclick.net https://www.google.com`,
+      `connect-src 'self' ${apiOrigin} https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com https://stats.g.doubleclick.net https://www.google.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.adtrafficquality.google`,
+      // AdSense renders ads in frames; default-src 'self' would otherwise block every one of them.
+      "frame-src https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://*.safeframe.googlesyndication.com https://www.google.com https://*.adtrafficquality.google",
       "frame-ancestors 'self'",
       "base-uri 'self'",
       "form-action 'self'",
