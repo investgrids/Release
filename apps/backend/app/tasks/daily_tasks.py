@@ -300,6 +300,31 @@ async def job_warm_premarket() -> None:
         log.error("job.warm_premarket.error", exc=str(exc))
 
 
+async def job_keep_market_warm() -> None:
+    """Every 5 minutes: run the slow market endpoints so their caches are always warm. Pre-market global quotes, the opening prediction, global indices and commodities each take
+    4-14 s to build cold; with 15-30 minute caches and nobody refreshing them, the first visitor after every expiry waited that long. The endpoints serve their own cache when it is
+    fresh, so a tick is cheap when nothing has expired. Errors are logged and never raised."""
+    t0 = time.perf_counter()
+    from app.api import market as m
+    done, failed = [], []
+    for name in ("market_premarket", "market_opening_prediction", "market_global"):
+        fn = getattr(m, name, None)
+        if fn is None:
+            continue
+        try:
+            await fn()
+            done.append(name)
+        except Exception as exc:  # noqa: BLE001
+            failed.append(f"{name}:{type(exc).__name__}")
+    try:
+        from app.api import commodities as c
+        await c.get_commodities()
+        done.append("commodities")
+    except Exception as exc:  # noqa: BLE001
+        failed.append(f"commodities:{type(exc).__name__}")
+    log.info("job.keep_market_warm.done", warmed=done, failed=failed, elapsed_ms=round((time.perf_counter() - t0) * 1000))
+
+
 # ── 4:00 PM IST — Evaluate predictions against market outcomes ───────────────
 
 async def job_evaluate_predictions() -> None:

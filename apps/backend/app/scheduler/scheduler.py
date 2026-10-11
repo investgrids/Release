@@ -53,6 +53,7 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         job_marketripple_score_refresh,
         job_seed_opportunities,
         job_warm_premarket,
+        job_keep_market_warm,
         job_evaluate_predictions,
         job_quant_price_refresh,
         job_intelligence_observation_snapshot,
@@ -177,6 +178,16 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         max_instances=1,
         coalesce=True,
         misfire_grace_time=3600,
+    )
+
+    # ── Keep the slow market endpoints warm — every 5 minutes ────────────────
+    scheduler.add_job(
+        job_keep_market_warm,
+        IntervalTrigger(minutes=5),
+        id="keep_market_warm",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=120,
     )
 
     # ── Pre-market cache warm — 8:00 AM IST ──────────────────────────────────

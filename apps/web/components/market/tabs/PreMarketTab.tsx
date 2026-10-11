@@ -845,34 +845,24 @@ export function PreMarketTab({ initialData }: { initialData?: any }) {
   const [developments, setDevelopments] = useState<any[]>([]);
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(!initialData);
+  const [predLoading, setPredLoading] = useState(true);
   const [showRawData, setShowRawData] = useState(false);
   const { label: countdownLabel, isOpen, greeting } = useCountdown();
 
+  // Progressive: each request fills its own part of the page the moment it arrives. This used to wait for ALL five (Promise.all), so the slowest one, the opening prediction
+  // (up to ~15 s when its server cache is cold), held the whole tab on a blank skeleton.
   useEffect(() => {
-    const load = async () => {
-      try {
-        const safe = (p: Promise<any>) => p.catch(() => null);
-        const [pmRes, opRes, inRes, devRes, sessRes] = await Promise.all([
-          safe(fetch(`${API}/api/market/premarket`).then(r => r.ok ? r.json() : null)),
-          safe(fetch(`${API}/api/market/opening-prediction`).then(r => r.ok ? r.json() : null)),
-          safe(fetch(`${API}/api/insights/?limit=6`).then(r => r.ok ? r.json() : null)),
-          safe(fetch(`${API}/api/market/developments?limit=6`).then(r => r.ok ? r.json() : null)),
-          safe(fetch(`${API}/api/market/session`).then(r => r.ok ? r.json() : null)),
-        ]);
-        if (pmRes) setData(pmRes);
-        if (opRes) setPrediction(opRes);
-        if (inRes?.items) setInsights(inRes.items);
-        if (devRes?.items) setDevelopments(devRes.items);
-        if (sessRes) setSession(sessRes);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    const get = (path: string) => fetch(`${API}${path}`).then(r => (r.ok ? r.json() : null)).catch(() => null);
+    get("/api/market/premarket").then(d => { if (d) setData(d); }).finally(() => setLoading(false));
+    get("/api/market/opening-prediction").then(d => { if (d) setPrediction(d); }).finally(() => setPredLoading(false));
+    get("/api/insights/?limit=6").then(d => { if (d?.items) setInsights(d.items); });
+    get("/api/market/developments?limit=6").then(d => { if (d?.items) setDevelopments(d.items); });
+    get("/api/market/session").then(d => { if (d) setSession(d); });
   }, []);
 
   if (loading) return (
-    <div className="space-y-4">
+    <div className="space-y-4" role="status" aria-live="polite">
+      <p className="text-[12px] text-text-muted">Loading pre-market data. Global markets, futures and currencies can take a few seconds on a first visit.</p>
       {[1, 2, 3, 4].map(i => (
         <div key={i} className="h-28 rounded-xl border border-surface-border/5 bg-text-primary/[0.02] animate-pulse" />
       ))}
@@ -922,8 +912,17 @@ export function PreMarketTab({ initialData }: { initialData?: any }) {
           only this top zone). ── */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_320px]">
         <div className="order-1 min-w-0 xl:order-none xl:col-start-1 xl:row-start-1">
-          <Hero pred={pred} generatedAt={prediction?.generated_at ?? null} greeting={greeting}
-                dateLabel={dateLabel} dataCoverage={dataCoverage} />
+          {predLoading && !prediction ? (
+            <div role="status" aria-live="polite" className="rounded-2xl border border-surface-border/8 bg-text-primary/[0.02] p-6">
+              <div className="mb-3 h-5 w-48 animate-pulse rounded bg-text-primary/10" />
+              <div className="mb-2 h-3 w-full max-w-md animate-pulse rounded bg-text-primary/[0.06]" />
+              <div className="mb-4 h-3 w-2/3 animate-pulse rounded bg-text-primary/[0.06]" />
+              <p className="text-[12px] text-text-muted">Preparing the opening prediction from global cues, futures and overnight news. This can take up to 15 seconds on a first load.</p>
+            </div>
+          ) : (
+            <Hero pred={pred} generatedAt={prediction?.generated_at ?? null} greeting={greeting}
+                  dateLabel={dateLabel} dataCoverage={dataCoverage} />
+          )}
         </div>
 
         <div className="order-3 min-w-0 xl:order-none xl:col-start-1 xl:row-start-2">
