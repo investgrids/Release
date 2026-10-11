@@ -1,0 +1,86 @@
+# MarketRipple backend stack for the Hostinger KVM 1 (1 vCPU, 4 GB RAM, 2 GB swap).
+# Layout on the server:  /opt/marketripple/src (git checkout)  +  /opt/marketripple/.env (secrets, NOT in git, mode 600)
+# Run from /opt/marketripple/src/deploy/hostinger:  docker compose --env-file /opt/marketripple/.env up -d
+#
+# Only Caddy publishes ports (80/443). The backend and Redis are reachable on the private "web" network only, so Docker can never
+# punch a hole through the firewall for them.
+name: marketripple
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data        # certificates: keep this volume, losing it forces re-issue
+      - caddy_config:/config
+    networks: [web]
+    mem_limit: 128m
+    logging: *logging
+
+  backend:
+    build:
+      context: ../../apps/backend
+      dockerfile: Dockerfile
+    image: marketripple-backend:${GIT_SHA:-local}
+    restart: unless-stopped
+    env_file: /opt/marketripple/.env
+    environment:
+      # Fixed here so a mistyped .env cannot point the app at the wrong place.
+      DATABASE_URL: sqlite+aiosqlite:////data/ig.db
+      REDIS_URL: redis://redis:6379/0
+      PORT: "8000"
+      # The app decides "production" from these (config.py is_production). On a non-Railway host both are unset by default, which
+      # would serve unpublished scores and enable demo-data endpoints. Never remove them.
+      JSON_LOGS: "true"
+      RAILWAY_ENVIRONMENT: production
+    volumes:
+      - appdata:/data           # SQLite database, /data/media article images, local backups
+    expose: ["8000"]
+    depends_on:
+      redis: { condition: service_healthy }
+    networks: [web]
+    # Hard ceiling. The audit measured ~1.5-1.85 GB steady and 3 GB at p90, so 3 GB is generous; a runaway is killed by Docker
+    # instead of taking the whole 4 GB host (and Caddy, and SSH) down.
+    mem_limit: 3g
+    memswap_limit: 4g
+    stop_grace_period: 40s
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=8).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    logging: *logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redisdata:/data
+    networks: [web]
+    mem_limit: 384m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    logging: *logging
+
+networks:
+  web:
+
+volumes:
+  appdata:
+  redisdata:
+  caddy_data:
+  caddy_config:

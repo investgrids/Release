@@ -1,0 +1,34 @@
+# MarketRipple API host. Caddy fetches and renews the certificate for this name by itself (DNS A record -> this server).
+api.marketripple.in {
+	# Server-sent-event streams must not be compressed or buffered, or the browser sees nothing until the stream ends.
+	@sse path /api/stream/events /api/ai/search/stream
+	handle @sse {
+		reverse_proxy backend:8000 {
+			flush_interval -1
+			transport http {
+				read_timeout 6m
+			}
+		}
+	}
+
+	handle {
+		encode zstd gzip
+		reverse_proxy backend:8000 {
+			# The AI Search request has a 24 s budget; leave room above it but cut off anything hung for much longer.
+			transport http {
+				response_header_timeout 90s
+			}
+		}
+	}
+
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+	}
+
+	log {
+		output stdout
+		format json
+		level WARN
+	}
+}
