@@ -345,6 +345,15 @@ async def job_ingest_policy() -> None:
 async def job_enrich_events() -> None:
     t0 = time.perf_counter()
 
+    # Capacity protection (2026-10-11): when no configured provider/model can be tried right now (all keys missing or every model cooling down) an enrichment tick can only produce
+    # failures and wasted pipeline work. Skip it; the events stay exactly as they are (pending/failed with their retry state untouched) and the skip is recorded as skipped work.
+    from app.services import ai_usage
+    from app.services.ai_service import any_provider_available
+    if not any_provider_available():
+        ai_usage.note_skipped_work("event_enrichment", "no_capacity")
+        log.info("job.enrich_events.skipped_no_capacity")
+        return
+
     from app.repositories.event_repository import EventRepository
     from app.pipeline.event_pipeline import run_event_pipeline
 

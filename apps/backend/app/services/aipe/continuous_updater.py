@@ -405,6 +405,20 @@ async def run_continuous_update_cycle(
 ) -> int:
     """
     Run the update cycle. Returns number of articles updated.
+    Instrumented (2026-10-11): any LLM attempt made inside is tagged "article_update". The audit found no LLM call site here, so this should record none; if it ever does, it now shows.
+    """
+    from app.services import ai_usage
+    with ai_usage.operation("article_update"):
+        return await _run_continuous_update_cycle_impl(db, mie_context, new_triage_events)
+
+
+async def _run_continuous_update_cycle_impl(
+    db: AsyncSession,
+    mie_context: dict[str, Any],
+    new_triage_events: list[dict[str, Any]],
+) -> int:
+    """
+    The unchanged update cycle. Returns number of articles updated.
     """
     current_hash = mie_context.get("story_hash", "")
     if not current_hash:

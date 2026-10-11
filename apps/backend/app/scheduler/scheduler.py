@@ -54,6 +54,8 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         job_seed_opportunities,
         job_warm_premarket,
         job_keep_market_warm,
+        job_ai_usage_flush,
+        job_ai_usage_daily,
         job_evaluate_predictions,
         job_quant_price_refresh,
         job_intelligence_observation_snapshot,
@@ -179,6 +181,10 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         coalesce=True,
         misfire_grace_time=3600,
     )
+
+    # ── AI usage instrumentation: flush every 30 s, roll up + prune + daily summary at 03:30 IST ──
+    scheduler.add_job(job_ai_usage_flush, IntervalTrigger(seconds=30), id="ai_usage_flush", max_instances=1, coalesce=True, misfire_grace_time=60)
+    scheduler.add_job(job_ai_usage_daily, CronTrigger(hour=3, minute=30, timezone=_IST), id="ai_usage_daily", max_instances=1, coalesce=True, misfire_grace_time=3600)
 
     # ── Keep the slow market endpoints warm — every 5 minutes ────────────────
     scheduler.add_job(

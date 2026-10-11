@@ -21,6 +21,28 @@ def _words(query: str) -> list[str]:
     return [w for w in re.findall(r"\w+", query.lower()) if len(w) >= 2 and w not in _STOPWORDS][:8]
 
 
+_NAME_BY_SYMBOL: dict | None = None
+
+
+def _company_tags(raw) -> list[dict]:
+    """Event.companies comes in two stored shapes: a plain list of symbols (["KOTAKBANK"], ~100% of rows in production) and a list of {"symbol", "name", ...} dicts.
+    Everything downstream (relevance filter, ranking, event impact) reads the dict shape, so plain symbols are expanded to {"symbol", "name"} here, once, at load."""
+    global _NAME_BY_SYMBOL
+    if _NAME_BY_SYMBOL is None:
+        try:
+            from app.api.companies import _NSE_UNIVERSE
+            _NAME_BY_SYMBOL = {co["symbol"]: co["name"] for co in _NSE_UNIVERSE}
+        except Exception:  # noqa: BLE001 - names are a nicety; the symbol is what matters
+            _NAME_BY_SYMBOL = {}
+    out = []
+    for c in raw or []:
+        if isinstance(c, dict):
+            out.append(c)
+        elif isinstance(c, str) and c.strip():
+            out.append({"symbol": c.strip(), "name": _NAME_BY_SYMBOL.get(c.strip(), "")})
+    return out
+
+
 def _event_row_to_dict(e: Event) -> dict:
     return {
         "id": e.id,
@@ -31,7 +53,7 @@ def _event_row_to_dict(e: Event) -> dict:
         "impact_score": round(float(e.impact_score or 0), 1),
         "confidence": round(float(e.confidence or 0), 1),
         "sectors": e.sectors or [],
-        "companies": e.companies or [],
+        "companies": _company_tags(e.companies),
         "date": (
             e.event_date.strftime("%b %d, %Y") if e.event_date else
             e.published_at.strftime("%b %d, %Y") if e.published_at else ""
@@ -78,8 +100,11 @@ async def _search_events(
     # on the `"symbol": "X"` key specifically, not a bare substring of the
     # whole JSON blob, so a different company's `name` field can't
     # accidentally satisfy this company's symbol match.
+    # Production reality (2026-10-11, live DB): 28,956 of 28,958 tagged events store Event.companies as a plain JSON list of symbols (["KOTAKBANK"]); only 2 use the
+    # {"symbol": ...} dict shape the comment above describes. Matching the dict shape alone returned zero events for nearly every company, so company questions were
+    # answered from announcements only and the answer gate then (correctly) rejected the thin result. Both shapes are matched; the quote anchors keep it a whole-symbol match.
     if symbols:
-        company_conds = [Event.companies.ilike(f'%"symbol": "{s}"%') for s in symbols]
+        company_conds = [cond for s in symbols for cond in (Event.companies.ilike(f'%"symbol": "{s}"%'), Event.companies.ilike(f'%"{s}"%'))]
         stmt = select(Event).where(or_(*company_conds)).order_by(*order).limit(limit)
         rows = (await db.execute(stmt)).scalars().all()
         if rows:

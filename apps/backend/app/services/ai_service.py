@@ -20,6 +20,7 @@ see _call_with_fallback for the 2026-07-26 reordering rationale):
                          The demonstrated production workhorse as of the
                          2026-08-30 provider audit.
   6. OpenRouter small  — remaining free models (same account-wide cap as #3)
+  Optional: Requesty router tier (after Gemini, before OpenRouter small) — only when REQUESTY_API_KEY and REQUESTY_MODELS are both set.
 
   Cerebras and Cloudflare Workers AI tiers were REMOVED 2026-08-30 (provider
   reliability audit, artifacts/ai_provider_reliability_audit.md) — both were
@@ -124,6 +125,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Literal
 from app.core.config import settings
+from app.services import ai_usage
 from app.core.redis import cache_get, cache_set
 
 Priority = Literal["interactive", "background"]
@@ -137,6 +139,7 @@ _OR_URL       = "https://openrouter.ai/api/v1/chat/completions"
 _GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
 _GEMINI_URL   = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 _MISTRAL_URL  = "https://api.mistral.ai/v1/chat/completions"
+_REQUESTY_URL = "https://router.requesty.ai/v1/chat/completions"
 _NVIDIA_PATH  = "/chat/completions"   # appended to settings.nvidia_base_url
 
 # Models that have returned 429 — skipped for a cooldown window, not forever.
@@ -199,7 +202,7 @@ _EXHAUSTED: dict[tuple[str, str], _ExhaustionEntry] = {}   # (provider, model) -
 
 _PROVIDER_BY_URL = {
     _OR_URL: "openrouter", _GROQ_URL: "groq",
-    _GEMINI_URL: "gemini", _MISTRAL_URL: "mistral",
+    _GEMINI_URL: "gemini", _MISTRAL_URL: "mistral", _REQUESTY_URL: "requesty",
 }
 
 
@@ -441,6 +444,7 @@ _TIER_LIMITERS: dict[str, PriorityTierLimiter] = {
     # exactly the contention hotspot the P0.5 load test surfaced.
     "mistral":          PriorityTierLimiter("mistral", capacity=2),
     "gemini":           PriorityTierLimiter("gemini", capacity=3),
+    "requesty":         PriorityTierLimiter("requesty", capacity=2),   # conservative until the account's real limits are measured
     "openrouter-small": PriorityTierLimiter("openrouter-small", capacity=3),
 }
 
@@ -885,6 +889,30 @@ async def _call_provider(
     extra_headers: dict | None = None,
     failure_log: list[dict] | None = None,
 ) -> str:
+    """Instrumented entry point (2026-10-11): records one ai_usage attempt per real HTTP call (outcome, latency, provider-reported tokens) around the unchanged
+    _call_provider_inner. A (provider, model) that is cooling down is not an HTTP attempt: it is counted as a skip and handled by the inner function exactly as before."""
+    provider_name = _provider_name_for_url(base_url)
+    if _is_exhausted(provider_name, model):
+        ai_usage.note_skip(provider_name, model)
+        return await _call_provider_inner(base_url, api_key, model, prompt, system, max_tokens, extra_headers, failure_log, None)
+    att = ai_usage.begin_attempt(provider_name, model)
+    try:
+        return await _call_provider_inner(base_url, api_key, model, prompt, system, max_tokens, extra_headers, failure_log, att)
+    finally:
+        ai_usage.finish_attempt(att)
+
+
+async def _call_provider_inner(
+    base_url: str,
+    api_key: str,
+    model: str,
+    prompt: str,
+    system: str = "",
+    max_tokens: int = 200,
+    extra_headers: dict | None = None,
+    failure_log: list[dict] | None = None,
+    _att: dict | None = None,
+) -> str:
     """Generic OpenAI-compatible call. Returns '' on any failure or rate-limit.
     Classifies failures (429/402/401/403/404/5xx/timeout) and marks the
     (provider, model) pair exhausted in _EXHAUSTED with a reason-appropriate
@@ -934,6 +962,7 @@ async def _call_provider(
                             cooldown_s=retry_after if retry_after is not None else _COOLDOWN_S["rate_limit"],
                             retry_after_header=retry_after is not None)
                 _AI_USAGE["calls_failed"] += 1
+                ai_usage.set_outcome(_att, "rate_limited", 429) if _att else None
                 if failure_log is not None:
                     failure_log.append({"model": model, "provider": provider_name, "reason": "429"})
                 return ""
@@ -942,6 +971,7 @@ async def _call_provider(
                 log.warning("ai.exhausted", model=model, provider=provider_name, status=402, reason="billing",
                             cooldown_s=_COOLDOWN_S["billing"])
                 _AI_USAGE["calls_failed"] += 1
+                ai_usage.set_outcome(_att, "billing", 402) if _att else None
                 if failure_log is not None:
                     failure_log.append({"model": model, "provider": provider_name, "reason": "402"})
                 return ""
@@ -950,6 +980,7 @@ async def _call_provider(
                 log.warning("ai.exhausted", model=model, provider=provider_name, status=r.status_code, reason="auth_error",
                             cooldown_s=_COOLDOWN_S["auth_error"])
                 _AI_USAGE["calls_failed"] += 1
+                ai_usage.set_outcome(_att, "auth_error", r.status_code) if _att else None
                 if failure_log is not None:
                     failure_log.append({"model": model, "provider": provider_name, "reason": f"auth_error_{r.status_code}"})
                 return ""
@@ -958,6 +989,7 @@ async def _call_provider(
                 log.warning("ai.exhausted", model=model, provider=provider_name, status=404, reason="not_found",
                             cooldown_s=_COOLDOWN_S["not_found"])
                 _AI_USAGE["calls_failed"] += 1
+                ai_usage.set_outcome(_att, "not_found", 404) if _att else None
                 if failure_log is not None:
                     failure_log.append({"model": model, "provider": provider_name, "reason": "404"})
                 return ""
@@ -966,6 +998,7 @@ async def _call_provider(
                 log.warning("ai.exhausted", model=model, provider=provider_name, status=r.status_code, reason="server_error",
                             cooldown_s=_COOLDOWN_S["server_error"])
                 _AI_USAGE["calls_failed"] += 1
+                ai_usage.set_outcome(_att, "server_error", r.status_code) if _att else None
                 if failure_log is not None:
                     failure_log.append({"model": model, "provider": provider_name, "reason": f"server_error_{r.status_code}"})
                 return ""
@@ -974,12 +1007,16 @@ async def _call_provider(
             if "error" in data:
                 log.warning("ai.api_error", model=model, err=str(data["error"])[:120])
                 _AI_USAGE["calls_failed"] += 1
+                ai_usage.set_outcome(_att, "api_error", r.status_code) if _att else None
                 if failure_log is not None:
                     failure_log.append({"model": model, "provider": provider_name, "reason": "api_error"})
                 return ""
             content = data["choices"][0]["message"]["content"]
             _AI_USAGE["latency_ms_total"] += (time.monotonic() - _t0) * 1000
             _AI_USAGE["calls_success"] += 1
+            if _att:
+                ai_usage.set_outcome(_att, "success" if content else "empty", r.status_code)
+                ai_usage.set_usage(_att, data.get("usage"))
             _AI_USAGE["last_success_at"] = datetime.now(timezone.utc).isoformat()
             _AI_USAGE["last_provider"] = provider_name
             usage = data.get("usage") or {}
@@ -999,6 +1036,8 @@ async def _call_provider(
         _AI_USAGE["calls_failed"] += 1
         _AI_USAGE["last_error_at"] = datetime.now(timezone.utc).isoformat()
         _AI_USAGE["last_error"] = str(exc)[:200]
+        if _att:
+            ai_usage.set_outcome(_att, "timeout" if is_timeout else "other", None)
         if is_timeout:
             _AI_USAGE["timeouts"] += 1
         if failure_log is not None:
@@ -1007,6 +1046,17 @@ async def _call_provider(
 
 
 async def _call_nvidia_raw(prompt: str, system: str, max_tokens: int) -> tuple[str, str | None]:
+    """Instrumented entry point: one ai_usage attempt around the unchanged _call_nvidia_raw_inner (failure kinds map to outcomes)."""
+    att = ai_usage.begin_attempt("nvidia", settings.nvidia_model)
+    try:
+        text, kind = await _call_nvidia_raw_inner(prompt, system, max_tokens, att)
+        ai_usage.set_outcome(att, "success" if kind is None else {"rate_limited": "rate_limited", "server_error": "server_error", "timeout": "timeout"}.get(kind, "other"), None)
+        return text, kind
+    finally:
+        ai_usage.finish_attempt(att)
+
+
+async def _call_nvidia_raw_inner(prompt: str, system: str, max_tokens: int, _att: dict | None = None) -> tuple[str, str | None]:
     """
     Low-level NVIDIA call, bounded by `_NVIDIA_TIMEOUT_S`. Returns
     (text, failure_kind) — failure_kind is None on success, else one of
@@ -1042,6 +1092,8 @@ async def _call_nvidia_raw(prompt: str, system: str, max_tokens: int) -> tuple[s
                 return "", "other"
             content = data["choices"][0]["message"]["content"]
             content = _strip_reasoning(content.strip()) if content else ""
+            if _att:
+                ai_usage.set_usage(_att, data.get("usage"))
             return (content, None) if content else ("", "other")
     except httpx.TimeoutException:
         return "", "timeout"
@@ -1148,7 +1200,55 @@ async def _attempt(tier: str, provider: str, url: str, key: str, model: str, pro
         return "", True
 
 
+def _requesty_models() -> list[str]:
+    """Model ids for the optional Requesty tier, from the REQUESTY_MODELS setting (comma-separated). Empty = tier not used."""
+    return [m.strip() for m in (getattr(settings, "requesty_models", "") or "").split(",") if m.strip()]
+
+
+def _build_tiers(or_headers: dict | None):
+    """The fallback chain, in order: (tier label, exhaustion-registry provider, url, key, models, extra headers or None). Read at call time. This is the single definition used by the real
+    call (_call_with_fallback_inner) AND by any_provider_available(), so the capacity check can never disagree with what a call would actually try."""
+    return (
+        ("groq-hq", "groq", _GROQ_URL, settings.groq_api_key, _GROQ_HIGH, None),
+        ("groq-fast", "groq", _GROQ_URL, settings.groq_api_key, _GROQ_FAST, None),
+        ("openrouter-hq", "openrouter", _OR_URL, settings.openrouter_api_key, _OR_HIGH_QUALITY, or_headers),
+        ("mistral", "mistral", _MISTRAL_URL, settings.mistral_api_key, _MISTRAL_MODELS, None),
+        ("gemini", "gemini", _GEMINI_URL, settings.gemini_api_key, _GEMINI_MODELS, None),
+        ("requesty", "requesty", _REQUESTY_URL, settings.requesty_api_key, _requesty_models(), None),   # empty model list (no REQUESTY_MODELS) = tier skipped
+        ("openrouter-small", "openrouter", _OR_URL, settings.openrouter_api_key, _OR_SMALL, or_headers),
+    )
+
+
+def any_provider_available() -> bool:
+    """True when at least one configured (provider, model) in the fallback chain is NOT cooling down, i.e. a call could really be attempted right now. A provider with no key, a tier with no
+    models, and a model in cooldown (429, billing, auth or not-found, each with its own cooldown) all count as unavailable. Fails open: if the check itself errors, work is not blocked."""
+    try:
+        for _tier, provider, _url, key, models, _headers in _build_tiers(None):
+            if key and models and any(not _is_exhausted(provider, m) for m in models):
+                return True
+        return False
+    except Exception:  # noqa: BLE001
+        return True
+
+
 async def _call_with_fallback(
+    prompt: str,
+    system: str = "",
+    max_tokens: int = 200,
+    failure_log: list[dict] | None = None,
+    *,
+    priority: Priority,
+) -> str:
+    """Instrumented entry point (2026-10-11): groups the attempts of one fallback-chain call (call id, feature tag from the surrounding ai_usage.operation) around the unchanged
+    _call_with_fallback_inner. No retry or provider-order behaviour lives here."""
+    token = ai_usage.begin_call()
+    try:
+        return await _call_with_fallback_inner(prompt, system, max_tokens, failure_log, priority=priority)
+    finally:
+        ai_usage.end_call(token)
+
+
+async def _call_with_fallback_inner(
     prompt: str,
     system: str = "",
     max_tokens: int = 200,
@@ -1187,16 +1287,9 @@ async def _call_with_fallback(
 
     # Tier order is the empirical-reliability order described in the docstring above. Each entry is (tier label, exhaustion-registry provider, url, key, models, extra headers or None).
     # The lists are read at call time, as the seven hand-written loops did. Cerebras and Cloudflare were removed 2026-08-30 (never had credentials configured).
-    tiers = (
-        ("groq-hq", "groq", _GROQ_URL, settings.groq_api_key, _GROQ_HIGH, None),
-        ("groq-fast", "groq", _GROQ_URL, settings.groq_api_key, _GROQ_FAST, None),
-        ("openrouter-hq", "openrouter", _OR_URL, settings.openrouter_api_key, _OR_HIGH_QUALITY, or_headers),
-        ("mistral", "mistral", _MISTRAL_URL, settings.mistral_api_key, _MISTRAL_MODELS, None),
-        ("gemini", "gemini", _GEMINI_URL, settings.gemini_api_key, _GEMINI_MODELS, None),
-        ("openrouter-small", "openrouter", _OR_URL, settings.openrouter_api_key, _OR_SMALL, or_headers),
-    )
+    tiers = _build_tiers(or_headers)
     for tier, provider, url, key, models, headers in tiers:
-        if not key:
+        if not key or not models:
             continue
         if _deadline_stops_chain(failure_log, tier):
             return ""
@@ -1205,6 +1298,7 @@ async def _call_with_fallback(
                 continue
             for model in models:
                 if _is_exhausted(provider, model):
+                    ai_usage.note_skip(provider, model)           # a cooling-down model skipped by the chain itself (the main skip path): counted, not an attempt
                     if failure_log is not None:
                         failure_log.append({"model": model, "provider": tier, "reason": "already_exhausted"})
                     continue

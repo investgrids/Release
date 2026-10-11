@@ -21,6 +21,14 @@ log = structlog.get_logger(__name__)
 router = APIRouter()
 
 
+@router.get("/ai-usage", dependencies=[Depends(require_admin_key)])
+async def ai_usage_report_endpoint(hours: int = 24, db: AsyncSession = Depends(get_db)):
+    """AI usage per feature and per model over the last `hours` (1 up to the 14-day raw retention window, i.e. 336): calls, success rates, provider-reported tokens (unknown stated, never zero), AI Search request volume, estimated
+    cost where a documented price exists. Reads only the instrumentation tables; no prompts or questions are stored or returned."""
+    from app.services.ai_usage import usage_report
+    return await usage_report(db, hours=hours)           # clamped to the raw retention window inside usage_report
+
+
 @router.get("/db-status", dependencies=[Depends(require_admin_key)])
 async def db_status_endpoint():
     from app.db.session import engine
