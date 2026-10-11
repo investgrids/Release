@@ -21,6 +21,7 @@ from app.db.models.macro_release import MacroRelease
 from app.providers import NSEProvider, RSSProvider, RBIProvider, PIBProvider, SEBIProvider, FedProvider, RawItem
 from app.repositories.government_policy_repository import GovernmentPolicyRepository
 from app.services.macro_extraction import extract_macro_release
+from app.services.ingestion_dedup import drop_cross_source_duplicates, fingerprint
 
 log = structlog.get_logger(__name__)
 
@@ -66,6 +67,29 @@ async def _existing_ids(db, model, ids: list[str]) -> set[str]:
     return {r for (r,) in result}
 
 
+# Exchange and regulator items are distinct filings/releases, never the same story from competing publishers, so they are never compared.
+_NON_NEWS_SOURCES = ("NSE", "BSE", "RBI", "PIB", "SEBI", "Fed", "US Treasury", "Fed H.15")
+_DEDUP_LOOKBACK_ROWS = 1500        # newest stored news rows compared against (about a day or more); a row count, not a time cutoff, so SQLite datetime-string comparison is never involved
+
+
+async def _drop_cross_source_duplicates(db, items: list[RawItem]) -> list[RawItem]:
+    """Ingestion-layer cross-source dedup (see app/services/ingestion_dedup.py). Only publisher news is compared; same-source repeats are left to id dedup."""
+    news = [i for i in items if i.source not in _NON_NEWS_SOURCES]
+    if not news:
+        return items
+    rows = (await db.execute(
+        select(NewsArticle.headline, NewsArticle.source)
+        .where(NewsArticle.source.not_in(_NON_NEWS_SOURCES))
+        .order_by(NewsArticle.created_at.desc()).limit(_DEDUP_LOOKBACK_ROWS)
+    )).all()
+    _, dropped = drop_cross_source_duplicates(news, [(s, fingerprint(h)) for h, s in rows])
+    if not dropped:
+        return items
+    log.info("ingest.cross_source_duplicates_skipped", count=len(dropped), sample=[(it.source, it.headline[:70], other) for it, other in dropped[:3]])
+    drop = {id(it) for it, _ in dropped}
+    return [i for i in items if id(i) not in drop]
+
+
 async def _persist_articles(db, items: list[RawItem]) -> list[str]:
     """Write new NewsArticle rows; return list of newly-inserted IDs."""
     if not items:
@@ -86,6 +110,7 @@ async def _persist_articles(db, items: list[RawItem]) -> list[str]:
 
     all_ids = [i.id for i in items]
     existing = await _existing_ids(db, NewsArticle, all_ids)
+    items = await _drop_cross_source_duplicates(db, [i for i in items if i.id not in existing]) + [i for i in items if i.id in existing]
     new_ids = []
     for item in items:
         if item.id in existing:
