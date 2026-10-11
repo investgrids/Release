@@ -1280,6 +1280,7 @@ async def _call_with_fallback_inner(
                 continue
             for model in models:
                 if _is_exhausted(provider, model):
+                    ai_usage.note_skip(provider, model)           # a cooling-down model skipped by the chain itself (the main skip path): counted, not an attempt
                     if failure_log is not None:
                         failure_log.append({"model": model, "provider": tier, "reason": "already_exhausted"})
                     continue
