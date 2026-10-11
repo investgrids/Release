@@ -85,7 +85,12 @@ def _slug(symbol: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", symbol.lower()).strip("-")
 
 
-def _status(open_d: date | None, close_d: date | None, list_d: date | None, today: date) -> str:
+_WITHDRAWN = re.compile(r"withdrawn|postponed|cancel+ed|called off", re.I)   # NSE appends these to the company name
+
+
+def _status(open_d: date | None, close_d: date | None, list_d: date | None, today: date, name: str = "") -> str:
+    if _WITHDRAWN.search(name or ""):
+        return "Withdrawn"
     if open_d and open_d > today:
         return "Upcoming"
     if close_d and close_d >= today:
@@ -108,7 +113,7 @@ def _record(name, symbol, board, band_text, issue_price, lot, shares, open_d, cl
         "name": str(name).strip(),
         "symbol": str(symbol).strip().upper(),
         "type": board,
-        "status": _status(open_d, close_d, list_d, today),
+        "status": _status(open_d, close_d, list_d, today, str(name)),
         "priceMin": pmin, "priceMax": pmax,
         "issuePrice": final,
         "lotSize": int(_num(lot)) if _num(lot) else None,
@@ -177,7 +182,7 @@ async def _fetch() -> tuple[list, list, list]:
 
 def _stats(ipos: list[dict]) -> dict:
     by = lambda s: sum(1 for i in ipos if i["status"] == s)
-    return {"upcoming": by("Upcoming"), "ongoing": by("Ongoing"), "closed": by("Closed"), "listed": by("Listed"),
+    return {"upcoming": by("Upcoming"), "ongoing": by("Ongoing"), "closed": by("Closed"), "listed": by("Listed"), "withdrawn": by("Withdrawn"),
             "mainboard": sum(1 for i in ipos if i["type"] == "Mainboard"), "sme": sum(1 for i in ipos if i["type"] == "SME")}
 
 

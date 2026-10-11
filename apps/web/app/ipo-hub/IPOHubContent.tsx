@@ -7,7 +7,7 @@ import { API_BASE_URL as API } from "@/lib/api";
 // Everything on this page comes from NSE's public issue lists (see backend app/services/ipo_feed.py).
 // NSE does not publish grey-market premium, analyst ratings, sector or financials, so none are shown here.
 
-type Status = "Upcoming" | "Ongoing" | "Closed" | "Listed";
+type Status = "Upcoming" | "Ongoing" | "Closed" | "Listed" | "Withdrawn";
 interface IPO {
   id: string; name: string; symbol: string; type: "Mainboard" | "SME" | null; status: Status;
   priceMin: number | null; priceMax: number | null; issuePrice: number | null;
@@ -21,14 +21,15 @@ export interface IPOData {
   as_of: string | null; data_source: string; stale?: boolean;
 }
 
-const STATUS_LABEL: Record<Status, string> = { Upcoming: "Opens soon", Ongoing: "Open now", Closed: "Awaiting listing", Listed: "Listed" };
+const STATUS_LABEL: Record<Status, string> = { Upcoming: "Opens soon", Ongoing: "Open now", Closed: "Awaiting listing", Listed: "Listed", Withdrawn: "Withdrawn" };
 const STATUS_STYLE: Record<Status, string> = {
   Upcoming: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/25",
   Ongoing:  "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25",
   Closed:   "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/25",
   Listed:   "bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/25",
+  Withdrawn: "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/25",
 };
-const ORDER: Record<Status, number> = { Ongoing: 0, Upcoming: 1, Closed: 2, Listed: 3 };
+const ORDER: Record<Status, number> = { Ongoing: 0, Upcoming: 1, Closed: 2, Listed: 3, Withdrawn: 4 };
 
 const day = (iso: string | null) => (iso ? new Date(iso + "T00:00:00+05:30") : null);
 const fmt = (iso: string | null, withYear = false) =>
@@ -51,13 +52,14 @@ function when(i: IPO): string {
     const d = daysFromToday(i.closeDate);
     return d === 0 ? "Closes today" : d === 1 ? "Closes tomorrow" : `Closes ${fmt(i.closeDate)}`;
   }
-  if (i.status === "Closed") return i.listingDate ? `Lists ${fmt(i.listingDate)}` : "Listing date awaited";
+  if (i.status === "Withdrawn") return "Issue withdrawn or postponed";
+  if (i.status === "Closed") return i.listingDate ? `Lists ${fmt(i.listingDate)}` : (daysFromToday(i.closeDate) ?? 0) < -21 ? "No listing on record" : "Listing date awaited";
   return `Listed ${fmt(i.listingDate)}`;
 }
 const minInvest = (i: IPO) => (i.lotSize && i.priceMax ? i.lotSize * i.priceMax : null);
 
 function Badge({ status }: { status: Status }) {
-  return <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${STATUS_STYLE[status]}`}>{STATUS_LABEL[status]}</span>;
+  return <span className={`inline-flex items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${STATUS_STYLE[status]}`}>{STATUS_LABEL[status]}</span>;
 }
 function BoardTag({ type }: { type: IPO["type"] }) {
   if (!type) return null;   // NSE does not state the board for trade-for-trade (BE) listings, so none is shown
@@ -162,6 +164,7 @@ export function IPOHubContent({ headingLevel = "h1", initialData = null }: { hea
   const [board, setBoard] = useState<"all" | "Mainboard" | "SME">("all");
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<"status" | "newest" | "price">("status");
+  const [shown, setShown] = useState(15);
 
   useEffect(() => {
     if (initialData && initialData.data_source === "nse") return;   // the server already rendered real data (10-minute ISR)
@@ -187,6 +190,8 @@ export function IPOHubContent({ headingLevel = "h1", initialData = null }: { hea
         : ORDER[a.status] - ORDER[b.status]
           || (a.status === "Listed" || a.status === "Closed" ? (b.openDate ?? "").localeCompare(a.openDate ?? "") : (a.openDate ?? "").localeCompare(b.openDate ?? "")));
   }, [ipos, filter, board, q, sort]);
+
+  useEffect(() => { setShown(15); }, [filter, board, q, sort]);
 
   const header = (
     <div className="flex flex-wrap items-end justify-between gap-3">
@@ -297,7 +302,15 @@ export function IPOHubContent({ headingLevel = "h1", initialData = null }: { hea
         {rows.length === 0 ? (
           <p className="px-5 py-12 text-center text-[13px] text-text-muted">No IPOs match these filters.</p>
         ) : (
-          <ul>{rows.map(i => <Row key={i.id} ipo={i} />)}</ul>
+          <>
+            <ul>{rows.slice(0, shown).map(i => <Row key={i.id} ipo={i} />)}</ul>
+            <div className="flex items-center justify-between gap-3 border-t border-surface-border/8 px-4 py-3 text-[12px] text-text-muted">
+              <span>Showing {Math.min(shown, rows.length)} of {rows.length}</span>
+              {rows.length > shown && (
+                <button onClick={() => setShown(n => n + 25)} className="rounded-[10px] border border-surface-border/15 px-3 py-1.5 font-semibold text-text-primary transition hover:border-violet-500/40 hover:bg-violet-500/5">Show 25 more</button>
+              )}
+            </div>
+          </>
         )}
       </section>
 
