@@ -24,24 +24,18 @@ export default async function IPOPage() {
   const data = await getIpoData();
   const live = (data?.ipos ?? []).filter(i => i.status === "Ongoing" || i.status === "Upcoming").slice(0, 20);
 
+  // The global breadcrumb component already emits the BreadcrumbList for /ipo; adding another here would duplicate it.
   const jsonLd = [
-    {
-      "@context": "https://schema.org", "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
-        { "@type": "ListItem", position: 2, name: "IPO Calendar", item: `${SITE_URL}/ipo` },
-      ],
-    },
     ...(live.length ? [{
       "@context": "https://schema.org", "@type": "ItemList", name: "Open and upcoming IPOs on NSE",
       itemListElement: live.map((i, n) => ({
-        "@type": "ListItem", position: n + 1,
+        "@type": "ListItem", position: n + 1, url: `${SITE_URL}/ipo/${i.id}`,
         item: {
-          "@type": "Event", name: `${i.name} IPO`,
+          "@type": "Event", name: `${i.name} IPO`, url: `${SITE_URL}/ipo/${i.id}`,
           ...(i.openDate ? { startDate: i.openDate } : {}), ...(i.closeDate ? { endDate: i.closeDate } : {}),
           eventStatus: "https://schema.org/EventScheduled", eventAttendanceMode: "https://schema.org/OnlineEventAttendanceMode",
-          location: { "@type": "VirtualLocation", url: `${SITE_URL}/ipo` },
-          description: `${i.type} IPO${i.priceMin && i.priceMax ? ` with a price band of ₹${i.priceMin}–₹${i.priceMax}` : ""}${i.lotSize ? `, lot size ${i.lotSize} shares` : ""}.`,
+          location: { "@type": "VirtualLocation", url: `${SITE_URL}/ipo/${i.id}` },
+          description: `${i.type ?? ""} IPO${i.priceMin && i.priceMax ? ` with a price band of ₹${i.priceMin}–₹${i.priceMax}` : ""}${i.lotSize ? `, lot size ${i.lotSize} shares` : ""}.`,
         },
       })),
     }] : []),
@@ -49,7 +43,7 @@ export default async function IPOPage() {
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      {jsonLd.length > 0 && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />}
       <IPOHubContent headingLevel="h1" initialData={data} />
     </>
   );

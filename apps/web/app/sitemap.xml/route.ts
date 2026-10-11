@@ -350,7 +350,13 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     priority: 0.8,
   }));
 
-  return [...staticRoutes, ...eventRoutes, ...rippleRoutes, ...radarRoutes, ...companyRoutes, ...insightRoutes, ...sectorRoutes, ...historicalRoutes, ...bestStocksRoutes, ...researchRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
+  // One entry per IPO in the current NSE-backed list (recent issues only; older detail URLs keep working but are not re-advertised).
+  const ipoList = await safeJson<{ ipos?: Array<{ id: string; status: string }> }>(`${API}/api/ipo/`, {});
+  const ipoRoutes: SitemapEntry[] = (ipoList.ipos ?? []).filter(i => i.status !== "Withdrawn").map(i => ({
+    url: `${base}/ipo/${i.id}`, lastModified: now, changeFrequency: i.status === "Listed" ? "weekly" : "daily", priority: i.status === "Listed" ? 0.5 : 0.7,
+  }));
+
+  return [...staticRoutes, ...ipoRoutes, ...eventRoutes, ...rippleRoutes, ...radarRoutes, ...companyRoutes, ...insightRoutes, ...sectorRoutes, ...historicalRoutes, ...bestStocksRoutes, ...researchRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
 }
 
 export async function GET() {
