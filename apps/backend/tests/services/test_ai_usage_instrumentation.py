@@ -311,7 +311,7 @@ async def test_report_separates_known_and_unknown_tokens_and_never_prices_the_un
     assert (art["calls"], art["calls_succeeded"], art["attempts"], art["successes"]) == (1, 1, 2, 1)
     assert (art["input_tokens"], art["output_tokens"], art["attempts_with_usage"]) == (3000, 2000, 1)
     assert art["cost_usd"] == 0.0 and art["cost_covered_attempts"] == 1                                         # free-tier groq: priced at 0 with a basis, only for attempts with known tokens
-    assert tri["success_attempts_unknown_usage"] == 1 and tri["skipped_cooldown"] == 9
+    assert tri["success_attempts_unknown_usage"] == 1 and tri["skipped"] == {"skipped_cooldown": 9} and tri["skipped_total"] == 9
     assert tri["cost_unpriced_attempts"] == 1                                                                   # the unknown-price paid model is excluded from cost, not guessed
     us = rep["ai_search"]["user_requests"]
     assert (us["requests"], us["answered"], us["degraded"], us["llm_calls"], us["llm_attempts"]) == (2, 1, 1, 2, 6)

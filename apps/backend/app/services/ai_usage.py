@@ -40,9 +40,10 @@ _request_id: ContextVar[str | None] = ContextVar("ai_usage_request_id", default=
 _origin: ContextVar[str] = ContextVar("ai_usage_origin", default="internal")
 _call_ctx: ContextVar[dict | None] = ContextVar("ai_usage_call", default=None)
 _search_acc: ContextVar[dict | None] = ContextVar("ai_usage_search_acc", default=None)
+_op_stats: ContextVar[dict | None] = ContextVar("ai_usage_op_stats", default=None)
 
 _queue: deque = deque(maxlen=QUEUE_MAX)
-_skips: dict[tuple, int] = {}
+_skips: dict[tuple, int] = {}              # (operation, provider, model, outcome) -> count of work skipped without an HTTP attempt
 _stats = {"queued": 0, "written": 0, "dropped": 0, "flush_errors": 0}
 _MAX_CONSECUTIVE_FLUSH_FAILURES = 5     # a transient database error (e.g. SQLite write contention) requeues the rows; only a persistent failure drops them
 _consecutive_failures = 0
@@ -58,16 +59,31 @@ def _safe_reset(var: ContextVar, token) -> None:
 
 
 @contextmanager
-def operation(name: str, request_id: str | None = None):
-    """Tag every LLM attempt made inside this block (and its child tasks) with a feature name."""
+def operation(name: str, request_id: str | None = None, track: bool = False):
+    """Tag every LLM attempt made inside this block (and its child tasks) with a feature name. With track=True the block also counts its real HTTP attempts and its cooldown skips,
+    readable through `scope_stats()` (used to tell "every provider was merely cooling down" from "providers were really tried and failed")."""
     t1 = _operation.set(name)
     t2 = _request_id.set(request_id) if request_id else None
+    t3 = _op_stats.set({"attempts": 0, "skips": 0, "successes": 0}) if track else None
     try:
         yield
     finally:
         _safe_reset(_operation, t1)
         if t2 is not None:
             _safe_reset(_request_id, t2)
+        if t3 is not None:
+            _safe_reset(_op_stats, t3)
+
+
+def scope_stats() -> dict | None:
+    """Counters of the innermost tracked operation scope, or None when not inside one."""
+    return _op_stats.get()
+
+
+def cooldown_only() -> bool:
+    """True when, inside a tracked scope, work was skipped for cooldown and NOTHING was really attempted: no provider was actually tried, so a failure here says nothing about the event."""
+    st = _op_stats.get()
+    return bool(st and st["attempts"] == 0 and st["skips"] > 0)
 
 
 def mark_api_request() -> None:
@@ -132,6 +148,9 @@ def begin_attempt(provider: str, model: str) -> dict:
         if ctx is None:                                  # an attempt outside any tracked call (direct provider call): still recorded
             ctx = {"id": uuid.uuid4().hex[:12], "n": 0, "op": _operation.get() or _caller_label()}
         ctx["n"] += 1
+        st = _op_stats.get()
+        if st is not None:
+            st["attempts"] += 1
         return {"ts": datetime.now(timezone.utc), "t0": time.monotonic(), "operation": ctx["op"], "call_id": ctx["id"], "attempt_no": ctx["n"],
                 "request_id": _request_id.get(), "provider": provider, "model": (model or "")[:96], "outcome": "other", "http_status": None,
                 "input_tokens": None, "output_tokens": None}
@@ -173,6 +192,9 @@ def finish_attempt(att: dict) -> None:
                "input_tokens": att["input_tokens"] if known else None, "output_tokens": att["output_tokens"] if known else None,
                "usage_source": "provider" if known else "unknown", "n": 1}
         _enqueue(row)
+        st = _op_stats.get()
+        if st is not None and att["outcome"] == "success":
+            st["successes"] += 1
         acc = _search_acc.get()
         if acc is not None:
             acc["attempts"] += 1
@@ -189,8 +211,21 @@ def note_skip(provider: str, model: str) -> None:
     """A (provider, model) skipped because it is cooling down: not an HTTP attempt, so counted in aggregate rather than as rows."""
     try:
         ctx = _call_ctx.get()
-        key = ((ctx or {}).get("op") or _operation.get() or _caller_label(), provider, (model or "")[:96])
+        op = (ctx or {}).get("op") or _operation.get() or _caller_label()
+        key = (op, provider, (model or "")[:96], "skipped_cooldown")
         _skips[key] = _skips.get(key, 0) + 1
+        st = _op_stats.get()
+        if st is not None:
+            st["skips"] += 1
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def note_skipped_work(operation_name: str, reason: str, n: int = 1) -> None:
+    """Whole units of work skipped on purpose (e.g. an enrichment tick with no eligible provider). Recorded separately from attempted and failed work, as outcome "skipped_<reason>"."""
+    try:
+        key = (operation_name[:48], "-", "-", ("skipped_" + reason)[:24])
+        _skips[key] = _skips.get(key, 0) + n
     except Exception:  # noqa: BLE001
         pass
 
@@ -272,8 +307,8 @@ async def flush_pending(max_rows: int = 2000) -> int:
     skip_rows = []
     if _skips:
         now = datetime.now(timezone.utc)
-        for (op, provider, model), n in list(_skips.items()):
-            skip_rows.append({"ts": now, "operation": op, "call_id": None, "request_id": None, "attempt_no": None, "provider": provider, "model": model, "outcome": "skipped_cooldown",
+        for (op, provider, model, outcome), n in list(_skips.items()):
+            skip_rows.append({"ts": now, "operation": op, "call_id": None, "request_id": None, "attempt_no": None, "provider": provider, "model": model, "outcome": outcome,
                               "http_status": None, "latency_ms": None, "input_tokens": None, "output_tokens": None, "usage_source": "unknown", "n": n})
         _skips.clear()
     searches = []
@@ -299,7 +334,7 @@ async def flush_pending(max_rows: int = 2000) -> int:
             _queue.extendleft(reversed(rows))                 # keep them for the next flush (still bounded by the queue's maxlen)
             _search_queue.extendleft(reversed(searches))
             for r in skip_rows:
-                key = (r["operation"], r["provider"], r["model"])
+                key = (r["operation"], r["provider"], r["model"], r["outcome"])
                 _skips[key] = _skips.get(key, 0) + r["n"]
             log.warning("ai_usage.flush_failed_will_retry", error=str(exc)[:160], rows=len(rows) + len(skip_rows) + len(searches), consecutive=_consecutive_failures)
         else:
@@ -390,86 +425,99 @@ def price_for(provider: str, model: str) -> tuple[float, float, str] | None:
 
 # ── Report ────────────────────────────────────────────────────────────────────────────────────────────────────
 
-async def usage_report(db, hours: int = 24, now: datetime | None = None) -> dict:
-    """Per-feature and per-model usage for the last `hours` (raw rows). Counts are exact for what was recorded; tokens are the provider-reported ones only, with the number of attempts
-    whose usage is unknown stated beside them; cost covers only attempts with known tokens and a documented price."""
-    from sqlalchemy import select
-    from app.db.models.ai_usage import AISearchRequestLog, AIUsageAttempt
+MAX_REPORT_HOURS = ATTEMPT_RETENTION_DAYS * 24      # raw attempt rows only exist for this long; older history lives in ai_usage_daily
 
+
+async def usage_report(db, hours: int = 24, now: datetime | None = None) -> dict:
+    """Per-feature and per-model usage for the last `hours` (clamped to the raw retention window). Computed with SQL aggregation, so cost depends on the number of distinct
+    feature/provider/model/outcome groups, never on how many raw rows there are. Counts are exact for what was recorded; tokens are the provider-reported ones only (attempts whose usage
+    is unknown are counted beside them); cost covers only attempts with known tokens and a documented price."""
+    from sqlalchemy import and_, case, func, select
+    from app.db.models.ai_usage import AISearchRequestLog, AIUsageAttempt as A
+
+    hours = max(1, min(int(hours), MAX_REPORT_HOURS))
     now = now or datetime.now(timezone.utc)
     start = _naive_utc(now) - timedelta(hours=hours)
-    rows = (await db.execute(select(AIUsageAttempt).where(AIUsageAttempt.ts >= start))).scalars().all()
-    searches = (await db.execute(select(AISearchRequestLog).where(AISearchRequestLog.ts >= start))).scalars().all()
+    known = and_(A.input_tokens.is_not(None), A.output_tokens.is_not(None))
+    groups = (await db.execute(
+        select(A.operation, A.provider, A.model, A.outcome, func.coalesce(func.sum(A.n), 0),
+               func.coalesce(func.sum(case((known, A.input_tokens), else_=0)), 0), func.coalesce(func.sum(case((known, A.output_tokens), else_=0)), 0),
+               func.coalesce(func.sum(case((known, A.n), else_=0)), 0))
+        .where(A.ts >= start).group_by(A.operation, A.provider, A.model, A.outcome))).all()
+    calls = dict((await db.execute(select(A.operation, func.count(func.distinct(A.call_id))).where(A.ts >= start, A.call_id.is_not(None)).group_by(A.operation))).all())
+    calls_ok = dict((await db.execute(select(A.operation, func.count(func.distinct(A.call_id))).where(A.ts >= start, A.call_id.is_not(None), A.outcome == "success").group_by(A.operation))).all())
 
     features: dict[str, dict] = {}
     models: dict[tuple, dict] = {}
-    calls_seen: dict[str, dict[str, bool]] = {}
-    for r in rows:
-        n = r.n or 1
-        f = features.setdefault(r.operation, {"attempts": 0, "successes": 0, "failures": {}, "skipped_cooldown": 0, "input_tokens": 0, "output_tokens": 0, "attempts_with_usage": 0,
-                                              "success_attempts_unknown_usage": 0, "cost_usd": 0.0, "cost_covered_attempts": 0, "cost_unpriced_attempts": 0})
-        m = models.setdefault((r.provider, r.model), {"attempts": 0, "successes": 0, "failures": 0, "input_tokens": 0, "output_tokens": 0, "attempts_with_usage": 0,
-                                                       "success_attempts_unknown_usage": 0, "cost_usd": 0.0, "cost_covered_attempts": 0})
-        if r.outcome == "skipped_cooldown":
-            f["skipped_cooldown"] += n
+    for op, prov, model, outcome, n, tin, tout, nknown in groups:
+        f = features.setdefault(op, {"attempts": 0, "successes": 0, "failures": {}, "skipped": {}, "input_tokens": 0, "output_tokens": 0, "attempts_with_usage": 0,
+                                     "success_attempts_unknown_usage": 0, "cost_usd": 0.0, "cost_covered_attempts": 0, "cost_unpriced_attempts": 0})
+        if outcome.startswith("skipped_"):
+            f["skipped"][outcome] = f["skipped"].get(outcome, 0) + n
             continue
+        m = models.setdefault((prov, model), {"attempts": 0, "successes": 0, "failures": 0, "input_tokens": 0, "output_tokens": 0, "attempts_with_usage": 0,
+                                              "success_attempts_unknown_usage": 0, "cost_usd": 0.0, "cost_covered_attempts": 0})
         f["attempts"] += n
         m["attempts"] += n
-        if r.call_id:
-            calls_seen.setdefault(r.operation, {}).setdefault(r.call_id, False)
-        if r.outcome == "success":
+        if outcome == "success":
             f["successes"] += n
             m["successes"] += n
-            if r.call_id:
-                calls_seen[r.operation][r.call_id] = True
+            f["success_attempts_unknown_usage"] += n - nknown
+            m["success_attempts_unknown_usage"] += n - nknown
         else:
-            f["failures"][r.outcome] = f["failures"].get(r.outcome, 0) + n
+            f["failures"][outcome] = f["failures"].get(outcome, 0) + n
             m["failures"] += n
-        if r.input_tokens is not None and r.output_tokens is not None:
-            for d in (f, m):
-                d["input_tokens"] += r.input_tokens
-                d["output_tokens"] += r.output_tokens
-                d["attempts_with_usage"] += 1
-            pr = price_for(r.provider, r.model)
+        for d in (f, m):
+            d["input_tokens"] += tin
+            d["output_tokens"] += tout
+            d["attempts_with_usage"] += nknown
+        if nknown:
+            pr = price_for(prov, model)
             if pr:
-                c = (r.input_tokens * pr[0] + r.output_tokens * pr[1]) / 1e6
+                c = (tin * pr[0] + tout * pr[1]) / 1e6
                 for d in (f, m):
                     d["cost_usd"] += c
-                    d["cost_covered_attempts"] += 1
+                    d["cost_covered_attempts"] += nknown
             else:
-                f["cost_unpriced_attempts"] += 1
-        elif r.outcome == "success":
-            f["success_attempts_unknown_usage"] += n
-            m["success_attempts_unknown_usage"] += n
+                f["cost_unpriced_attempts"] += nknown
 
     feat_out = {}
     for op, f in sorted(features.items()):
-        seen = calls_seen.get(op, {})
-        calls = len(seen)
-        ok = sum(1 for v in seen.values() if v)
-        feat_out[op] = {**f, "calls": calls, "calls_succeeded": ok, "call_success_rate": round(ok / calls, 3) if calls else None,
+        c, ok = calls.get(op, 0), calls_ok.get(op, 0)
+        feat_out[op] = {**f, "calls": c, "calls_succeeded": ok, "call_success_rate": round(ok / c, 3) if c else None,
                         "attempt_success_rate": round(f["successes"] / f["attempts"], 3) if f["attempts"] else None,
-                        "cost_usd": round(f["cost_usd"], 6), "cost_note": "covers only attempts with provider-reported tokens and a documented price"}
+                        "skipped_total": sum(f["skipped"].values()), "cost_usd": round(f["cost_usd"], 6),
+                        "cost_note": "covers only attempts with provider-reported tokens and a documented price"}
     model_out = [{"provider": p, "model": mo, **v, "cost_usd": round(v["cost_usd"], 6)} for (p, mo), v in sorted(models.items(), key=lambda kv: -kv[1]["attempts"])]
 
-    api = [s for s in searches if s.origin == "api"]
-    internal = [s for s in searches if s.origin != "api"]
+    S = AISearchRequestLog
+    srows = (await db.execute(
+        select(S.origin, func.count(), func.coalesce(func.sum(case((S.outcome == "answered", 1), else_=0)), 0), func.coalesce(func.sum(case((S.outcome == "degraded", 1), else_=0)), 0),
+               func.coalesce(func.sum(case((S.outcome == "error", 1), else_=0)), 0), func.coalesce(func.sum(case((S.cache_hit.is_(True), 1), else_=0)), 0),
+               func.coalesce(func.sum(S.llm_calls), 0), func.coalesce(func.sum(S.llm_attempts), 0), func.sum(S.input_tokens), func.sum(S.output_tokens),
+               func.coalesce(func.sum(case((S.tokens_unknown_attempts > 0, 1), else_=0)), 0), func.avg(S.latency_ms))
+        .where(S.ts >= start).group_by(S.origin))).all()
+    reasons = (await db.execute(select(S.origin, S.degraded_reason, func.count()).where(S.ts >= start, S.degraded_reason.is_not(None)).group_by(S.origin, S.degraded_reason))).all()
 
-    def _search_block(items):
-        t_in = [s.input_tokens for s in items if s.input_tokens is not None]
-        t_out = [s.output_tokens for s in items if s.output_tokens is not None]
-        return {"requests": len(items), "answered": sum(1 for s in items if s.outcome == "answered"), "degraded": sum(1 for s in items if s.outcome == "degraded"),
-                "error": sum(1 for s in items if s.outcome == "error"), "cache_hits": sum(1 for s in items if s.cache_hit), "llm_calls": sum(s.llm_calls for s in items),
-                "llm_attempts": sum(s.llm_attempts for s in items), "input_tokens_known": sum(t_in) if t_in else None, "output_tokens_known": sum(t_out) if t_out else None,
-                "requests_with_unknown_tokens": sum(1 for s in items if s.tokens_unknown_attempts), "degraded_reasons": _count(s.degraded_reason for s in items if s.degraded_reason),
-                "avg_latency_ms": round(sum(s.latency_ms or 0 for s in items) / len(items)) if items else None}
+    def block(origin_name: str) -> dict:
+        rs = [r for r in srows if r[0] == origin_name]
+        tot = lambda i: sum((r[i] or 0) for r in rs)
+        n = tot(1)
+        in_known = [r[8] for r in rs if r[8] is not None]
+        out_known = [r[9] for r in rs if r[9] is not None]
+        deg: dict[str, int] = {}
+        for o, reason, cnt in reasons:
+            if o == origin_name:
+                deg[reason] = deg.get(reason, 0) + cnt
+        return {"requests": n, "answered": tot(2), "degraded": tot(3), "error": tot(4), "cache_hits": tot(5), "llm_calls": tot(6), "llm_attempts": tot(7),
+                "input_tokens_known": sum(in_known) if in_known else None, "output_tokens_known": sum(out_known) if out_known else None, "requests_with_unknown_tokens": tot(10),
+                "degraded_reasons": deg, "avg_latency_ms": round(sum((r[11] or 0) * r[1] for r in rs) / n) if n else None}
 
     return {"window_hours": hours, "from_utc": start.isoformat(), "to_utc": _naive_utc(now).isoformat(),
-            "ai_search": {"user_requests": _search_block(api), "internal_pipeline_calls": _search_block(internal)},
-            "features": feat_out, "models": model_out,
-            "recorder": {**_stats, "queued_now": len(_queue)},
+            "ai_search": {"user_requests": block("api"), "internal_pipeline_calls": block("internal")},
+            "features": feat_out, "models": model_out, "recorder": {**_stats, "queued_now": len(_queue)},
             "gaps": ["Tokens are provider-reported only; attempts without usage are counted in *_unknown_usage, never as zero.",
-                     "Skipped-because-cooling-down attempts are counted per feature but are not HTTP attempts.",
+                     "Skipped work (cooldown skips, ticks skipped for no capacity) is counted per feature under `skipped`; it is not an attempt and not a failure.",
                      "Models without a documented price are excluded from cost (cost_unpriced_attempts)."]}
 
 
