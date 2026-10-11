@@ -51,3 +51,11 @@ Hardened (key-only SSH, firewall 22/80/443, swap, fail2ban), Docker installed, C
 - NSE can flag an IP later. Re-run `nse_check.sh` after a day and after any ingestion alert.
 - Disk: watch `/data` (images grew the Railway volume from 0.9 to 2.6 GB). 50 GB here is plenty; still alert at 70 %.
 - Certificates renew automatically only while the `caddy_data` volume exists.
+
+## Findings from the dry run (2026-10-11)
+- **The off-box bucket holds 412 backups, 221 GB**, about 735 MB each; the database is about 735 MB, not 290 MB. Cause: the image recycled the web worker every ~1000 requests, each recycle is a full start, each start uploads a "boot" backup, and the remote backup has no retention. That was about 15 uploads a day (about 11 GB a day). `compose.yml` now raises the recycle threshold to 50,000. **The bucket still needs a retention policy** (dry-run list first; deleting is irreversible and needs the owner's approval). The bucket is the main thing still billed on Railway.
+- **Restore used the newest bucket object** (`automated/boot/ig-20261010T150443Z.db`, 738,529,280 bytes, SHA-256 matched the checksum the production backend recorded at upload), 1.3 hours before Railway was stopped. Anything ingested in that window will re-fill from the NSE feeds once the scheduler runs.
+- **Production has non-secret behaviour switches** (`ARTICLE_PIPELINE_MODE`, `FILING_SCORE_PUBLIC_SEGMENTS`, `ARTICLE_V2_CANARY_OWNERSHIP_ENABLED`, `AI_PROVIDER`, `OPENROUTER_MODEL`) that must be copied too; the env file was exported from Railway's variables, names only on screen. `FYERS_REDIRECT_URI` still points at the Railway host on purpose (the automatic login only sends it).
+- **Bucket credentials are kept out of the active `.env` during the dry run** (`/opt/marketripple/bucket.env`, root-only) so no test start can upload to production storage. Re-add them at cutover.
+- **Article images are not on the new server** (`/data/media` does not exist yet): copy from the Railway volume (needs it started or restored) or let them regenerate.
+

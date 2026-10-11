@@ -9,6 +9,7 @@ WANT="${2:-}"
 ROOT=/opt/marketripple
 ENVF=$ROOT/.env
 cd "$ROOT/src/deploy/hostinger"
+export GIT_SHA="$(git -C "$ROOT/src" rev-parse --short=12 HEAD)"   # same image tag deploy.sh uses, so a restart here never builds a differently tagged image
 [ -f "$SRC" ] || { echo "no such file: $SRC"; exit 2; }
 
 echo "== 1. verify the file BEFORE touching anything"
