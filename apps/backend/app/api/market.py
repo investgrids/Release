@@ -792,11 +792,9 @@ async def market_opportunities(limit: int = Query(6, le=20)):
                     for o in page.items
                 ]}
 
-            from sqlalchemy import select
-            from app.db.models.opportunity import Opportunity
-            rows = (await db.execute(
-                select(Opportunity).order_by(Opportunity.opportunity_score.desc()).limit(limit)
-            )).scalars().all()
+            # Latest first: the best-scored of the newest opportunities, not the all-time top scores (those were months old and never rotated out).
+            from app.repositories.opportunity_repository import OpportunityRepository
+            rows = await OpportunityRepository(db).list_latest_ranked(limit=limit)
             return {"opportunities": [
                 {"theme": r.title, "href": f"/opportunity-radar/{r.id}",
                  "score": round(r.opportunity_score) if r.opportunity_score is not None else None,
