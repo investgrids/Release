@@ -6,7 +6,7 @@ set -euo pipefail
 TS=$(date -u +%Y%m%dT%H%M%SZ)
 OUT=/opt/marketripple/backups
 mkdir -p "$OUT"
-docker exec marketripple-backend-1 python - <<PY
+docker exec -i marketripple-backend-1 python - <<PY
 import sqlite3, sys
 src = sqlite3.connect("file:/data/ig.db?mode=ro", uri=True)
 dst = sqlite3.connect("/tmp/backup-$TS.db")
