@@ -20,6 +20,7 @@ see _call_with_fallback for the 2026-07-26 reordering rationale):
                          The demonstrated production workhorse as of the
                          2026-08-30 provider audit.
   6. OpenRouter small  — remaining free models (same account-wide cap as #3)
+  Optional: Requesty router tier (after Gemini, before OpenRouter small) — only when REQUESTY_API_KEY and REQUESTY_MODELS are both set.
 
   Cerebras and Cloudflare Workers AI tiers were REMOVED 2026-08-30 (provider
   reliability audit, artifacts/ai_provider_reliability_audit.md) — both were
@@ -137,6 +138,7 @@ _OR_URL       = "https://openrouter.ai/api/v1/chat/completions"
 _GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
 _GEMINI_URL   = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 _MISTRAL_URL  = "https://api.mistral.ai/v1/chat/completions"
+_REQUESTY_URL = "https://router.requesty.ai/v1/chat/completions"
 _NVIDIA_PATH  = "/chat/completions"   # appended to settings.nvidia_base_url
 
 # Models that have returned 429 — skipped for a cooldown window, not forever.
@@ -199,7 +201,7 @@ _EXHAUSTED: dict[tuple[str, str], _ExhaustionEntry] = {}   # (provider, model) -
 
 _PROVIDER_BY_URL = {
     _OR_URL: "openrouter", _GROQ_URL: "groq",
-    _GEMINI_URL: "gemini", _MISTRAL_URL: "mistral",
+    _GEMINI_URL: "gemini", _MISTRAL_URL: "mistral", _REQUESTY_URL: "requesty",
 }
 
 
@@ -441,6 +443,7 @@ _TIER_LIMITERS: dict[str, PriorityTierLimiter] = {
     # exactly the contention hotspot the P0.5 load test surfaced.
     "mistral":          PriorityTierLimiter("mistral", capacity=2),
     "gemini":           PriorityTierLimiter("gemini", capacity=3),
+    "requesty":         PriorityTierLimiter("requesty", capacity=2),   # conservative until the account's real limits are measured
     "openrouter-small": PriorityTierLimiter("openrouter-small", capacity=3),
 }
 
@@ -1148,6 +1151,11 @@ async def _attempt(tier: str, provider: str, url: str, key: str, model: str, pro
         return "", True
 
 
+def _requesty_models() -> list[str]:
+    """Model ids for the optional Requesty tier, from the REQUESTY_MODELS setting (comma-separated). Empty = tier not used."""
+    return [m.strip() for m in (getattr(settings, "requesty_models", "") or "").split(",") if m.strip()]
+
+
 async def _call_with_fallback(
     prompt: str,
     system: str = "",
@@ -1193,10 +1201,11 @@ async def _call_with_fallback(
         ("openrouter-hq", "openrouter", _OR_URL, settings.openrouter_api_key, _OR_HIGH_QUALITY, or_headers),
         ("mistral", "mistral", _MISTRAL_URL, settings.mistral_api_key, _MISTRAL_MODELS, None),
         ("gemini", "gemini", _GEMINI_URL, settings.gemini_api_key, _GEMINI_MODELS, None),
+        ("requesty", "requesty", _REQUESTY_URL, settings.requesty_api_key, _requesty_models(), None),   # empty model list (no REQUESTY_MODELS) = tier skipped
         ("openrouter-small", "openrouter", _OR_URL, settings.openrouter_api_key, _OR_SMALL, or_headers),
     )
     for tier, provider, url, key, models, headers in tiers:
-        if not key:
+        if not key or not models:
             continue
         if _deadline_stops_chain(failure_log, tier):
             return ""

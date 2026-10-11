@@ -91,6 +91,12 @@ class Settings(BaseSettings):
     # Mistral — La Plateforme (console.mistral.ai)
     mistral_api_key: str = ""
 
+    # Requesty — OpenAI-compatible router (requesty.ai). Optional extra tier: it only runs when BOTH the key and
+    # REQUESTY_MODELS (comma-separated model ids, e.g. "provider/model,provider/model2") are set, so an unconfigured tier can never pretend to be capacity.
+    requesty_api_key: str = ""
+    requesty_models: str = ""
+    requesty_base_url: str = "https://router.requesty.ai/v1"
+
     # OpenRouter — free tier fallback (openrouter.ai)
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
