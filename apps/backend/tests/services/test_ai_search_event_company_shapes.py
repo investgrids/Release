@@ -51,3 +51,15 @@ async def test_no_tagged_events_still_returns_nothing_when_tagged_only(tmp_path)
         rows = await RT._search_events(db, "tell me about Reliance", limit=10, entities={"companies": ["RELIANCE"]}, tagged_only=True)
     await engine.dispose()
     assert rows == []
+
+
+@pytest.mark.asyncio
+async def test_plain_symbols_are_expanded_so_the_relevance_filter_keeps_them(tmp_path):
+    from app.services.ai_search import evidence_filter as EF
+    engine, factory = await seed(tmp_path)
+    async with factory() as db:
+        rows = await RT._search_events(db, "What is happening with Kotak Mahindra Bank?", limit=10, entities={"companies": ["KOTAKBANK"]}, tagged_only=True)
+    await engine.dispose()
+    assert rows and all(isinstance(c, dict) and c["symbol"] for r in rows for c in r["companies"])
+    assert all(EF._tagged_to(r, ["KOTAKBANK"]) for r in rows)
+    assert not EF._tagged_to({"companies": [{"symbol": "KOTAKBANKX", "name": ""}]}, ["KOTAKBANK"])
