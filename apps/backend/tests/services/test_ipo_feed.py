@@ -16,6 +16,11 @@ def test_status_comes_from_dates():
     assert f._status(d(2026, 10, 5), d(2026, 10, 7), d(2026, 10, 14), TODAY) == "Closed"   # listing date still ahead
 
 
+def test_withdrawn_and_postponed_issues_are_not_awaiting_listing():
+    row = {"company": "Sri Priyanka Geo Commex Limited-Issue Withdrawn", "ipoEndDate": "29-JUN-2026", "ipoStartDate": "24-JUN-2026", "issuePrice": "-", "listingDate": "-", "priceRange": "Rs.207 to Rs.212", "securityType": "SME", "symbol": "SPGCL"}
+    assert f.build([], [], [row], TODAY)[0]["status"] == "Withdrawn"
+
+
 def test_build_normalises_real_nse_shapes_and_drops_non_ipo_series():
     up = [{"companyName": "HD Fire Protect Limited", "issueEndDate": "15-Oct-2026", "issuePrice": "Rs.258 to Rs.271", "issueSize": "26284500", "issueStartDate": "13-Oct-2026", "series": "EQ", "status": "Forthcoming", "symbol": "HDFIRE"},
           {"companyName": "Vaibhav Vyapaar Limited", "issueEndDate": "15-Oct-2026", "issuePrice": "Rs.51 to Rs.54", "issueSize": "7796000", "issueStartDate": "13-Oct-2026", "lotSize": "2000", "priceBand": "Rs.51 to Rs.54", "series": "SME", "symbol": "LOANFRONT"}]
