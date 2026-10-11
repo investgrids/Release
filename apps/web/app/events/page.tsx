@@ -91,7 +91,7 @@ function norm(s: number | null): number | null {
 
 function impactLabel(s: number | null): string {
   const n = norm(s);
-  if (n === null) return "Unscored";
+  if (n === null) return "Not rated";
   if (n >= 90) return "Very High";
   if (n >= 75) return "High";
   if (n >= 55) return "Medium";
@@ -356,6 +356,8 @@ export default function EventsPage() {
   const [impactFilter, setImpactFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [limit, setLimit]           = useState(20);
+  // Default: scored events only. Most raw exchange filings are routine and never receive an impact score by design (about 94% of them); listing them first made the feed look unscored and unfinished. The toggle below adds them back.
+  const [showUnscored, setShowUnscored] = useState(false);
 
   const trendData = useMemo(() => buildTrendData(events), [events]);
 
@@ -387,12 +389,12 @@ export default function EventsPage() {
     // unfiltered feed so real events show (with their existing "Unscored"
     // badge for ones with no score yet) until the scoring pipeline issue
     // is found and fixed, at which point this can safely go back to true.
-    fetch(`${API}/api/events/?sort_by=published_at&limit=${limit}`, { cache: "no-store" })
+    fetch(`${API}/api/events/?sort_by=published_at&limit=${limit}${showUnscored ? "" : "&scored_only=true"}`, { cache: "no-store" })
       .then(r => r.ok ? r.json() : [])
       .then(d => { if (Array.isArray(d)) setEvents(d); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [limit]);
+  }, [limit, showUnscored]);
 
   const filtered = events.filter(ev => {
     if (categoryFilter && ev.category !== categoryFilter) return false;
@@ -511,6 +513,14 @@ export default function EventsPage() {
               {p}
             </button>
           ))}
+          <button onClick={() => { setLoading(true); setShowUnscored(v => !v); }} aria-pressed={showUnscored}
+            className={`ml-2 rounded-full border px-3 py-1 text-[11px] font-medium transition ${
+              showUnscored
+                ? "border-amber-500/50 bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                : "border-surface-border/8 bg-text-primary/[0.02] text-text-secondary hover:border-surface-border/20 hover:text-text-primary"
+            }`}>
+            {showUnscored ? "Showing routine filings too" : "Include routine filings"}
+          </button>
         </div>
 
         {/* Category pill row */}

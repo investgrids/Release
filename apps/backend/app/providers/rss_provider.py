@@ -35,7 +35,8 @@ _FEEDS: list[tuple[str, str, float]] = [
 ]
 
 _HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; InvestGridsBot/1.0)",
+    # A browser-style UA (with our name appended): Moneycontrol and Business Standard answer 403 to the bare "compatible; InvestGridsBot" form but serve their public RSS normally to this one.
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36 InvestGridsFeedReader/1.0",
     "Accept": "application/rss+xml, application/xml, text/xml",
 }
 
