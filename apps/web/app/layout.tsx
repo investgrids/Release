@@ -37,6 +37,8 @@ export const metadata: Metadata = {
   description:
     "Understand Indian market events, ripple effects, and investment opportunities with AI-powered analysis.",
   keywords: ["Indian stock market", "market intelligence", "investment analysis", "Nifty", "BSE", "NSE", "AI finance", "ripple effect", "market events"],
+  // AdSense site-ownership meta tag (the alternative to the loader script for verification).
+  other: { "google-adsense-account": "ca-pub-4678095524898812" },
   authors: [{ name: "MarketRipple" }],
   creator: "MarketRipple",
   publisher: "MarketRipple",
