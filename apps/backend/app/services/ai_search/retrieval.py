@@ -78,8 +78,11 @@ async def _search_events(
     # on the `"symbol": "X"` key specifically, not a bare substring of the
     # whole JSON blob, so a different company's `name` field can't
     # accidentally satisfy this company's symbol match.
+    # Production reality (2026-10-11, live DB): 28,956 of 28,958 tagged events store Event.companies as a plain JSON list of symbols (["KOTAKBANK"]); only 2 use the
+    # {"symbol": ...} dict shape the comment above describes. Matching the dict shape alone returned zero events for nearly every company, so company questions were
+    # answered from announcements only and the answer gate then (correctly) rejected the thin result. Both shapes are matched; the quote anchors keep it a whole-symbol match.
     if symbols:
-        company_conds = [Event.companies.ilike(f'%"symbol": "{s}"%') for s in symbols]
+        company_conds = [cond for s in symbols for cond in (Event.companies.ilike(f'%"symbol": "{s}"%'), Event.companies.ilike(f'%"{s}"%'))]
         stmt = select(Event).where(or_(*company_conds)).order_by(*order).limit(limit)
         rows = (await db.execute(stmt)).scalars().all()
         if rows:
