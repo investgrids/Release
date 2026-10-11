@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Restore a SQLite database file onto the app volume, safely.
-#   ./restore_db.sh /path/to/ig.db [expected-sha256]
+#   ./restore_db.sh /path/to/ig.db[.gz] [expected-sha256]      (a .gz backup is decompressed first; the expected sha256 is of the DECOMPRESSED database)
 # Never deletes the database it replaces: the old file is kept as ig.db.pre-restore-<timestamp> on the same volume.
 # The backend is stopped for the swap, and started again at the end. Run with DISABLE_SCHEDULER=1 in .env (no background writes during checks).
 set -euo pipefail
@@ -11,6 +11,11 @@ ENVF=$ROOT/.env
 cd "$ROOT/src/deploy/hostinger"
 export GIT_SHA="$(git -C "$ROOT/src" rev-parse --short=12 HEAD)"   # same image tag deploy.sh uses, so a restart here never builds a differently tagged image
 [ -f "$SRC" ] || { echo "no such file: $SRC"; exit 2; }
+case "$SRC" in *.gz)
+  mkdir -p "$ROOT/restorework"; PLAIN="$ROOT/restorework/restore-$(date -u +%Y%m%dT%H%M%SZ).db"
+  echo "== 0. decompressing $SRC"; gzip -dc "$SRC" > "$PLAIN" || { rm -f "$PLAIN"; echo "decompression failed: refusing"; exit 1; }
+  SRC="$PLAIN";;
+esac
 
 echo "== 1. verify the file BEFORE touching anything"
 GOT=$(sha256sum "$SRC" | cut -d' ' -f1)
