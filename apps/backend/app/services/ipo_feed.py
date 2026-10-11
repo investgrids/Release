@@ -35,7 +35,7 @@ _TTL_S = 600            # fresh for 10 minutes
 _STALE_MAX_S = 6 * 3600  # serve a stale copy for up to 6 hours if NSE is unreachable
 _PAST_DAYS = 120
 _PAST_LIMIT = 120
-_BOARD = {"EQ": "Mainboard", "BE": "Mainboard", "SME": "SME"}   # other series in the past list are bonds/NCDs/rights, not IPOs
+_BOARD = {"EQ": "Mainboard", "SME": "SME", "BE": None}   # BE = trade-for-trade series, used by both boards, so the board is left unstated; other series are bonds/NCDs/rights, not IPOs
 
 _cache: dict = {"at": 0.0, "data": None}
 _lock = asyncio.Lock()
@@ -150,9 +150,10 @@ def build(upcoming: list, current: list, past: list, today: date) -> list[dict]:
     cutoff = today - timedelta(days=_PAST_DAYS)
     recent = []
     for r in past or []:
-        board = _BOARD.get(str(r.get("securityType") or "").upper())
+        series = str(r.get("securityType") or "").upper()
+        board = _BOARD.get(series)
         start = _date(r.get("ipoStartDate"))
-        if board and start and start >= cutoff:
+        if series in _BOARD and start and start >= cutoff:
             recent.append((start, r, board))
     for start, r, board in sorted(recent, key=lambda t: t[0], reverse=True)[:_PAST_LIMIT]:
         add(_record(r.get("companyName") or r.get("company"), r.get("symbol"), board, r.get("priceRange"),

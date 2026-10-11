@@ -9,7 +9,7 @@ import { API_BASE_URL as API } from "@/lib/api";
 
 type Status = "Upcoming" | "Ongoing" | "Closed" | "Listed";
 interface IPO {
-  id: string; name: string; symbol: string; type: "Mainboard" | "SME"; status: Status;
+  id: string; name: string; symbol: string; type: "Mainboard" | "SME" | null; status: Status;
   priceMin: number | null; priceMax: number | null; issuePrice: number | null;
   lotSize: number | null; sharesOffered: number | null; issueValue: string | null;
   openDate: string | null; closeDate: string | null; listingDate: string | null;
@@ -60,6 +60,7 @@ function Badge({ status }: { status: Status }) {
   return <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${STATUS_STYLE[status]}`}>{STATUS_LABEL[status]}</span>;
 }
 function BoardTag({ type }: { type: IPO["type"] }) {
+  if (!type) return null;   // NSE does not state the board for trade-for-trade (BE) listings, so none is shown
   return <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${type === "SME" ? "bg-amber-500/15 text-amber-700 dark:text-amber-300" : "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300"}`}>{type}</span>;
 }
 function Fact({ label, value, hint }: { label: string; value: string; hint?: string }) {
