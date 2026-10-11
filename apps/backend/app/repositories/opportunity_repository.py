@@ -58,6 +58,14 @@ class OpportunityRepository:
         )
         return rows_q.scalars().all(), total
 
+    async def list_latest_ranked(self, limit: int = 6, pool: int = 60) -> list[Opportunity]:
+        """The best of the NEWEST opportunities: take the `pool` most recently created rows, then rank those by score. A pure score ranking let months-old 97-98 scores occupy the top of
+        the Market Overview forever (July's "Q1 earnings this week" was still first in October). A row-count pool, not a date cutoff, so SQLite datetime-string comparison is never involved."""
+        newest = (await self._db.execute(
+            select(Opportunity).order_by(Opportunity.created_at.desc(), Opportunity.id.desc()).limit(pool)
+        )).scalars().all()
+        return sorted(newest, key=lambda o: (o.opportunity_score if o.opportunity_score is not None else -1), reverse=True)[:limit]
+
     async def list_by_sector_or_theme(
         self, terms: list[str], limit: int = 10
     ) -> list[Opportunity]:
