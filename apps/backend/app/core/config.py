@@ -174,6 +174,10 @@ class Settings(BaseSettings):
     backup_remote_retention_enabled: bool = True
     # S3 addressing style for the backup bucket: "virtual" (Railway Buckets, the original) or "path" (works everywhere, incl. Cloudflare R2 and MinIO).
     backup_bucket_addressing_style: str = "virtual"
+    # Upload backups gzip-compressed (about 4x smaller; the checksum and integrity checks still run on the DECOMPRESSED bytes). Off by default so existing behaviour is unchanged.
+    backup_remote_compress: bool = False
+    # Hard ceiling for everything under automated/ in the backup bucket (Cloudflare R2's free tier is 10 GB). Retention drops the least valuable backups to stay under it. 0 = no ceiling.
+    backup_remote_max_bytes: int = 0
 
     # ── Fyers (primary market data provider) ──────────────────────────────────
     # Get credentials at https://myapi.fyers.in/dashboard

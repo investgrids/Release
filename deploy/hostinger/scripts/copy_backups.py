@@ -3,11 +3,12 @@ Copy the off-box database backups from one S3-compatible bucket to another (Rail
   SRC_ENDPOINT SRC_REGION SRC_BUCKET SRC_KEY_ID SRC_SECRET       the bucket to copy FROM
   DST_ENDPOINT DST_REGION DST_BUCKET DST_KEY_ID DST_SECRET       the bucket to copy TO
 Arguments:   (none) dry run: list what would be copied      --execute  copy      --limit N  only the N oldest missing objects (for tests)
+             --gzip   store each copy gzip-compressed as <key>.gz (about 4x smaller); source-sha256/source-size-bytes metadata keep describing the UNCOMPRESSED database
 Safe by design: never deletes anything anywhere; skips objects already present at the destination with the same size; copies OLDEST FIRST so the destination's
 LastModified order matches the original order (the app's retention rule picks "the newest 5 boot backups" by that time); streams each object through a temp file, computes its SHA-256 while
 downloading, compares it with the checksum the app recorded at upload (`source-sha256` metadata) when there is one, preserves the metadata, then re-reads the destination's size.
 """
-import hashlib, os, sys, tempfile
+import gzip, hashlib, os, shutil, sys, tempfile
 import boto3
 from botocore.config import Config
 
@@ -26,10 +27,12 @@ def listing(c, bucket):
 args = sys.argv[1:]
 execute = "--execute" in args
 limit = int(args[args.index("--limit") + 1]) if "--limit" in args else None
+compress = "--gzip" in args
+dkey_of = lambda k: k if (not compress or k.endswith(".gz")) else k + ".gz"
 src, dst = client("SRC"), client("DST")
 sb, db = os.environ["SRC_BUCKET"], os.environ["DST_BUCKET"]
 s, d = listing(src, sb), listing(dst, db)
-todo = sorted((o for k, o in s.items() if k not in d or d[k]["Size"] != o["Size"]), key=lambda o: o["LastModified"])
+todo = sorted((o for k, o in s.items() if (dkey_of(k) not in d) or (not compress and d[dkey_of(k)]["Size"] != o["Size"])), key=lambda o: o["LastModified"])
 if limit:
     todo = todo[:limit]
 GB = 1e9
@@ -56,13 +59,26 @@ for o in todo:
         size = os.path.getsize(tmp.name)
         if size != head["ContentLength"] or (recorded and recorded != got):
             print("  FAIL (source object does not match its recorded checksum/size, NOT copied):", key); bad += 1; continue
-        tmp.seek(0)
-        dst.upload_fileobj(tmp, db, key, ExtraArgs={"Metadata": meta})
-    if dst.head_object(Bucket=db, Key=key)["ContentLength"] != size:
-        print("  FAIL (destination size differs):", key); bad += 1; continue
+        dkey, up_meta, stored = dkey_of(key), dict(meta), size
+        if compress and dkey != key:
+            with tempfile.NamedTemporaryFile(dir="/work", delete=True, suffix=".gz") as gz:
+                tmp.seek(0)
+                with gzip.GzipFile(fileobj=gz, mode="wb", compresslevel=3) as zf:
+                    shutil.copyfileobj(tmp, zf, 1 << 20)
+                gz.flush()
+                stored = os.path.getsize(gz.name)
+                up_meta.update({"compression": "gzip", "stored-size-bytes": str(stored)})
+                up_meta.setdefault("source-sha256", got); up_meta.setdefault("source-size-bytes", str(size))
+                gz.seek(0)
+                dst.upload_fileobj(gz, db, dkey, ExtraArgs={"Metadata": up_meta})
+        else:
+            tmp.seek(0)
+            dst.upload_fileobj(tmp, db, dkey, ExtraArgs={"Metadata": up_meta})
+    if dst.head_object(Bucket=db, Key=dkey)["ContentLength"] != stored:
+        print("  FAIL (destination size differs):", dkey); bad += 1; continue
     ok += 1
-    print("  copied %s  %.0f MB  sha256 %s%s" % (key, size / 1e6, got[:12], "  (matches recorded)" if recorded else "  (no recorded checksum)"))
+    print("  copied %s -> %s  %.0f MB -> %.0f MB  sha256 %s%s" % (key, dkey, size / 1e6, stored / 1e6, got[:12], "  (matches recorded)" if recorded else "  (no recorded checksum)"))
 d2 = listing(dst, db)
 print("DONE: copied %d, failed %d | destination now %d objects %.1f GB | every source object present at the destination: %s" % (
-    ok, bad, len(d2), sum(o["Size"] for o in d2.values()) / GB, all(k in d2 and d2[k]["Size"] == v["Size"] for k, v in s.items()) if not limit else "n/a (--limit)"))
+    ok, bad, len(d2), sum(o["Size"] for o in d2.values()) / GB, all(dkey_of(k) in d2 for k in s) if not limit else "n/a (--limit)"))
 sys.exit(1 if bad else 0)

@@ -39,8 +39,10 @@ success.
 """
 from __future__ import annotations
 
+import gzip
 import hashlib
 import os
+import shutil
 import sqlite3
 import tempfile
 import time
@@ -128,7 +130,7 @@ def _cleanup_sqlite_file(path: Path) -> None:
         sidecar.unlink(missing_ok=True)
 
 
-def plan_retention(objects: list, now: datetime, protect: set | None = None) -> tuple[list, list]:
+def plan_retention(objects: list, now: datetime, protect: set | None = None, max_bytes: int = 0) -> tuple[list, list]:
     """Pure function. `objects` are S3 listing dicts ({Key, LastModified, Size}). Returns (keep_keys, delete_keys). Only boot/ and daily/ objects can ever be
     in delete_keys; every other object, and everything in `protect`, is always kept."""
     protect = set(protect or ())
@@ -147,6 +149,24 @@ def plan_retention(objects: list, now: datetime, protect: set | None = None) -> 
         else:
             months.setdefault((o["LastModified"].year, o["LastModified"].month), o["Key"])
     keep |= set(weeks.values()) | set(months.values())
+
+    # Optional hard ceiling (e.g. a free-tier bucket). Drop the least valuable kept backups until the total fits, in this order: weekly/monthly samples (oldest first), then dailies older
+    # than 7 days (oldest first), then boot backups beyond the newest 2. Never dropped: the protected keys, the newest 2 boot backups, the newest 3 dailies, and anything that is not
+    # a boot/daily backup. If those alone exceed the ceiling nothing more is dropped (it never deletes data it was told to keep).
+    if max_bytes and max_bytes > 0:
+        size = {o["Key"]: o["Size"] for o in objects}
+        total = sum(size[k] for k in keep)
+        floor = protect | {o["Key"] for o in boots[-2:]} | {o["Key"] for o in dailies[-3:]}
+        order = {o["Key"]: i for i, o in enumerate(sorted(objects, key=lambda o: o["LastModified"]))}
+        sampled = set(weeks.values()) | set(months.values())
+        weekly = sorted((k for k in keep if k in sampled and k not in floor), key=order.get)
+        old_daily = sorted((o["Key"] for o in dailies if o["Key"] in keep and o["Key"] not in floor and o["Key"] not in sampled and (now - o["LastModified"]).days > 7), key=order.get)
+        old_boot = sorted((o["Key"] for o in boots if o["Key"] in keep and o["Key"] not in floor), key=order.get)
+        for k in weekly + old_daily + old_boot:
+            if total <= max_bytes:
+                break
+            keep.discard(k)
+            total -= size[k]
     delete = sorted(o["Key"] for o in objects if o["Key"] not in keep)
     return sorted(keep), delete
 
@@ -160,7 +180,7 @@ def prune_remote_backups(client, bucket: str, just_uploaded_key: str, now: datet
         objects: list = []
         for page in client.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=f"{_OBJECT_PREFIX}/"):
             objects += page.get("Contents", [])
-        _, delete = plan_retention(objects, now, protect={just_uploaded_key})
+        _, delete = plan_retention(objects, now, protect={just_uploaded_key}, max_bytes=int(getattr(settings, "backup_remote_max_bytes", 0) or 0))
         delete = [k for k in delete if k.startswith(_PRUNABLE_PREFIXES) and k != just_uploaded_key][:_RETENTION_MAX_DELETES]
         if not delete:
             return {"status": "ok", "deleted": 0, "listed": len(objects)}
@@ -210,6 +230,11 @@ def backup_to_bucket(kind: str = "boot") -> dict:
 
     local_snapshot: Optional[Path] = None
     verify_download: Optional[Path] = None
+    compressed_upload: Optional[Path] = None
+    decompressed_verify: Optional[Path] = None
+    compress = bool(getattr(settings, "backup_remote_compress", False))
+    if compress:
+        object_key += ".gz"
 
     def _fail(reason: str, **extra) -> dict:
         log.error("backup_remote.degraded", kind=kind, reason=reason,
@@ -254,26 +279,35 @@ def backup_to_bucket(kind: str = "boot") -> dict:
         if _object_exists(client, settings.backup_bucket_name, object_key):
             return _fail("object_already_exists", object_key=object_key)
 
+        # Optional compression (about 4x smaller). source-sha256 and source-size-bytes ALWAYS describe the uncompressed database, so the same checks apply either way.
+        upload_path, upload_size = local_snapshot, snapshot_size
+        if compress:
+            fdz, gz_name = tempfile.mkstemp(prefix=f"cr0b_{kind}_", suffix=".db.gz")
+            os.close(fdz)
+            compressed_upload = Path(gz_name)
+            with open(local_snapshot, "rb") as fi, gzip.open(compressed_upload, "wb", compresslevel=3) as fo:
+                shutil.copyfileobj(fi, fo, 1 << 20)
+            upload_path, upload_size = compressed_upload, compressed_upload.stat().st_size
+
         # Step 5: upload.
-        client.upload_file(
-            str(local_snapshot), settings.backup_bucket_name, object_key,
-            ExtraArgs={
-                "Metadata": {
-                    "source-size-bytes": str(snapshot_size),
-                    "source-sha256": local_sha256,
-                    "upload-timestamp-utc": now.isoformat(),
-                    "kind": kind,
-                    "source-environment": "railway-production-backend",
-                }
-            },
-        )
+        meta = {
+            "source-size-bytes": str(snapshot_size),
+            "source-sha256": local_sha256,
+            "upload-timestamp-utc": now.isoformat(),
+            "kind": kind,
+            "source-environment": "railway-production-backend",
+        }
+        if compress:
+            meta["compression"] = "gzip"
+            meta["stored-size-bytes"] = str(upload_size)
+        client.upload_file(str(upload_path), settings.backup_bucket_name, object_key, ExtraArgs={"Metadata": meta})
         states["upload_complete"] = True
 
-        # Step 6: HEAD/metadata verify.
+        # Step 6: HEAD/metadata verify (the size of what was stored).
         head = client.head_object(Bucket=settings.backup_bucket_name, Key=object_key)
         remote_size = head["ContentLength"]
-        if remote_size != snapshot_size:
-            return _fail("remote_size_mismatch", local_size=snapshot_size, remote_size=remote_size, object_key=object_key)
+        if remote_size != upload_size:
+            return _fail("remote_size_mismatch", local_size=upload_size, remote_size=remote_size, object_key=object_key)
 
         # Steps 7-9: download to a second disposable path, re-verify independently.
         fd2, verify_name = tempfile.mkstemp(prefix=f"cr0b_verify_{kind}_", suffix=".db")
@@ -281,11 +315,23 @@ def backup_to_bucket(kind: str = "boot") -> dict:
         verify_download = Path(verify_name)
         client.download_file(settings.backup_bucket_name, object_key, str(verify_download))
 
-        downloaded_sha256 = _sha256_of_file(verify_download)
+        check_path = verify_download
+        if compress:
+            fd3, plain_name = tempfile.mkstemp(prefix=f"cr0b_verify_plain_{kind}_", suffix=".db")
+            os.close(fd3)
+            decompressed_verify = Path(plain_name)
+            try:
+                with gzip.open(verify_download, "rb") as fi, open(decompressed_verify, "wb") as fo:
+                    shutil.copyfileobj(fi, fo, 1 << 20)
+            except (OSError, EOFError):
+                return _fail("downloaded_decompress_failed", object_key=object_key)
+            check_path = decompressed_verify
+
+        downloaded_sha256 = _sha256_of_file(check_path)
         if downloaded_sha256 != local_sha256:
             return _fail("downloaded_checksum_mismatch", object_key=object_key)
 
-        downloaded_check = _sqlite_quick_check(verify_download)
+        downloaded_check = _sqlite_quick_check(check_path)
         if downloaded_check != "ok":
             return _fail("remote_integrity_check_failed", quick_check_result=downloaded_check, object_key=object_key)
 
@@ -323,3 +369,6 @@ def backup_to_bucket(kind: str = "boot") -> dict:
     finally:
         if verify_download is not None:
             _cleanup_sqlite_file(verify_download)
+        for extra in (compressed_upload, decompressed_verify):
+            if extra is not None:
+                _cleanup_sqlite_file(extra)
