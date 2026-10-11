@@ -252,6 +252,17 @@ def _fetch_pcr_data() -> dict:
     return {"available": False, "pcr": None, "max_pain": None, "label": None, "color": "slate"}
 
 
+def _gift_stale_note(source_timestamp) -> str:
+    """The note for a non-live GIFT Nifty quote, stating how old it really is (it used to say "a few hours old" even on a weekend, when the last quote was ~2 days old)."""
+    from datetime import datetime, timezone
+    if source_timestamp is None:
+        return "GIFT Nifty: last quote time unknown, treat cautiously"
+    ts = source_timestamp if source_timestamp.tzinfo else source_timestamp.replace(tzinfo=timezone.utc)
+    hours = (datetime.now(timezone.utc) - ts).total_seconds() / 3600
+    age = f"{round(hours)} hour{'s' if round(hours) != 1 else ''}" if hours < 48 else f"{round(hours / 24)} days"
+    return f"GIFT Nifty: market closed, last quote {age} ago"
+
+
 def _gift_nifty_row() -> dict:
     """Real GIFT Nifty (NSE IX, GIFT City) via the shared adapter
     (app/services/gift_nifty_service.py) — Phase 5B. Replaces the old
@@ -291,7 +302,7 @@ def _gift_nifty_row() -> dict:
         "change_str": change_str,
         "pct":        change_str,
         "positive":   (result.change or 0) >= 0,
-        "note":       "Real GIFT Nifty (NSE IX)" if result.status == "live" else "GIFT Nifty — data is a few hours old, treat cautiously",
+        "note":       "Real GIFT Nifty (NSE IX)" if result.status == "live" else _gift_stale_note(result.source_timestamp),
         "expiry":            result.expiry.isoformat() if result.expiry else None,
         "source_timestamp":  result.source_timestamp.isoformat() if result.source_timestamp else None,
         "premium_pct": None,
@@ -515,8 +526,8 @@ async def market_overview():
     sample_pos = movers.get("advancing_count", len(movers.get("gainers", [])))
     sample_neg = movers.get("declining_count", len(movers.get("losers", [])))
     sample_total = max(sample_pos + sample_neg, 1)
-    est_advances = round(sample_pos / sample_total * 1200)
-    est_declines = round(sample_neg / sample_total * 1200)
+    est_advances = sample_pos                # real counts for the stocks we track live; never scaled up to a made-up market size
+    est_declines = sample_neg
     result = {
         "status":   status,
         "indices":  indices[:6],
@@ -525,9 +536,9 @@ async def market_overview():
         "sentiment_score": sentiment_score,
         "breadth":  {
             "advances": est_advances, "declines": est_declines,
-            "unchanged": max(0, 1500 - est_advances - est_declines),
+            "unchanged": max(0, (movers.get("sample_size") or sample_total) - est_advances - est_declines),
             "high52w": None, "low52w": None,
-            "note": "Estimated from Nifty 500 sample",
+            "note": "Counted across the large-cap stocks we track live, not the whole market",
         },
     }
     _overview_cache["ts"]   = now
@@ -579,9 +590,9 @@ async def market_premarket():
     sample_pos = movers.get("advancing_count", len(movers.get("gainers", [])))
     sample_neg = movers.get("declining_count", len(movers.get("losers", [])))
     sample_total = max(sample_pos + sample_neg, 1)
-    est_advances = round(sample_pos / sample_total * 1200)
-    est_declines = round(sample_neg / sample_total * 1200)
-    est_unchanged = max(0, 1500 - est_advances - est_declines)
+    est_advances = sample_pos                # real counts for the stocks we track live; never scaled up to a made-up market size
+    est_declines = sample_neg
+    est_unchanged = max(0, (movers.get("sample_size") or sample_total) - est_advances - est_declines)
 
     return {
         "gift_nifty":           enhanced["gift_nifty"],
@@ -601,7 +612,7 @@ async def market_premarket():
             "advances":  est_advances,
             "declines":  est_declines,
             "unchanged": est_unchanged,
-            "note":      "Estimated from Nifty 500 sample",
+            "note":      "Counted across the large-cap stocks we track live, not the whole market",
         },
         # Legacy backward-compat fields
         "futures":           [enhanced["gift_nifty"]] + enhanced["us_futures"],
@@ -625,17 +636,17 @@ async def market_live():
     sample_pos = movers.get("advancing_count", len(movers.get("gainers", [])))
     sample_neg = movers.get("declining_count", len(movers.get("losers", [])))
     sample_total = max(sample_pos + sample_neg, 1)
-    est_advances = round(sample_pos / sample_total * 1200)
-    est_declines = round(sample_neg / sample_total * 1200)
+    est_advances = sample_pos                # real counts for the stocks we track live; never scaled up to a made-up market size
+    est_declines = sample_neg
     return {
         "indices": indices,
         "sectors": sectors,
         "movers":  movers,
         "breadth": {
             "advances": est_advances, "declines": est_declines,
-            "unchanged": max(0, 1500 - est_advances - est_declines),
+            "unchanged": max(0, (movers.get("sample_size") or sample_total) - est_advances - est_declines),
             "high52w": None, "low52w": None, "volume_cr": None,
-            "note": "Estimated from Nifty 500 sample",
+            "note": "Counted across the large-cap stocks we track live, not the whole market",
         },
     }
 
@@ -657,8 +668,8 @@ async def market_after_market():
     sample_pos = movers.get("advancing_count", len(movers.get("gainers", [])))
     sample_neg = movers.get("declining_count", len(movers.get("losers", [])))
     sample_total = max(sample_pos + sample_neg, 1)
-    est_advances = round(sample_pos / sample_total * 1200)
-    est_declines = round(sample_neg / sample_total * 1200)
+    est_advances = sample_pos                # real counts for the stocks we track live; never scaled up to a made-up market size
+    est_declines = sample_neg
 
     return {
         "closing": {
@@ -675,8 +686,8 @@ async def market_after_market():
         "breadth": {
             "advances":  est_advances,
             "declines":  est_declines,
-            "unchanged": max(0, 1500 - est_advances - est_declines),
-            "note":      "Estimated from Nifty 500 sample",
+            "unchanged": max(0, (movers.get("sample_size") or sample_total) - est_advances - est_declines),
+            "note":      "Counted across the large-cap stocks we track live, not the whole market",
         },
         # tomorrow_watchlist / ai_summary intentionally removed — both were
         # hardcoded placeholder content the frontend never actually reads
