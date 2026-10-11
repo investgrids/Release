@@ -79,6 +79,7 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     { url: `${base}/legal`,                      lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/contact`,                    lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/calendar`,                   lastModified: now, changeFrequency: "daily",  priority: 0.5 },
+    { url: `${base}/ipo`,                        lastModified: now, changeFrequency: "daily",  priority: 0.8 },
     // Real destination, not /insights — that path 301-redirects to
     // /newsroom (same "AI Newsroom consolidation" redirect block already
     // fixed for /themes and /insights/{slug} — this bare entry was missed

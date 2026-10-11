@@ -54,7 +54,7 @@ const NAV_PRIMARY: NavItem[] = [
       { label: "All Companies", href: "/companies",                  blurb: "Search and filter the full universe" },
       { label: "Company Rankings", href: "/companies?tab=company-rankings", blurb: "Ranked by the real MarketRipple Score" },
       { label: "Compare",       href: "/companies?tab=compare",      blurb: "Side-by-side company comparison" },
-      { label: "IPO Hub",       href: "/companies?tab=ipo",          blurb: "Upcoming, ongoing, and listed IPOs" },
+      { label: "IPO Hub",       href: "/ipo",                        blurb: "Upcoming, ongoing, and listed IPOs" },
       { label: "Sectors",       href: "/companies?tab=sectors",      blurb: "Browse companies by sector" },
     ],
   },
