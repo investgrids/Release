@@ -275,7 +275,7 @@ function UpcomingEventsTab() {
 
 // ── IPO Watch tab (real, reuses the IPO Hub's own endpoint) ───────────────────
 
-interface IpoSummary { id: string; name: string; sector: string; status: string; priceMin: number; priceMax: number; gmpPct: number; listingDate: string }
+interface IpoSummary { id: string; name: string; type: string; status: string; priceMin: number | null; priceMax: number | null; openDate: string | null; closeDate: string | null }
 
 function IpoWatchTab() {
   const [ipos, setIpos] = useState<IpoSummary[] | null>(null);
@@ -290,29 +290,22 @@ function IpoWatchTab() {
     return (
       <div className="rounded-2xl border border-surface-border/10 bg-text-primary/[0.03] py-16 text-center">
         <p className="text-[13px] text-text-muted">No upcoming IPOs tracked right now.</p>
-        <Link href="/companies?tab=ipo-hub" className="mt-3 inline-block text-[12px] font-semibold text-sky-500 hover:text-sky-600">View full IPO Hub →</Link>
+        <Link href="/ipo" className="mt-3 inline-block text-[12px] font-semibold text-sky-500 hover:text-sky-600">View full IPO Hub →</Link>
       </div>
     );
   }
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {ipos.map(ipo => {
-        // The listingDate field on some IPO records is itself placeholder
-        // text ("Example date — placeholder"), not a real date — a
-        // pre-existing data-quality gap in the underlying IPO data source
-        // (the standalone IPO Hub page displays the same raw field
-        // unfiltered). Surfacing it prominently in a new compact card
-        // would read as a fabricated real date, so it's only shown when it
-        // actually looks like one.
-        const hasRealDate = /\d/.test(ipo.listingDate) && !/placeholder|example/i.test(ipo.listingDate);
+        const fmtD = (d: string | null) => (d ? new Date(d + "T00:00:00+05:30").toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" }) : null);
         return (
-          <Link key={ipo.id} href="/companies?tab=ipo-hub" className="rounded-2xl border border-surface-border/10 bg-text-primary/[0.03] p-4 transition hover:border-violet-500/25">
+          <Link key={ipo.id} href="/ipo" className="rounded-2xl border border-surface-border/10 bg-text-primary/[0.03] p-4 transition hover:border-violet-500/25">
             <div className="mb-1.5 flex items-center justify-between">
-              <span className="rounded-full border border-violet-500/25 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold text-violet-500">{ipo.sector}</span>
-              {hasRealDate && <span className="text-[11px] text-text-muted">Lists {ipo.listingDate}</span>}
+              <span className="rounded-full border border-violet-500/25 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold text-violet-500">{ipo.type}</span>
+              {ipo.openDate && <span className="text-[11px] text-text-muted">Opens {fmtD(ipo.openDate)}</span>}
             </div>
             <h3 className="text-[13px] font-bold text-text-primary">{ipo.name}</h3>
-            <p className="mt-1 text-[12px] text-text-secondary">₹{ipo.priceMin}–₹{ipo.priceMax} · GMP {ipo.gmpPct >= 0 ? "+" : ""}{ipo.gmpPct}%</p>
+            <p className="mt-1 text-[12px] text-text-secondary">{ipo.priceMin != null && ipo.priceMax != null ? `₹${ipo.priceMin}–₹${ipo.priceMax}` : "Price band awaited"}{ipo.closeDate ? ` · closes ${fmtD(ipo.closeDate)}` : ""}</p>
           </Link>
         );
       })}

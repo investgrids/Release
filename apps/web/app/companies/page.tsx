@@ -15,7 +15,7 @@ const DESCRIPTION =
   "Find India's best companies using AI — search the full NSE universe, AI-ranked Best Stocks, sector breakdowns, and side-by-side comparison, all in one place.";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   // The tab switcher (?tab=) keeps every variant on one canonical URL —
@@ -37,6 +37,12 @@ export const metadata: Metadata = {
   },
 };
 export const dynamic = "force-dynamic";
+
+// The IPO tab's real home is /ipo (its own indexable page); the tab URL points search engines there so the two never compete.
+export async function generateMetadata({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }): Promise<Metadata> {
+  const { tab } = await searchParams;
+  return tab === "ipo" ? { ...baseMetadata, alternates: { canonical: `${SITE_URL}/ipo` } } : baseMetadata;
+}
 
 const VALID_TABS = new Set(["overview", "all-companies", "company-rankings", "sectors", "compare", "ipo"]);
 

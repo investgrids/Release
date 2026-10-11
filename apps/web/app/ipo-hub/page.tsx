@@ -1,5 +1,5 @@
-import { IPOHubContent } from "./IPOHubContent";
+import { IPOHubServer } from "./IPOHubServer";
 
 export default function IPOHubPage() {
-  return <IPOHubContent headingLevel="h1" />;
+  return <IPOHubServer headingLevel="h1" />;
 }

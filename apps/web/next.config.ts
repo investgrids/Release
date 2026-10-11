@@ -55,7 +55,7 @@ const nextConfig: NextConfig = {
       // "not yet available" + company-browsing content — see that page).
       { source: "/best-stocks/banking", destination: "/companies?tab=company-rankings", permanent: true },
       { source: "/compare",            destination: "/companies?tab=compare",     permanent: true },
-      { source: "/ipo-hub",            destination: "/companies?tab=ipo",         permanent: true },
+      { source: "/ipo-hub",            destination: "/ipo",                       permanent: true },
       { source: "/sectors",            destination: "/companies?tab=sectors",     permanent: true },
 
       // AI Newsroom consolidation — /insights, /daily-brief, /themes, and

@@ -105,6 +105,7 @@ const SEGMENT_LABEL: Record<string, string> = {
   "company-rankings": "Company Rankings",
   compare: "Compare",
   "ipo-hub": "IPO Hub",
+  ipo: "IPO Calendar",
   ripple: "Ripple Intelligence",
   historical: "Historical Patterns",
   "opportunity-radar": "Opportunity Radar",
