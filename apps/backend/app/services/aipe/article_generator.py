@@ -17,6 +17,7 @@ from typing import Any
 
 import structlog
 
+from app.services import ai_usage
 from app.services.ai_service import _call_with_fallback
 from app.services.aipe.content_templates import SYSTEM_PROMPT, get_template
 from app.services.aipe.fact_grounding import fetch_price_moves, format_price_grounding
@@ -111,7 +112,8 @@ async def generate_intelligence_article(
     )
 
     try:
-        raw = await _call_with_fallback(user_prompt, system=SYSTEM_PROMPT, max_tokens=3000, failure_log=failure_log, priority="background")
+        with ai_usage.operation("scheduled_market_article" if article_type in ("market_wrap", "morning_intelligence") else "article_generation"):
+            raw = await _call_with_fallback(user_prompt, system=SYSTEM_PROMPT, max_tokens=3000, failure_log=failure_log, priority="background")
     except Exception as exc:
         log.error("article_generator.ai_error", type=article_type, error=str(exc))
         if failure_log is not None:

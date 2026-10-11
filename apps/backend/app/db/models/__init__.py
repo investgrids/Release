@@ -24,6 +24,7 @@ from app.db.models.score_history import ScoreHistory
 from app.db.models.feedback import FeedbackSubmission
 from app.db.models.event_coverage import EventCoverage
 from app.db.models.candidate_run import CandidateRun
+from app.db.models.ai_usage import AIUsageAttempt, AISearchRequestLog, AIUsageDaily
 from app.db.models.fact import Fact
 from app.db.models.generated_media import GeneratedMedia
 from app.db.models.ai_search_feedback import AISearchFeedback
@@ -75,6 +76,9 @@ __all__ = [
     "FeedbackSubmission",
     "EventCoverage",
     "CandidateRun",
+    "AIUsageAttempt",
+    "AISearchRequestLog",
+    "AIUsageDaily",
     "Fact",
     "GeneratedMedia",
     "AISearchFeedback",

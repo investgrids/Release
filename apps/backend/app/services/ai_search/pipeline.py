@@ -197,6 +197,32 @@ STAGE_LABELS = {
 
 
 async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | None = None):
+    """Instrumented wrapper (2026-10-11): records exactly one ai_search_request_log row per request (outcome, cache hit, latency, LLM calls and provider-reported tokens; the question
+    text is never stored) and tags every LLM attempt made inside as "ai_search". It passes every stage through untouched, so the answer contract is unchanged."""
+    from app.services import ai_usage
+    stages: set[str] = set()
+    final: dict | None = None
+    abort: str | None = None
+    with ai_usage.search_request(len(query or "")) as finish:
+        try:
+            async for stage, label, payload in _run_v3_steps_impl(query, db, session_context):
+                stages.add(stage)
+                if payload is not None:
+                    final = payload
+                yield stage, label, payload
+        except BaseException as exc:            # includes GeneratorExit/CancelledError (client went away): recorded, then re-raised unchanged
+            abort = type(exc).__name__
+            raise
+        finally:
+            if isinstance(final, dict):
+                reason = final.get("degraded_reason")
+                finish("degraded" if reason else "answered", reason, final.get("specialist"),
+                       not stages & {"reasoning", "insufficient_evidence", "education", "retrieval_incomplete", "education_not_covered"})
+            else:
+                finish("error", abort or "no_result")
+
+
+async def _run_v3_steps_impl(query: str, db: AsyncSession, session_context: dict | None = None):
     """Async generator — the single source of truth for the v3 pipeline.
     Yields (stage_key, label, response_or_None) at each real checkpoint;
     response is only non-None on the final yield. Both the non-streaming

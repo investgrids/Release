@@ -125,6 +125,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Literal
 from app.core.config import settings
+from app.services import ai_usage
 from app.core.redis import cache_get, cache_set
 
 Priority = Literal["interactive", "background"]
@@ -888,6 +889,30 @@ async def _call_provider(
     extra_headers: dict | None = None,
     failure_log: list[dict] | None = None,
 ) -> str:
+    """Instrumented entry point (2026-10-11): records one ai_usage attempt per real HTTP call (outcome, latency, provider-reported tokens) around the unchanged
+    _call_provider_inner. A (provider, model) that is cooling down is not an HTTP attempt: it is counted as a skip and handled by the inner function exactly as before."""
+    provider_name = _provider_name_for_url(base_url)
+    if _is_exhausted(provider_name, model):
+        ai_usage.note_skip(provider_name, model)
+        return await _call_provider_inner(base_url, api_key, model, prompt, system, max_tokens, extra_headers, failure_log, None)
+    att = ai_usage.begin_attempt(provider_name, model)
+    try:
+        return await _call_provider_inner(base_url, api_key, model, prompt, system, max_tokens, extra_headers, failure_log, att)
+    finally:
+        ai_usage.finish_attempt(att)
+
+
+async def _call_provider_inner(
+    base_url: str,
+    api_key: str,
+    model: str,
+    prompt: str,
+    system: str = "",
+    max_tokens: int = 200,
+    extra_headers: dict | None = None,
+    failure_log: list[dict] | None = None,
+    _att: dict | None = None,
+) -> str:
     """Generic OpenAI-compatible call. Returns '' on any failure or rate-limit.
     Classifies failures (429/402/401/403/404/5xx/timeout) and marks the
     (provider, model) pair exhausted in _EXHAUSTED with a reason-appropriate
@@ -937,6 +962,7 @@ async def _call_provider(
                             cooldown_s=retry_after if retry_after is not None else _COOLDOWN_S["rate_limit"],
                             retry_after_header=retry_after is not None)
                 _AI_USAGE["calls_failed"] += 1
+                ai_usage.set_outcome(_att, "rate_limited", 429) if _att else None
                 if failure_log is not None:
                     failure_log.append({"model": model, "provider": provider_name, "reason": "429"})
                 return ""
@@ -945,6 +971,7 @@ async def _call_provider(
                 log.warning("ai.exhausted", model=model, provider=provider_name, status=402, reason="billing",
                             cooldown_s=_COOLDOWN_S["billing"])
                 _AI_USAGE["calls_failed"] += 1
+                ai_usage.set_outcome(_att, "billing", 402) if _att else None
                 if failure_log is not None:
                     failure_log.append({"model": model, "provider": provider_name, "reason": "402"})
                 return ""
@@ -953,6 +980,7 @@ async def _call_provider(
                 log.warning("ai.exhausted", model=model, provider=provider_name, status=r.status_code, reason="auth_error",
                             cooldown_s=_COOLDOWN_S["auth_error"])
                 _AI_USAGE["calls_failed"] += 1
+                ai_usage.set_outcome(_att, "auth_error", r.status_code) if _att else None
                 if failure_log is not None:
                     failure_log.append({"model": model, "provider": provider_name, "reason": f"auth_error_{r.status_code}"})
                 return ""
@@ -961,6 +989,7 @@ async def _call_provider(
                 log.warning("ai.exhausted", model=model, provider=provider_name, status=404, reason="not_found",
                             cooldown_s=_COOLDOWN_S["not_found"])
                 _AI_USAGE["calls_failed"] += 1
+                ai_usage.set_outcome(_att, "not_found", 404) if _att else None
                 if failure_log is not None:
                     failure_log.append({"model": model, "provider": provider_name, "reason": "404"})
                 return ""
@@ -969,6 +998,7 @@ async def _call_provider(
                 log.warning("ai.exhausted", model=model, provider=provider_name, status=r.status_code, reason="server_error",
                             cooldown_s=_COOLDOWN_S["server_error"])
                 _AI_USAGE["calls_failed"] += 1
+                ai_usage.set_outcome(_att, "server_error", r.status_code) if _att else None
                 if failure_log is not None:
                     failure_log.append({"model": model, "provider": provider_name, "reason": f"server_error_{r.status_code}"})
                 return ""
@@ -977,12 +1007,16 @@ async def _call_provider(
             if "error" in data:
                 log.warning("ai.api_error", model=model, err=str(data["error"])[:120])
                 _AI_USAGE["calls_failed"] += 1
+                ai_usage.set_outcome(_att, "api_error", r.status_code) if _att else None
                 if failure_log is not None:
                     failure_log.append({"model": model, "provider": provider_name, "reason": "api_error"})
                 return ""
             content = data["choices"][0]["message"]["content"]
             _AI_USAGE["latency_ms_total"] += (time.monotonic() - _t0) * 1000
             _AI_USAGE["calls_success"] += 1
+            if _att:
+                ai_usage.set_outcome(_att, "success" if content else "empty", r.status_code)
+                ai_usage.set_usage(_att, data.get("usage"))
             _AI_USAGE["last_success_at"] = datetime.now(timezone.utc).isoformat()
             _AI_USAGE["last_provider"] = provider_name
             usage = data.get("usage") or {}
@@ -1002,6 +1036,8 @@ async def _call_provider(
         _AI_USAGE["calls_failed"] += 1
         _AI_USAGE["last_error_at"] = datetime.now(timezone.utc).isoformat()
         _AI_USAGE["last_error"] = str(exc)[:200]
+        if _att:
+            ai_usage.set_outcome(_att, "timeout" if is_timeout else "other", None)
         if is_timeout:
             _AI_USAGE["timeouts"] += 1
         if failure_log is not None:
@@ -1010,6 +1046,17 @@ async def _call_provider(
 
 
 async def _call_nvidia_raw(prompt: str, system: str, max_tokens: int) -> tuple[str, str | None]:
+    """Instrumented entry point: one ai_usage attempt around the unchanged _call_nvidia_raw_inner (failure kinds map to outcomes)."""
+    att = ai_usage.begin_attempt("nvidia", settings.nvidia_model)
+    try:
+        text, kind = await _call_nvidia_raw_inner(prompt, system, max_tokens, att)
+        ai_usage.set_outcome(att, "success" if kind is None else {"rate_limited": "rate_limited", "server_error": "server_error", "timeout": "timeout"}.get(kind, "other"), None)
+        return text, kind
+    finally:
+        ai_usage.finish_attempt(att)
+
+
+async def _call_nvidia_raw_inner(prompt: str, system: str, max_tokens: int, _att: dict | None = None) -> tuple[str, str | None]:
     """
     Low-level NVIDIA call, bounded by `_NVIDIA_TIMEOUT_S`. Returns
     (text, failure_kind) — failure_kind is None on success, else one of
@@ -1045,6 +1092,8 @@ async def _call_nvidia_raw(prompt: str, system: str, max_tokens: int) -> tuple[s
                 return "", "other"
             content = data["choices"][0]["message"]["content"]
             content = _strip_reasoning(content.strip()) if content else ""
+            if _att:
+                ai_usage.set_usage(_att, data.get("usage"))
             return (content, None) if content else ("", "other")
     except httpx.TimeoutException:
         return "", "timeout"
@@ -1157,6 +1206,23 @@ def _requesty_models() -> list[str]:
 
 
 async def _call_with_fallback(
+    prompt: str,
+    system: str = "",
+    max_tokens: int = 200,
+    failure_log: list[dict] | None = None,
+    *,
+    priority: Priority,
+) -> str:
+    """Instrumented entry point (2026-10-11): groups the attempts of one fallback-chain call (call id, feature tag from the surrounding ai_usage.operation) around the unchanged
+    _call_with_fallback_inner. No retry or provider-order behaviour lives here."""
+    token = ai_usage.begin_call()
+    try:
+        return await _call_with_fallback_inner(prompt, system, max_tokens, failure_log, priority=priority)
+    finally:
+        ai_usage.end_call(token)
+
+
+async def _call_with_fallback_inner(
     prompt: str,
     system: str = "",
     max_tokens: int = 200,

@@ -133,6 +133,13 @@ async def _make_unique_slug(repo: "EventRepository", title: str, exclude_id: str
 
 
 async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
+    """Instrumented entry point (2026-10-11): tags every LLM attempt made while enriching this event as "event_enrichment" (ai_usage); the pipeline itself is _run_event_pipeline_impl, unchanged."""
+    from app.services import ai_usage
+    with ai_usage.operation("event_enrichment"):
+        return await _run_event_pipeline_impl(event, db)
+
+
+async def _run_event_pipeline_impl(event: Event, db: AsyncSession) -> bool:
     """
     Enrich a single event through the full AI pipeline.
     Returns True on success, False on any unrecoverable failure.

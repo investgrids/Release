@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services import request_deadline
 from app.core.limiter import limiter
+from app.services import ai_usage
 from app.db.session import get_db
 from app.services.ai_search import instrumentation as ai_search_stats
 
@@ -93,6 +94,7 @@ async def ai_search(
     if not query:
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
 
+    ai_usage.mark_api_request()
     ai_search_stats.record_query()
     log.info("ai_search.request", query=query[:50], ip=request.client.host if request.client else "unknown")
     _t0 = time.monotonic()
@@ -150,6 +152,7 @@ async def ai_search_v3(
     if not query:
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
 
+    ai_usage.mark_api_request()
     ai_search_stats.record_query()
     log.info("ai_search_v3.request", query=query[:50], ip=request.client.host if request.client else "unknown")
     _t0 = time.monotonic()
@@ -228,6 +231,7 @@ async def ai_search_stream(
             parsed_session_context = None
 
     async def _event_stream():
+        ai_usage.mark_api_request()
         ai_search_stats.record_query()
         _t0 = time.monotonic()
         stages_seen: set[str] = set()
