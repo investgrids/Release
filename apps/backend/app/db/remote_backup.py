@@ -93,7 +93,7 @@ def _s3_client():
         region_name=settings.backup_bucket_region,
         aws_access_key_id=settings.backup_bucket_access_key_id,
         aws_secret_access_key=settings.backup_bucket_secret_access_key,
-        config=Config(s3={"addressing_style": "virtual"}),
+        config=Config(s3={"addressing_style": getattr(settings, "backup_bucket_addressing_style", "virtual") or "virtual"}),
     )
 
 
