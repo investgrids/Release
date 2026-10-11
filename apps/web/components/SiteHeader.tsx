@@ -63,7 +63,6 @@ const NAV_PRIMARY: NavItem[] = [
     sub: [
       { label: "Ripple Chain",         href: "/ripple",     blurb: "Trace an event's cascading effects" },
       { label: "Historical Patterns",  href: "/historical", blurb: "Has this happened before?" },
-      { label: "Explore Full Graph",   href: "/graph",      blurb: "The entire dependency network" },
     ],
   },
   { label: "Opportunity Radar", href: "/opportunity-radar" },

@@ -3,14 +3,15 @@ from sqlalchemy import select, func
 from app.db import models_legacy as models
 
 
-async def get_events(db: AsyncSession, limit: int = 20, sort_by: str = "published_at"):
+async def get_events(db: AsyncSession, limit: int = 20, sort_by: str = "published_at", offset: int = 0, scored_only: bool = False):
     if sort_by == "impact_score":
         order = models.Event.impact_score.desc()
     else:
         order = models.Event.published_at.desc()
-    result = await db.execute(
-        select(models.Event).order_by(order).limit(limit)
-    )
+    stmt = select(models.Event)
+    if scored_only:
+        stmt = stmt.where(models.Event.impact_score.is_not(None))      # filtered in SQL, so paging reaches events of any age
+    result = await db.execute(stmt.order_by(order).offset(offset).limit(limit))
     return result.scalars().all()
 
 

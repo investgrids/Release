@@ -355,7 +355,9 @@ export default function EventsPage() {
   const [view, setView]             = useState<"timeline" | "list">("timeline");
   const [impactFilter, setImpactFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [limit, setLimit]           = useState(20);
+  const PAGE = 20;
+  const [hasMore, setHasMore]       = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   // Default: scored events only. Most raw exchange filings are routine and never receive an impact score by design (about 94% of them); listing them first made the feed look unscored and unfinished. The toggle below adds them back.
   const [showUnscored, setShowUnscored] = useState(false);
 
@@ -389,12 +391,22 @@ export default function EventsPage() {
     // unfiltered feed so real events show (with their existing "Unscored"
     // badge for ones with no score yet) until the scoring pipeline issue
     // is found and fixed, at which point this can safely go back to true.
-    fetch(`${API}/api/events/?sort_by=published_at&limit=${limit}${showUnscored ? "" : "&scored_only=true"}`, { cache: "no-store" })
+    fetch(`${API}/api/events/?sort_by=published_at&limit=${PAGE}&offset=0${showUnscored ? "" : "&scored_only=true"}`, { cache: "no-store" })
       .then(r => r.ok ? r.json() : [])
-      .then(d => { if (Array.isArray(d)) setEvents(d); })
+      .then(d => { if (Array.isArray(d)) { setEvents(d); setHasMore(d.length === PAGE); } })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [limit, showUnscored]);
+  }, [showUnscored]);
+
+  // Next page by offset, appended: reaches events of any age (the old "raise the limit" approach stopped at the API's 100-event cap).
+  const loadMore = () => {
+    setLoadingMore(true);
+    fetch(`${API}/api/events/?sort_by=published_at&limit=${PAGE}&offset=${events.length}${showUnscored ? "" : "&scored_only=true"}`, { cache: "no-store" })
+      .then(r => r.ok ? r.json() : [])
+      .then(d => { if (Array.isArray(d)) { setEvents(prev => [...prev, ...d.filter((x: { id: string }) => !prev.some(p => p.id === x.id))]); setHasMore(d.length === PAGE); } })
+      .catch(() => {})
+      .finally(() => setLoadingMore(false));
+  };
 
   const filtered = events.filter(ev => {
     if (categoryFilter && ev.category !== categoryFilter) return false;
@@ -592,10 +604,10 @@ export default function EventsPage() {
               })}
 
               {/* Load more */}
-              {filtered.length >= 10 && (
-                <button onClick={() => setLimit(l => l + 20)}
+              {hasMore && (
+                <button onClick={loadMore} disabled={loadingMore}
                   className="w-full flex items-center justify-center gap-2 rounded-xl border border-surface-border/10 bg-text-primary/[0.02] py-3 text-[13px] text-text-secondary hover:text-text-primary hover:border-surface-border/20 transition">
-                  Load More Events
+                  {loadingMore ? "Loading..." : "Load More Events"}
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
                   </svg>

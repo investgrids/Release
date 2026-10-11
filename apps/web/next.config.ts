@@ -56,6 +56,8 @@ const nextConfig: NextConfig = {
       { source: "/best-stocks/banking", destination: "/companies?tab=company-rankings", permanent: true },
       { source: "/compare",            destination: "/companies?tab=compare",     permanent: true },
       { source: "/ipo-hub",            destination: "/ipo",                       permanent: true },
+      // The standalone "Market Intelligence Map" (/graph) was removed; the ripple chain is where this analysis now lives.
+      { source: "/graph",              destination: "/ripple",                    permanent: true },
       { source: "/sectors",            destination: "/companies?tab=sectors",     permanent: true },
 
       // AI Newsroom consolidation — /insights, /daily-brief, /themes, and

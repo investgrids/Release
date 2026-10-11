@@ -2710,9 +2710,7 @@ function RippleTabBody({ stock }: { stock: StockDetail }) {
     .slice(0, 8);
 
   return (
-    <SectionCard title="Company ripple" action={
-      <Link href="/graph" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">Explore full graph →</Link>
-    }>
+    <SectionCard title="Company ripple">
       <p className="mb-4 text-[12px] text-text-muted">
         {data.edges.length} verified relationship{data.edges.length === 1 ? "" : "s"}
       </p>

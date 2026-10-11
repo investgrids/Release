@@ -73,9 +73,6 @@ export async function RippleChainTab() {
             </span>
           ))}
         </div>
-        <Link href="/graph" className="flex shrink-0 items-center gap-1.5 text-[12px] font-semibold text-indigo-400 transition hover:text-indigo-300">
-          <Zap className="h-3.5 w-3.5" /> Open the interactive graph →
-        </Link>
       </div>
 
       {/* ── How it works ─────────────────────────────────────────────────── */}
