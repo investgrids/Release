@@ -5,6 +5,7 @@ Reuses existing service functions; adds futures, global indices, and AI-derived 
 from __future__ import annotations
 
 import asyncio
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor as _TP, TimeoutError as _TE
 from datetime import datetime, timezone, timedelta
@@ -40,10 +41,36 @@ _IST = timezone(timedelta(hours=5, minutes=30))
 _cache: dict[str, tuple[float, object]] = {}
 
 
+_refreshing: set[str] = set()
+_refresh_lock = threading.Lock()
+_STALE_FACTOR = 4          # a value up to 4x its TTL old is still served instantly while a fresh one is fetched in the background
+
+
+def _refresh_in_background(key: str, fn) -> None:
+    try:
+        _cache[key] = (time.time(), fn())
+    except Exception:  # noqa: BLE001 - the stale value keeps being served; the next call retries
+        pass
+    finally:
+        with _refresh_lock:
+            _refreshing.discard(key)
+
+
 def _cached_sync(key: str, ttl: int, fn):
+    """TTL cache, stale-while-revalidate: a fresh value is returned as is; a value past its TTL but under 4x TTL is returned IMMEDIATELY while one background thread refreshes it
+    (whoever arrived right after expiry used to wait ~10 s for the whole refresh); only a missing or very old value blocks on a fetch."""
     now = time.time()
-    if key in _cache and now - _cache[key][0] < ttl:
-        return _cache[key][1]
+    entry = _cache.get(key)
+    if entry and now - entry[0] < ttl:
+        return entry[1]
+    if entry and now - entry[0] < ttl * _STALE_FACTOR:
+        with _refresh_lock:
+            start = key not in _refreshing
+            if start:
+                _refreshing.add(key)
+        if start:
+            threading.Thread(target=_refresh_in_background, args=(key, fn), daemon=True).start()
+        return entry[1]
     result = fn()
     _cache[key] = (now, result)
     return result
