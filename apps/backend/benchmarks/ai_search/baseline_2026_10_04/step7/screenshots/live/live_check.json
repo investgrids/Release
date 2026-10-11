@@ -1,0 +1,199 @@
+[
+ {
+  "name": "home",
+  "width": 1440,
+  "http": 200,
+  "title": "MarketRipple — AI-Powered Market Intelligence",
+  "h1": "Preparing You For\nMonday\nPreparing You For Monday",
+  "textLen": 24973,
+  "emptyStates": 0,
+  "scrollW": 1521,
+  "clientW": 1440,
+  "suggestions": [],
+  "suggestionsHeading": null,
+  "apiHosts": [
+   "api.marketripple.in"
+  ],
+  "apiStatuses": {
+   "200": 4
+  },
+  "apiFailures": [],
+  "consoleErrors": []
+ },
+ {
+  "name": "events",
+  "width": 1440,
+  "http": 200,
+  "title": "Market Events — Event-Driven Intelligence | MarketRipple",
+  "h1": "Events",
+  "textLen": 10136,
+  "emptyStates": 0,
+  "scrollW": 1521,
+  "clientW": 1440,
+  "suggestions": [],
+  "suggestionsHeading": null,
+  "apiHosts": [
+   "api.marketripple.in"
+  ],
+  "apiStatuses": {
+   "200": 5
+  },
+  "apiFailures": [],
+  "consoleErrors": []
+ },
+ {
+  "name": "companies",
+  "width": 1440,
+  "http": 200,
+  "title": "Companies — NSE Listed Companies & AI Rankings | MarketRipple",
+  "h1": "Find India's best companies using AI",
+  "textLen": 2518,
+  "emptyStates": 0,
+  "scrollW": 1521,
+  "clientW": 1440,
+  "suggestions": [],
+  "suggestionsHeading": null,
+  "apiHosts": [
+   "api.marketripple.in"
+  ],
+  "apiStatuses": {
+   "200": 4
+  },
+  "apiFailures": [],
+  "consoleErrors": []
+ },
+ {
+  "name": "ai_search",
+  "width": 1440,
+  "http": 200,
+  "title": "AI Search — Ask Any Market Question | MarketRipple",
+  "h1": "Ask about the Indian market",
+  "textLen": 1832,
+  "emptyStates": 0,
+  "scrollW": 1521,
+  "clientW": 1440,
+  "suggestions": [
+   "What is driving the IT sector today? IT +3.1% today",
+   "What is driving the Energy sector today? Energy -0.5% today",
+   "What is happening with NTPC? In the news: NTPC invites indus"
+  ],
+  "suggestionsHeading": "TODAY IN THE MARKETupdated 12:52 pm",
+  "apiHosts": [
+   "api.marketripple.in"
+  ],
+  "apiStatuses": {
+   "200": 5
+  },
+  "apiFailures": [],
+  "consoleErrors": []
+ },
+ {
+  "name": "sectors",
+  "width": 1440,
+  "http": 200,
+  "title": "Companies — NSE Listed Companies & AI Rankings | MarketRipple",
+  "h1": "Find India's best companies using AI",
+  "textLen": 2307,
+  "emptyStates": 0,
+  "scrollW": 1521,
+  "clientW": 1440,
+  "suggestions": [],
+  "suggestionsHeading": null,
+  "apiHosts": [
+   "api.marketripple.in"
+  ],
+  "apiStatuses": {
+   "200": 4
+  },
+  "apiFailures": [],
+  "consoleErrors": []
+ },
+ {
+  "name": "market",
+  "width": 1440,
+  "http": 200,
+  "title": "Market Intelligence — Live Sentiment, Sectors & Commodities | MarketRipple",
+  "h1": "Market IntelligenceCommand Center",
+  "textLen": 5274,
+  "emptyStates": 0,
+  "scrollW": 1521,
+  "clientW": 1440,
+  "suggestions": [],
+  "suggestionsHeading": null,
+  "apiHosts": [
+   "api.marketripple.in"
+  ],
+  "apiStatuses": {
+   "200": 7
+  },
+  "apiFailures": [],
+  "consoleErrors": []
+ },
+ {
+  "name": "home",
+  "width": 390,
+  "http": 200,
+  "title": "MarketRipple — AI-Powered Market Intelligence",
+  "h1": "Preparing You For\nMonday\nPreparing You For Monday",
+  "textLen": 24844,
+  "emptyStates": 0,
+  "scrollW": 390,
+  "clientW": 390,
+  "suggestions": [],
+  "suggestionsHeading": null,
+  "apiHosts": [
+   "api.marketripple.in"
+  ],
+  "apiStatuses": {
+   "200": 4
+  },
+  "apiFailures": [],
+  "consoleErrors": []
+ },
+ {
+  "name": "ai_search",
+  "width": 390,
+  "http": 200,
+  "title": "AI Search — Ask Any Market Question | MarketRipple",
+  "h1": "Ask about the Indian market",
+  "textLen": 1703,
+  "emptyStates": 0,
+  "scrollW": 390,
+  "clientW": 390,
+  "suggestions": [
+   "What is driving the IT sector today? IT +3.1% today",
+   "What is driving the Energy sector today? Energy -0.5% today",
+   "What is happening with NTPC? In the news: NTPC invites indus"
+  ],
+  "suggestionsHeading": "TODAY IN THE MARKETupdated 12:52 pm",
+  "apiHosts": [
+   "api.marketripple.in"
+  ],
+  "apiStatuses": {
+   "200": 5
+  },
+  "apiFailures": [],
+  "consoleErrors": []
+ },
+ {
+  "name": "companies",
+  "width": 390,
+  "http": 200,
+  "title": "Companies — NSE Listed Companies & AI Rankings | MarketRipple",
+  "h1": "Find India's best companies using AI",
+  "textLen": 2389,
+  "emptyStates": 0,
+  "scrollW": 390,
+  "clientW": 390,
+  "suggestions": [],
+  "suggestionsHeading": null,
+  "apiHosts": [
+   "api.marketripple.in"
+  ],
+  "apiStatuses": {
+   "200": 5
+  },
+  "apiFailures": [],
+  "consoleErrors": []
+ }
+]
