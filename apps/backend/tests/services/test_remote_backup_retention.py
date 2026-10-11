@@ -131,3 +131,21 @@ def test_prune_can_be_switched_off(monkeypatch):
     monkeypatch.setattr(settings, "backup_remote_retention_enabled", False)
     c = FakeS3([obj(f"automated/boot/ig-{i}.db", 10 - i) for i in range(12)])
     assert rb.prune_remote_backups(c, "b", "k", now=NOW) == {"status": "disabled"} and c.deleted_calls == []
+
+
+def test_the_s3_addressing_style_is_configurable_and_defaults_to_virtual(monkeypatch):
+    captured = {}
+
+    class FakeBoto:
+        @staticmethod
+        def client(*a, **k):
+            captured["style"] = k["config"].s3["addressing_style"]
+            return object()
+
+    import sys, types
+    monkeypatch.setitem(sys.modules, "boto3", types.SimpleNamespace(client=FakeBoto.client))
+    rb._s3_client()
+    assert captured["style"] == "virtual"                                     # the original behaviour is unchanged
+    monkeypatch.setattr(settings, "backup_bucket_addressing_style", "path")
+    rb._s3_client()
+    assert captured["style"] == "path"
