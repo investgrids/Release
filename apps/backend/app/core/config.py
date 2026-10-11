@@ -170,6 +170,8 @@ class Settings(BaseSettings):
     backup_bucket_name: str = ""
     backup_bucket_access_key_id: str = ""
     backup_bucket_secret_access_key: str = ""
+    # Retention for the off-box backup bucket (see app/db/remote_backup.py). Set BACKUP_REMOTE_RETENTION_ENABLED=false to switch it off.
+    backup_remote_retention_enabled: bool = True
 
     # ── Fyers (primary market data provider) ──────────────────────────────────
     # Get credentials at https://myapi.fyers.in/dashboard

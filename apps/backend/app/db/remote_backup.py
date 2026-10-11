@@ -57,6 +57,20 @@ log = structlog.get_logger(__name__)
 
 _OBJECT_PREFIX = "automated"
 
+# ── Retention ──────────────────────────────────────────────────────────────────────────────────────────────────────
+# Objects were immutable and NEVER deleted, and a "boot" backup is written on every process start. Crawler traffic recycled the web worker every 1-3 hours,
+# so the bucket grew by ~11 GB a day and reached 413 objects / 222 GB (about 735 MB each). The rule below keeps recovery points without keeping every restart:
+#   automated/boot/   newest 5
+#   automated/daily/  all from the last 30 days, then the first of each ISO week up to 84 days, then the first of each month
+#   anything else     never touched (pre-repair snapshots, manual preservation copies)
+# It runs only after a new backup is remote-verified, never deletes the object just uploaded, deletes at most _RETENTION_MAX_DELETES per run, and can never
+# fail or slow the backup (everything is caught). Set BACKUP_REMOTE_RETENTION_ENABLED=false to turn it off.
+_BOOT_KEEP = 5
+_DAILY_KEEP_DAYS = 30
+_WEEKLY_KEEP_DAYS = 84
+_RETENTION_MAX_DELETES = 100
+_PRUNABLE_PREFIXES = (f"{_OBJECT_PREFIX}/boot/", f"{_OBJECT_PREFIX}/daily/")
+
 
 def _sqlite_path() -> Optional[Path]:
     url = make_url(settings.database_url)
@@ -112,6 +126,53 @@ def _cleanup_sqlite_file(path: Path) -> None:
     for suffix in ("-shm", "-wal", "-journal"):
         sidecar = path.with_name(path.name + suffix)
         sidecar.unlink(missing_ok=True)
+
+
+def plan_retention(objects: list, now: datetime, protect: set | None = None) -> tuple[list, list]:
+    """Pure function. `objects` are S3 listing dicts ({Key, LastModified, Size}). Returns (keep_keys, delete_keys). Only boot/ and daily/ objects can ever be
+    in delete_keys; every other object, and everything in `protect`, is always kept."""
+    protect = set(protect or ())
+    boots = sorted((o for o in objects if o["Key"].startswith(f"{_OBJECT_PREFIX}/boot/")), key=lambda o: o["LastModified"])
+    dailies = sorted((o for o in objects if o["Key"].startswith(f"{_OBJECT_PREFIX}/daily/")), key=lambda o: o["LastModified"])
+    keep = {o["Key"] for o in objects if not o["Key"].startswith(_PRUNABLE_PREFIXES)} | protect
+    keep |= {o["Key"] for o in boots[-_BOOT_KEEP:]}
+    weeks: dict = {}
+    months: dict = {}
+    for o in dailies:
+        age_days = (now - o["LastModified"]).days
+        if age_days <= _DAILY_KEEP_DAYS:
+            keep.add(o["Key"])
+        elif age_days <= _WEEKLY_KEEP_DAYS:
+            weeks.setdefault(tuple(o["LastModified"].isocalendar()[:2]), o["Key"])
+        else:
+            months.setdefault((o["LastModified"].year, o["LastModified"].month), o["Key"])
+    keep |= set(weeks.values()) | set(months.values())
+    delete = sorted(o["Key"] for o in objects if o["Key"] not in keep)
+    return sorted(keep), delete
+
+
+def prune_remote_backups(client, bucket: str, just_uploaded_key: str, now: datetime | None = None) -> dict:
+    """Apply plan_retention to the bucket. Best effort: never raises, deletes at most _RETENTION_MAX_DELETES per run, and always logs what it did."""
+    if not getattr(settings, "backup_remote_retention_enabled", True):
+        return {"status": "disabled"}
+    try:
+        now = now or datetime.now(timezone.utc)
+        objects: list = []
+        for page in client.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=f"{_OBJECT_PREFIX}/"):
+            objects += page.get("Contents", [])
+        _, delete = plan_retention(objects, now, protect={just_uploaded_key})
+        delete = [k for k in delete if k.startswith(_PRUNABLE_PREFIXES) and k != just_uploaded_key][:_RETENTION_MAX_DELETES]
+        if not delete:
+            return {"status": "ok", "deleted": 0, "listed": len(objects)}
+        sizes = {o["Key"]: o["Size"] for o in objects}
+        r = client.delete_objects(Bucket=bucket, Delete={"Objects": [{"Key": k} for k in delete], "Quiet": False})
+        deleted = [d["Key"] for d in r.get("Deleted", [])]
+        errors = r.get("Errors", [])
+        log.info("backup_remote.retention", deleted=len(deleted), errors=len(errors), listed=len(objects), freed_bytes=sum(sizes.get(k, 0) for k in deleted))
+        return {"status": "ok" if not errors else "partial", "deleted": len(deleted), "errors": len(errors), "listed": len(objects)}
+    except Exception as exc:  # noqa: BLE001 -- retention must never break a backup
+        log.warning("backup_remote.retention_failed", error=str(exc))
+        return {"status": "error", "error": str(exc)}
 
 
 def _object_exists(client, bucket: str, key: str) -> bool:
@@ -241,6 +302,9 @@ def backup_to_bucket(kind: str = "boot") -> dict:
             "size_bytes": snapshot_size, "sha256": local_sha256, "duration_sec": duration_sec,
             **states,
         }
+
+        # Retention: only after this backup is remote-verified, and it can never fail the backup.
+        prune_remote_backups(client, settings.backup_bucket_name, object_key)
 
         # Step 11: only delete the local ephemeral snapshot after remote_verified.
         _cleanup_sqlite_file(local_snapshot)
