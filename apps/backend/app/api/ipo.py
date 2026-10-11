@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from app.services.ipo_feed import get_ipos
+from app.services.ipo_feed import get_ipo as get_one, get_ipos
 
 router = APIRouter()
 
@@ -24,7 +24,7 @@ async def list_ipos(status: str | None = None, board: str | None = None):
 
 @router.get("/{ipo_id}")
 async def get_ipo(ipo_id: str):
-    ipo = next((i for i in (await get_ipos())["ipos"] if i["id"] == ipo_id.lower()), None)
+    ipo = await get_one(ipo_id)
     if not ipo:
         raise HTTPException(status_code=404, detail="IPO not found")
     return ipo

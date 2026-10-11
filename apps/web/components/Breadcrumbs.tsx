@@ -156,7 +156,7 @@ function autoCrumbs(pathname: string): Crumb[] {
 // (e.g. exactly "/opportunity-radar", no trailing segment) since that one
 // has no per-item title to get wrong and still wants the normal
 // auto-derived crumb.
-const SERVER_RENDERED_BREADCRUMB_ROUTES = [/^\/opportunity-radar\/[^/]+$/];
+const SERVER_RENDERED_BREADCRUMB_ROUTES = [/^\/opportunity-radar\/[^/]+$/, /^\/ipo\/[^/]+$/];
 
 function crumbsToJsx(crumbs: Crumb[], siteUrl?: string): ReactNode {
   if (crumbs.length === 0) return null;

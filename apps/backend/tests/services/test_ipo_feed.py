@@ -42,6 +42,12 @@ def test_no_duplicates_and_missing_fields_do_not_crash():
     assert len(out) == 1 and out[0]["priceMin"] is None and out[0]["issueValue"] is None
 
 
+def test_archive_build_keeps_old_issues_the_list_drops():
+    old = {"company": "Old Co", "ipoEndDate": "05-JAN-2025", "ipoStartDate": "01-JAN-2025", "issuePrice": "10", "listingDate": "09-JAN-2025", "priceRange": "Rs.10", "securityType": "SME", "symbol": "OLD"}
+    assert f.build([], [], [old], TODAY) == []
+    assert [i["symbol"] for i in f.build([], [], [old], TODAY, window_days=None)] == ["OLD"]
+
+
 @pytest.mark.asyncio
 async def test_unavailable_when_upstream_fails_and_nothing_cached(monkeypatch):
     async def boom():

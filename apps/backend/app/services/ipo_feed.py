@@ -37,7 +37,7 @@ _PAST_DAYS = 120
 _PAST_LIMIT = 120
 _BOARD = {"EQ": "Mainboard", "SME": "SME", "BE": None}   # BE = trade-for-trade series, used by both boards, so the board is left unstated; other series are bonds/NCDs/rights, not IPOs
 
-_cache: dict = {"at": 0.0, "data": None}
+_cache: dict = {"at": 0.0, "data": None, "archive": {}}
 _lock = asyncio.Lock()
 
 
@@ -134,7 +134,7 @@ def _subscription(row: dict) -> dict | None:
     return out or None
 
 
-def build(upcoming: list, current: list, past: list, today: date) -> list[dict]:
+def build(upcoming: list, current: list, past: list, today: date, window_days: int | None = _PAST_DAYS) -> list[dict]:
     seen, out = set(), []
 
     def add(rec):
@@ -152,15 +152,15 @@ def build(upcoming: list, current: list, past: list, today: date) -> list[dict]:
         add(_record(r.get("companyName"), r.get("symbol"), board, r.get("priceBand") or r.get("issuePrice"),
                     None, r.get("lotSize"), r.get("issueSize"),
                     _date(r.get("issueStartDate")), _date(r.get("issueEndDate")), None, today))
-    cutoff = today - timedelta(days=_PAST_DAYS)
+    cutoff = today - timedelta(days=window_days) if window_days else None
     recent = []
     for r in past or []:
         series = str(r.get("securityType") or "").upper()
         board = _BOARD.get(series)
         start = _date(r.get("ipoStartDate"))
-        if series in _BOARD and start and start >= cutoff:
+        if series in _BOARD and start and (cutoff is None or start >= cutoff):
             recent.append((start, r, board))
-    for start, r, board in sorted(recent, key=lambda t: t[0], reverse=True)[:_PAST_LIMIT]:
+    for start, r, board in sorted(recent, key=lambda t: t[0], reverse=True)[: _PAST_LIMIT if window_days else None]:
         add(_record(r.get("companyName") or r.get("company"), r.get("symbol"), board, r.get("priceRange"),
                     r.get("issuePrice"), None, None, start, _date(r.get("ipoEndDate")), _date(r.get("listingDate")), today))
     return out
@@ -178,6 +178,12 @@ async def _fetch() -> tuple[list, list, list]:
 
         return await asyncio.gather(
             get("/api/all-upcoming-issues?category=ipo"), get("/api/ipo-current-issue"), get("/api/public-past-issues"))
+
+
+async def get_ipo(ipo_id: str) -> dict | None:
+    """One issue by id, from the full archive (not just the 120-day list). None if NSE has never listed it or has never answered."""
+    await get_ipos()
+    return _cache["archive"].get(ipo_id.lower())
 
 
 def _stats(ipos: list[dict]) -> dict:
@@ -198,9 +204,10 @@ async def get_ipos() -> dict:
             upcoming, current, past = await _fetch()
             today = datetime.now(_IST).date()
             ipos = build(upcoming, current, past, today)
+            archive = {i["id"]: i for i in build(upcoming, current, past, today, window_days=None)}   # every issue NSE lists, so a detail URL never 404s when it ages out of the list
             data = {"ipos": ipos, "stats": _stats(ipos), "as_of": datetime.now(timezone.utc).isoformat(),
                     "data_source": "nse", "is_mock": False, "stale": False}
-            _cache.update(at=time.time(), data=data)
+            _cache.update(at=time.time(), data=data, archive=archive)
             return data
         except Exception as exc:  # noqa: BLE001 - upstream is a scraped public API; degrade, never 500
             log.warning("ipo_feed.fetch_failed", error=str(exc)[:200])

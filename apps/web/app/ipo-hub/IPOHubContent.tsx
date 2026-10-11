@@ -7,21 +7,10 @@ import { API_BASE_URL as API } from "@/lib/api";
 // Everything on this page comes from NSE's public issue lists (see backend app/services/ipo_feed.py).
 // NSE does not publish grey-market premium, analyst ratings, sector or financials, so none are shown here.
 
-type Status = "Upcoming" | "Ongoing" | "Closed" | "Listed" | "Withdrawn";
-interface IPO {
-  id: string; name: string; symbol: string; type: "Mainboard" | "SME" | null; status: Status;
-  priceMin: number | null; priceMax: number | null; issuePrice: number | null;
-  lotSize: number | null; sharesOffered: number | null; issueValue: string | null;
-  openDate: string | null; closeDate: string | null; listingDate: string | null;
-  subscription: { total?: number; retail?: number; nii?: number; qib?: number } | null;
-}
-export interface IPOData {
-  ipos: IPO[];
-  stats: { upcoming: number; ongoing: number; closed: number; listed: number; mainboard: number; sme: number };
-  as_of: string | null; data_source: string; stale?: boolean;
-}
+import Link from "next/link";
+import { type IPO, type IPOData, type Status, STATUS_LABEL, band, daysFromToday, fmt, minInvest, rupee, when } from "./ipoFormat";
+export type { IPOData } from "./ipoFormat";
 
-const STATUS_LABEL: Record<Status, string> = { Upcoming: "Opens soon", Ongoing: "Open now", Closed: "Awaiting listing", Listed: "Listed", Withdrawn: "Withdrawn" };
 const STATUS_STYLE: Record<Status, string> = {
   Upcoming: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/25",
   Ongoing:  "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25",
@@ -30,33 +19,6 @@ const STATUS_STYLE: Record<Status, string> = {
   Withdrawn: "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/25",
 };
 const ORDER: Record<Status, number> = { Ongoing: 0, Upcoming: 1, Closed: 2, Listed: 3, Withdrawn: 4 };
-
-const day = (iso: string | null) => (iso ? new Date(iso + "T00:00:00+05:30") : null);
-const fmt = (iso: string | null, withYear = false) =>
-  iso ? new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", ...(withYear ? { year: "numeric" } : {}), timeZone: "Asia/Kolkata" }).format(day(iso)!) : "—";
-const rupee = (n: number | null) => (n == null ? "—" : `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`);
-const band = (i: IPO) =>
-  i.priceMin != null && i.priceMax != null ? (i.priceMin === i.priceMax ? rupee(i.priceMax) : `${rupee(i.priceMin)} – ${rupee(i.priceMax)}`) : "—";
-
-function daysFromToday(iso: string | null): number | null {
-  if (!iso) return null;
-  const today = new Date(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date()) + "T00:00:00+05:30");
-  return Math.round((day(iso)!.getTime() - today.getTime()) / 86_400_000);
-}
-function when(i: IPO): string {
-  if (i.status === "Upcoming") {
-    const d = daysFromToday(i.openDate);
-    return d === 0 ? "Opens today" : d === 1 ? "Opens tomorrow" : d != null && d > 1 ? `Opens in ${d} days` : `Opens ${fmt(i.openDate)}`;
-  }
-  if (i.status === "Ongoing") {
-    const d = daysFromToday(i.closeDate);
-    return d === 0 ? "Closes today" : d === 1 ? "Closes tomorrow" : `Closes ${fmt(i.closeDate)}`;
-  }
-  if (i.status === "Withdrawn") return "Issue withdrawn or postponed";
-  if (i.status === "Closed") return i.listingDate ? `Lists ${fmt(i.listingDate)}` : (daysFromToday(i.closeDate) ?? 0) < -21 ? "No listing on record" : "Listing date awaited";
-  return `Listed ${fmt(i.listingDate)}`;
-}
-const minInvest = (i: IPO) => (i.lotSize && i.priceMax ? i.lotSize * i.priceMax : null);
 
 function Badge({ status }: { status: Status }) {
   return <span className={`inline-flex items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${STATUS_STYLE[status]}`}>{STATUS_LABEL[status]}</span>;
@@ -94,7 +56,7 @@ function Spotlight({ ipo }: { ipo: IPO }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2"><BoardTag type={ipo.type} /><span className="text-[11px] font-semibold text-text-muted">{ipo.symbol}</span></div>
-          <h3 className="mt-1.5 text-[17px] font-bold leading-snug tracking-tight text-text-primary">{ipo.name}</h3>
+          <h3 className="mt-1.5 text-[17px] font-bold leading-snug tracking-tight text-text-primary"><Link href={`/ipo/${ipo.id}`} className="after:absolute after:inset-0 hover:text-violet-700 dark:hover:text-violet-300">{ipo.name} IPO</Link></h3>
         </div>
         <Badge status={ipo.status} />
       </div>
@@ -118,18 +80,18 @@ function Row({ ipo }: { ipo: IPO }) {
   const min = minInvest(ipo);
   return (
     <li className="border-b border-surface-border/8 last:border-0">
-      <button onClick={() => setOpen(o => !o)} aria-expanded={open}
-        className="grid w-full grid-cols-[1fr_auto] items-center gap-3 px-4 py-3 text-left transition hover:bg-text-primary/[0.03] md:grid-cols-[minmax(0,2.2fr)_110px_minmax(0,1.3fr)_minmax(0,1.4fr)_minmax(0,1.2fr)_20px]">
+      <div onClick={e => { if (!(e.target as HTMLElement).closest("a")) setOpen(o => !o); }}
+        className="grid w-full cursor-pointer grid-cols-[1fr_auto] items-center gap-3 px-4 py-3 text-left transition hover:bg-text-primary/[0.03] md:grid-cols-[minmax(0,2.2fr)_110px_minmax(0,1.3fr)_minmax(0,1.4fr)_minmax(0,1.2fr)_20px]">
         <div className="min-w-0">
-          <div className="flex items-center gap-2"><p className="truncate text-[13px] font-semibold text-text-primary">{ipo.name}</p><BoardTag type={ipo.type} /></div>
+          <div className="flex items-center gap-2"><Link href={`/ipo/${ipo.id}`} className="truncate text-[13px] font-semibold text-text-primary hover:text-violet-700 hover:underline dark:hover:text-violet-300">{ipo.name}</Link><BoardTag type={ipo.type} /></div>
           <p className="mt-0.5 text-[11px] text-text-muted">{ipo.symbol}<span className="md:hidden"> · {when(ipo)}</span></p>
         </div>
         <div className="hidden md:block"><Badge status={ipo.status} /></div>
         <p className="hidden text-[12px] tabular-nums text-text-secondary md:block">{fmt(ipo.openDate)} – {fmt(ipo.closeDate)}</p>
         <p className="text-right text-[12.5px] font-semibold tabular-nums text-text-primary md:text-left">{ipo.status === "Listed" && ipo.issuePrice ? rupee(ipo.issuePrice) : band(ipo)}</p>
         <p className="hidden text-[12px] text-text-secondary md:block">{when(ipo)}</p>
-        <ChevronDown className={`hidden h-4 w-4 text-text-muted transition md:block ${open ? "rotate-180" : ""}`} />
-      </button>
+        <button onClick={() => setOpen(o => !o)} aria-expanded={open} aria-label={`${open ? "Hide" : "Show"} details for ${ipo.name}`} className="hidden md:block"><ChevronDown className={`h-4 w-4 text-text-muted transition ${open ? "rotate-180" : ""}`} /></button>
+      </div>
       {open && (
         <div className="grid gap-4 bg-text-primary/[0.025] px-4 pb-4 pt-3 sm:grid-cols-2 lg:grid-cols-4">
           <Fact label="Status" value={STATUS_LABEL[ipo.status]} />
@@ -140,6 +102,7 @@ function Row({ ipo }: { ipo: IPO }) {
           <Fact label="Lot size" value={ipo.lotSize ? `${ipo.lotSize.toLocaleString("en-IN")} shares` : "—"} hint={min ? `Min. investment ${rupee(min)} at upper band` : undefined} />
           <Fact label="Shares on offer" value={ipo.sharesOffered ? ipo.sharesOffered.toLocaleString("en-IN") : "—"} />
           <Fact label="Issue value (est.)" value={ipo.issueValue ?? "—"} hint={ipo.issueValue ? "Shares × upper price band" : undefined} />
+          <div className="flex items-end"><Link href={`/ipo/${ipo.id}`} className="text-[12px] font-semibold text-violet-700 hover:underline dark:text-violet-300">Full IPO details &rarr;</Link></div>
           {ipo.subscription && (
             <Fact label="Subscription" value={Object.entries(ipo.subscription).map(([k, v]) => `${k.toUpperCase()} ${v}×`).join(" · ")} />
           )}
