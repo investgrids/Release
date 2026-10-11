@@ -27,7 +27,7 @@ def test_build_normalises_real_nse_shapes_and_drops_non_ipo_series():
     assert set(by) == {"HDFIRE", "LOANFRONT", "NITYAS"}                      # bond and >120-day-old issue dropped
     assert by["HDFIRE"]["status"] == "Upcoming" and by["HDFIRE"]["type"] == "Mainboard" and (by["HDFIRE"]["priceMin"], by["HDFIRE"]["priceMax"]) == (258, 271)
     assert by["LOANFRONT"]["type"] == "SME" and by["LOANFRONT"]["lotSize"] == 2000 and by["LOANFRONT"]["sharesOffered"] == 7796000
-    assert by["NITYAS"]["status"] == "Listed" and by["NITYAS"]["issuePrice"] == 75 and by["NITYAS"]["listingDate"] == "2026-10-08"
+    assert by["NITYAS"]["type"] is None and by["NITYAS"]["status"] == "Listed" and by["NITYAS"]["issuePrice"] == 75 and by["NITYAS"]["listingDate"] == "2026-10-08"
     assert all("gmp" not in i and "aiRating" not in i for i in out)           # nothing NSE does not provide
 
 
