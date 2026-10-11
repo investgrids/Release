@@ -135,7 +135,7 @@ async def _make_unique_slug(repo: "EventRepository", title: str, exclude_id: str
 async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
     """Instrumented entry point (2026-10-11): tags every LLM attempt made while enriching this event as "event_enrichment" (ai_usage); the pipeline itself is _run_event_pipeline_impl, unchanged."""
     from app.services import ai_usage
-    with ai_usage.operation("event_enrichment"):
+    with ai_usage.operation("event_enrichment", track=True):      # track: count real HTTP attempts vs cooldown skips for this event
         return await _run_event_pipeline_impl(event, db)
 
 
@@ -404,9 +404,21 @@ async def _run_event_pipeline_impl(event: Event, db: AsyncSession) -> bool:
         logger.error("[Pipeline] Failed for event %s: %s", eid, exc, exc_info=True)
         try:
             await db.rollback()
-            new_retry_count = (event.retry_count or 0) + 1
+            from app.services import ai_usage
             reason = _classify_failure_reason(exc)
-            if new_retry_count >= _MAX_ENRICHMENT_RETRIES:
+            if reason == "provider_unavailable" and ai_usage.cooldown_only():
+                # Capacity protection (2026-10-11): every provider was merely cooling down and NOTHING was really attempted for this event, so this failure says nothing about the event.
+                # It keeps its retry budget (retry_count unchanged, still eligible after the base backoff) instead of drifting toward failed_permanent. A failure after any real attempt
+                # (mixed, or a genuine provider error) is counted exactly as before.
+                new_retry_count = event.retry_count or 0
+                reason = "provider_cooldown"
+                ai_usage.note_skipped_work("event_enrichment", "cooldown_event")
+                logger.info("[Pipeline] Event %s: every provider cooling down, retry not consumed (retry_count stays %d)", eid, new_retry_count)
+            else:
+                new_retry_count = (event.retry_count or 0) + 1
+            if reason == "provider_cooldown":
+                next_retry_at = _compute_backoff(1)
+            elif new_retry_count >= _MAX_ENRICHMENT_RETRIES:
                 next_retry_at = None  # signals mark_enrichment_failed to use the terminal status
                 logger.error(
                     "[Pipeline] Event %s exhausted %d retries (last reason: %s) — marking failed_permanent",

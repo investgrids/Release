@@ -1205,6 +1205,32 @@ def _requesty_models() -> list[str]:
     return [m.strip() for m in (getattr(settings, "requesty_models", "") or "").split(",") if m.strip()]
 
 
+def _build_tiers(or_headers: dict | None):
+    """The fallback chain, in order: (tier label, exhaustion-registry provider, url, key, models, extra headers or None). Read at call time. This is the single definition used by the real
+    call (_call_with_fallback_inner) AND by any_provider_available(), so the capacity check can never disagree with what a call would actually try."""
+    return (
+        ("groq-hq", "groq", _GROQ_URL, settings.groq_api_key, _GROQ_HIGH, None),
+        ("groq-fast", "groq", _GROQ_URL, settings.groq_api_key, _GROQ_FAST, None),
+        ("openrouter-hq", "openrouter", _OR_URL, settings.openrouter_api_key, _OR_HIGH_QUALITY, or_headers),
+        ("mistral", "mistral", _MISTRAL_URL, settings.mistral_api_key, _MISTRAL_MODELS, None),
+        ("gemini", "gemini", _GEMINI_URL, settings.gemini_api_key, _GEMINI_MODELS, None),
+        ("requesty", "requesty", _REQUESTY_URL, settings.requesty_api_key, _requesty_models(), None),   # empty model list (no REQUESTY_MODELS) = tier skipped
+        ("openrouter-small", "openrouter", _OR_URL, settings.openrouter_api_key, _OR_SMALL, or_headers),
+    )
+
+
+def any_provider_available() -> bool:
+    """True when at least one configured (provider, model) in the fallback chain is NOT cooling down, i.e. a call could really be attempted right now. A provider with no key, a tier with no
+    models, and a model in cooldown (429, billing, auth or not-found, each with its own cooldown) all count as unavailable. Fails open: if the check itself errors, work is not blocked."""
+    try:
+        for _tier, provider, _url, key, models, _headers in _build_tiers(None):
+            if key and models and any(not _is_exhausted(provider, m) for m in models):
+                return True
+        return False
+    except Exception:  # noqa: BLE001
+        return True
+
+
 async def _call_with_fallback(
     prompt: str,
     system: str = "",
@@ -1261,15 +1287,7 @@ async def _call_with_fallback_inner(
 
     # Tier order is the empirical-reliability order described in the docstring above. Each entry is (tier label, exhaustion-registry provider, url, key, models, extra headers or None).
     # The lists are read at call time, as the seven hand-written loops did. Cerebras and Cloudflare were removed 2026-08-30 (never had credentials configured).
-    tiers = (
-        ("groq-hq", "groq", _GROQ_URL, settings.groq_api_key, _GROQ_HIGH, None),
-        ("groq-fast", "groq", _GROQ_URL, settings.groq_api_key, _GROQ_FAST, None),
-        ("openrouter-hq", "openrouter", _OR_URL, settings.openrouter_api_key, _OR_HIGH_QUALITY, or_headers),
-        ("mistral", "mistral", _MISTRAL_URL, settings.mistral_api_key, _MISTRAL_MODELS, None),
-        ("gemini", "gemini", _GEMINI_URL, settings.gemini_api_key, _GEMINI_MODELS, None),
-        ("requesty", "requesty", _REQUESTY_URL, settings.requesty_api_key, _requesty_models(), None),   # empty model list (no REQUESTY_MODELS) = tier skipped
-        ("openrouter-small", "openrouter", _OR_URL, settings.openrouter_api_key, _OR_SMALL, or_headers),
-    )
+    tiers = _build_tiers(or_headers)
     for tier, provider, url, key, models, headers in tiers:
         if not key or not models:
             continue
