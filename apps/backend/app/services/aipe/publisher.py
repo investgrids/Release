@@ -642,6 +642,25 @@ async def _build_scheduled_event(db, session: str) -> dict[str, Any] | None:
     }
 
 
+_SKIP_LOG_AT: dict[str, float] = {}
+
+
+def _scheduled_capacity_available(art_type: str, story_id: str) -> bool:
+    """Capacity gate for scheduled market articles (market_wrap / morning_intelligence). The 2026-10-11 audit found 219 of 232 scheduled runs failed, 85% of their provider tries being
+    "already exhausted": the run started, walked every cooling-down model, and recorded a PROVIDER_FAILED row, over and over. If no provider can be tried right now this returns False so the
+    cycle simply does not start the candidate (nothing is generated, published or recorded as failed); the skip is counted as skipped work and logged at most every 30 minutes per story."""
+    from app.services import ai_usage
+    from app.services.ai_service import any_provider_available
+    if any_provider_available():
+        return True
+    ai_usage.note_skipped_work("scheduled_market_article", "no_capacity")
+    now = time.monotonic()
+    if now - _SKIP_LOG_AT.get(story_id, -1e9) > 1800:
+        _SKIP_LOG_AT[story_id] = now
+        log.info("aipe.scheduled_article.skipped_no_capacity", type=art_type, story_id=story_id)
+    return False
+
+
 async def _scheduled_article_due(db, session: str, today_story_ids: set) -> bool:
     """
     True when a scheduled (time-based) article hasn't been generated today.
@@ -1018,7 +1037,9 @@ async def run_aipe_cycle() -> None:
                     if should_gen:
                         dup = await find_duplicate(db, story_id=story_id, article_type=art_type,
                                                    headline=sched_event["headline"], trigger_event_id=sched_event["event_id"])
-                        if not dup:
+                        if not dup and not _scheduled_capacity_available(art_type, story_id):
+                            pass    # no provider can be tried right now: no candidate run, no chain walk; retried on a later cycle once a provider is available again
+                        elif not dup:
                             # Real incident, 2026-08-30 (artifacts/ai_provider_
                             # reliability_audit.md): this candidate has no
                             # EventTriage/EventCoverage row (nothing to triage --
