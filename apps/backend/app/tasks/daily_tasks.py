@@ -300,6 +300,30 @@ async def job_warm_premarket() -> None:
         log.error("job.warm_premarket.error", exc=str(exc))
 
 
+async def job_ai_usage_flush() -> None:
+    """Every 30 s: write queued AI usage rows (bounded in-memory queue; never raises)."""
+    from app.services.ai_usage import flush_pending
+    await flush_pending()
+
+
+async def job_ai_usage_daily() -> None:
+    """Daily: roll raw AI attempt rows older than the retention window into ai_usage_daily, prune, then log one summary line of the last 24 h (per-feature calls, success rate,
+    provider-reported tokens, AI Search requests). The same data is available on demand at GET /api/admin/ai-usage."""
+    from app.db.session import AsyncSessionLocal
+    from app.services.ai_usage import flush_pending, rollup_and_prune, usage_report
+    t0 = time.perf_counter()
+    try:
+        await flush_pending()
+        async with AsyncSessionLocal() as db:
+            pruned = await rollup_and_prune(db)
+            rep = await usage_report(db, hours=24)
+        feats = {k: {"calls": v["calls"], "ok": v["calls_succeeded"], "attempts": v["attempts"], "tok_in": v["input_tokens"], "tok_out": v["output_tokens"],
+                     "attempts_unknown_usage": v["success_attempts_unknown_usage"]} for k, v in rep["features"].items()}
+        log.info("job.ai_usage_daily.done", pruned=pruned, search=rep["ai_search"]["user_requests"], features=feats, recorder=rep["recorder"], elapsed_ms=round((time.perf_counter() - t0) * 1000))
+    except Exception as exc:  # noqa: BLE001
+        log.error("job.ai_usage_daily.error", error=str(exc)[:200])
+
+
 async def job_keep_market_warm() -> None:
     """Every 5 minutes: run the slow market endpoints so their caches are always warm. Pre-market global quotes, the opening prediction, global indices and commodities each take
     4-14 s to build cold; with 15-30 minute caches and nobody refreshing them, the first visitor after every expiry waited that long. The endpoints serve their own cache when it is

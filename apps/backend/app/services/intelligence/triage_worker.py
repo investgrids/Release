@@ -88,11 +88,13 @@ def _rule_based_fallback(headline: str) -> dict:
 
 
 async def _ai_triage(headline: str, summary: str) -> dict:
+    from app.services import ai_usage
     from app.services.ai_service import _call_with_fallback  # noqa: PLC2701
     prompt = f"Headline: {headline}\n\nSummary: {summary[:500]}"
     failure_log: list[dict] = []
     try:
-        raw = await _call_with_fallback(prompt, _TRIAGE_SYSTEM, max_tokens=400, failure_log=failure_log, priority="background")
+        with ai_usage.operation("triage"):
+            raw = await _call_with_fallback(prompt, _TRIAGE_SYSTEM, max_tokens=400, failure_log=failure_log, priority="background")
         if not raw:
             fallback = _rule_based_fallback(headline)
             # Pure observability — no behavior change. See this module's
