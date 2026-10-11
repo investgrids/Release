@@ -93,6 +93,8 @@ async def list_events(
     # the requested limit, instead of limiting-then-filtering (which would
     # return almost nothing at limit=20 given the ~6% scored rate).
     scored_only: bool = Query(False),
+    # Paging: the page used to raise `limit` (capped at 100) on every "Load more", so nothing older than the newest ~100 events was ever reachable.
+    offset: int = Query(0, ge=0, le=100000),
     # Company redesign Batch 3 — the Company page's Events tab previously
     # only had yfinance's own sparse corporate-action list (stock.events)
     # to show; real graph/RSS-sourced events that actually mention this
@@ -122,10 +124,8 @@ async def list_events(
         return await _attach_indexable(db, result)
 
     if scored_only and sort_by not in ("impact_score", "active"):
-        pool_limit = min(max(effective_limit * 15, 300), 1000)
-        rows = await get_events(db, limit=pool_limit, sort_by=sort_by)
-        result = [_to_summary(e) for e in rows if e.impact_score is not None]
-        return await _attach_indexable(db, result[:effective_limit])
+        rows = await get_events(db, limit=effective_limit, sort_by=sort_by, offset=offset, scored_only=True)
+        return await _attach_indexable(db, [_to_summary(e) for e in rows])
 
     if sort_by == "active":
         # THE Latest Biggest Events Engine — see event_lifecycle.py's
@@ -172,7 +172,7 @@ async def list_events(
         older.sort(key=_score_key, reverse=True)
         return await _attach_indexable(db, (recent + older)[:effective_limit])
     else:
-        rows = await get_events(db, limit=effective_limit, sort_by=sort_by)
+        rows = await get_events(db, limit=effective_limit, sort_by=sort_by, offset=offset)
         return await _attach_indexable(db, [_to_summary(e) for e in rows])
 
 
