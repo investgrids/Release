@@ -45,12 +45,14 @@ export function isNewsroomNavActive(pathname: string, href: string): boolean {
   return href === "/newsroom" ? pathname === "/newsroom" : pathname.startsWith(href);
 }
 
-const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-violet";
-// The current page: royal indigo with a gold icon. White on #2b2087 is above 12:1.
-const ACTIVE = "bg-[#2b2087] text-white shadow-[0_6px_16px_-8px_rgba(43,32,135,0.8)]";
-const GOLD = "text-[#e8c766]";
+// Brand: primary #6366F1, secondary #14B8A6.
+const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6366F1]";
+// The current page: a tinted glass pill (primary into secondary) with a bright top edge and a soft primary glow.
+const ACTIVE = "text-text-primary dark:text-[#F8FAFC] border border-[#6366F1]/45 bg-gradient-to-br from-[#6366F1]/30 to-[#14B8A6]/20 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_8px_20px_-10px_rgba(99,102,241,0.75)]";
+const INACTIVE = "border border-transparent text-text-secondary hover:border-white/50 hover:bg-white/40 hover:text-text-primary hover:backdrop-blur-md dark:text-[#94A3B8] dark:hover:border-white/10 dark:hover:bg-white/[0.08] dark:hover:text-[#F8FAFC]";
+const TEAL = "text-[#14B8A6]";
 
-/** Desktop rail. Uses the site's own surface, border and type tokens; royal indigo and gold only mark the current page. */
+/** Desktop rail. Sits on the frosted panel in layout.tsx; primary and secondary only mark the current page and hover. */
 export function NewsroomSidebarNav() {
   const pathname = usePathname();
 
@@ -58,7 +60,7 @@ export function NewsroomSidebarNav() {
     <nav aria-label="AI Newsroom" className="space-y-5">
       {NEWSROOM_NAV.map((group) => (
         <div key={group.title}>
-          <h2 className="mb-1.5 px-3 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-text-muted">{group.title}</h2>
+          <h2 className="mb-1.5 px-3 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-text-muted dark:text-[#94A3B8]">{group.title}</h2>
           <ul className="space-y-0.5">
             {group.items.map((n) => {
               const active = isNewsroomNavActive(pathname, n.href);
@@ -68,20 +70,18 @@ export function NewsroomSidebarNav() {
                   <Link
                     href={n.href}
                     aria-current={active ? "page" : undefined}
-                    className={`group flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-colors duration-200 ${FOCUS} ${
-                      active ? ACTIVE : "text-text-secondary hover:bg-accent-violet/[0.08] hover:text-text-primary"
+                    className={`group flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13.5px] font-medium transition-[background-color,border-color,color,box-shadow] duration-200 ${FOCUS} ${
+                      active ? ACTIVE : INACTIVE
                     }`}
                   >
                     <Icon
                       aria-hidden="true"
                       strokeWidth={1.75}
-                      className={`h-4 w-4 shrink-0 transition-colors duration-200 ${active ? GOLD : "text-text-muted group-hover:text-accent-violet"}`}
+                      className={`h-4 w-4 shrink-0 transition-colors duration-200 ${active ? TEAL : "text-text-muted group-hover:text-[#6366F1]"}`}
                     />
                     <span className="flex-1">{n.label}</span>
                     {active && (
-                      <svg aria-hidden="true" viewBox="0 0 10 10" className={`h-1.5 w-1.5 shrink-0 ${GOLD}`}>
-                        <path d="M5 0 10 5 5 10 0 5z" fill="currentColor" />
-                      </svg>
+                      <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#14B8A6] shadow-[0_0_8px_2px_rgba(20,184,166,0.55)]" />
                     )}
                   </Link>
                 </li>
@@ -110,11 +110,11 @@ export function NewsroomTabsNav() {
               <Link
                 href={n.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[12.5px] font-medium transition-colors duration-200 ${FOCUS} ${
-                  active ? ACTIVE : "border border-surface-border/10 text-text-secondary hover:bg-accent-violet/[0.08] hover:text-text-primary"
+                className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[12.5px] font-medium transition-[background-color,border-color,color] duration-200 ${FOCUS} ${
+                  active ? ACTIVE : "border border-white/50 bg-white/35 text-text-secondary backdrop-blur-md hover:bg-white/55 hover:text-text-primary dark:border-white/10 dark:bg-white/[0.06] dark:text-[#94A3B8] dark:hover:text-[#F8FAFC]"
                 }`}
               >
-                <Icon aria-hidden="true" strokeWidth={1.75} className={`h-3.5 w-3.5 ${active ? GOLD : "text-text-muted"}`} />
+                <Icon aria-hidden="true" strokeWidth={1.75} className={`h-3.5 w-3.5 ${active ? TEAL : "text-text-muted"}`} />
                 {n.label}
               </Link>
             </li>
