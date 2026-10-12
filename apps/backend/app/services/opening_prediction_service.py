@@ -158,7 +158,12 @@ async def build_opening_prediction(db, weekend_context: "WeekendContext | None" 
     # Integrity (Daily Brief V2, Phase 1): the AI direction is compared with the deterministic signals. On a genuine conflict the
     # direction is withheld rather than shown, and the disagreement is stated; nothing is substituted.
     from app.services import opening_forecast_integrity as integrity
+    raw_prediction = prediction
     prediction = integrity.apply_integrity(prediction, _base_fallback_score(signals)["direction"], signal_breakdown)
+    if prediction["direction_check"]["withheld"]:
+        log.warning("opening_prediction.direction_withheld", target_date=target_date, ai_direction=raw_prediction.get("direction"),
+                    deterministic_direction=prediction["direction_check"]["deterministic_direction"],
+                    signals_positive=prediction["direction_check"]["signals_positive"], signals_negative=prediction["direction_check"]["signals_negative"])
     generated_at = datetime.now(timezone.utc).isoformat()
     forecast_meta = integrity.build_forecast_meta(
         target_date=target_date, session_state=session.state, generated_at=generated_at,

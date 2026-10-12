@@ -74,15 +74,15 @@ def assess_direction(ai_direction: str | None, deterministic_direction: str | No
 
 def apply_integrity(prediction: dict, deterministic_direction: str | None, rows: list[dict]) -> dict:
     """Returns a copy of prediction carrying direction_check; on a conflict the direction, confidence, range and the AI's
-    supporting prose are withheld (kept under *_ai for audit, never displayed as the forecast)."""
+    supporting prose are removed from the returned object."""
     out = dict(prediction)
     check = assess_direction(out.get("direction"), deterministic_direction, rows, out.get("reasoning"))
     out["direction_check"] = check
     if check["withheld"]:
-        out["direction_ai"] = out.get("direction")
-        out["reasoning_ai"] = out.get("reasoning")
-        out["primary_drivers_ai"] = out.get("primary_drivers")
-        out.update(direction=None, confidence=None, range_low=None, range_high=None, primary_drivers=[], reasoning=check["message"])
+        # The suppressed AI direction and its supporting prose are NOT kept in the returned object (it is cached and served to
+        # every consumer); only the neutral disagreement summary remains. The caller logs the audit details.
+        out.update(direction=None, confidence=None, range_low=None, range_high=None, primary_drivers=[], reasoning=check["message"],
+                   historical_note=None, conflicting_signals=[])
     return out
 
 

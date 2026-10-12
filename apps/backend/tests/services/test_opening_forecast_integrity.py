@@ -30,7 +30,9 @@ def test_ai_positive_against_negative_signals_is_withheld_not_replaced():
     chk = out["direction_check"]
     assert chk["status"] == "conflict" and chk["withheld"] is True
     assert out["direction"] is None and out["confidence"] is None and out["range_low"] is None and out["range_high"] is None
-    assert out["direction_ai"] == "Positive" and out["primary_drivers"] == []
+    assert out["primary_drivers"] == [] and out["conflicting_signals"] == [] and out["historical_note"] is None
+    assert not any(k.endswith("_ai") for k in out)                                               # the suppressed read is not exposed
+    assert "Positive" not in {v for k, v in out.items() if k in ("direction",)}                  # and is not the displayed direction
     assert "disagree" in out["reasoning"].lower() and "positive" in out["reasoning"].lower()     # states the disagreement
     assert "upside" not in out["reasoning"].lower()                                              # the contradicted prose is not shown
 

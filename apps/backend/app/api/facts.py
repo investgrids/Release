@@ -47,7 +47,12 @@ def _serialize(f) -> dict:
 
 @router.get("/today")
 async def get_today_facts(db: AsyncSession = Depends(get_db)):
-    facts = await fact_registry.get_facts_for_today(db)
+    from app.services.market_session_state import classify_session
+    session = classify_session()
+    facts = await fact_registry.get_facts_for_today(db, include_forecast=session.shows_forecast)
+    if not session.shows_forecast:
+        # The opening-forecast fact is only valid before the open; a row stored this morning must not be served afterwards.
+        facts = [f for f in facts if f.entity_type != "macro"]
     return {
         "valid_date": fact_registry._today_ist(),
         "count": len(facts),

@@ -135,6 +135,10 @@ async def refresh_market_facts(db: AsyncSession, include_forecast: bool = True) 
                 affected_companies=[], observed_at=_now(),
             ))
 
+        if include_forecast and not prediction.get("direction") and db is not None:
+            from sqlalchemy import delete
+            await db.execute(delete(Fact).where(Fact.fact_key == f"market:VERDICT:{today}"))
+            await db.commit()
         if prediction.get("direction"):
             conf = prediction.get("confidence")
             ai_generated = prediction.get("ai_generated", False)
