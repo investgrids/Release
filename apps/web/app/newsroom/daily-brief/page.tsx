@@ -275,7 +275,7 @@ export default async function DailyBriefPage() {
             Sector performance and top movers in After Market <ChevronRight className="h-3 w-3" aria-hidden="true" />
           </Link>
         </div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-[repeat(4,minmax(0,1fr))_minmax(0,1.5fr)]">
           {([["Nifty 50", snap.nifty], ["Bank Nifty", snap.banknifty], ["Sensex", snap.sensex], ["India VIX", snap.vix]] as const).map(([label, q]) => (
             <div key={label} className="rounded-xl border border-surface-border/10 bg-text-primary/[0.025] p-3.5">
               <p className="text-[12px] text-text-secondary">{label}</p>
