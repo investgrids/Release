@@ -15,9 +15,17 @@ export interface DriverItem {
 }
 export interface MarketDrivers { items: DriverItem[]; groups: Record<EvidenceLabel, DriverItem[]>; note: string | null; method: string }
 export interface Implications {
+  // Tag-derived rows (event sector tags); often empty because most events carry no sector tag.
   items: { sector: string; verified_move_pct: number | null; why: string; developments: { id: string | null; headline: string; evidence_label: EvidenceLabel }[];
            companies_mentioned: string[]; companies_label: string | null }[];
   note: string | null;
+  // V2.1, all optional so an older response still renders.
+  sector_performance?: { available: boolean; leaders: { name: string; pct: number }[]; laggards: { name: string; pct: number }[]; as_of: string; source: string; note: string | null };
+  exposure?: { variable: string; label: string; evidence: "verified" | "reported"; observed: string; source: string | null; observed_at: string | null;
+               pressured: string[]; helped: string[]; why: string; basis: string }[];
+  overlap?: { sector: string; verified_move_pct: number; variable: string; typical: "pressured" | "helped"; agrees: boolean; text: string }[];
+  company_links?: { sector: string; companies: string[]; via: string[]; basis: string }[];
+  exposure_notes?: string[];
 }
 export interface Scenarios {
   available: boolean; reason?: string; target: string; generated_at: string;
@@ -151,35 +159,131 @@ export function MarketDriversSection({ drivers, sessionLabel }: { drivers: Marke
 
 // ── Investor implications ───────────────────────────────────────────────────────────────────────────────────────────
 
-export function ImplicationsSection({ implications }: { implications: Implications }) {
+function PerfRow({ name, pct }: { name: string; pct: number }) {
+  const width = Math.min(100, (Math.abs(pct) / 3) * 100);          // a 3% sector move fills the bar; purely a visual scale
   return (
-    <section aria-labelledby="implications-title">
-      <SectionTitle id="implications-title" title="Investor implications" note="Where attention is warranted, from verified sector moves. Not a recommendation." />
-      {implications.items.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-surface-border/20 p-5 text-[12.5px] text-text-muted">{implications.note ?? "No sector is tied to a verified development yet."}</p>
+    <li className="grid grid-cols-[minmax(0,7.5rem)_1fr_3.75rem] items-center gap-3 text-[12.5px]">
+      <span className="truncate font-medium text-text-primary">{name}</span>
+      <span aria-hidden="true" className="h-1.5 overflow-hidden rounded-full bg-text-primary/[0.06]">
+        <span className={`block h-full rounded-full ${pct >= 0 ? "bg-emerald-500" : "bg-rose-500"}`} style={{ width: `${width}%` }} />
+      </span>
+      <span className={`text-right font-semibold tabular-nums ${pct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>{pct >= 0 ? "+" : ""}{pct.toFixed(2)}%</span>
+    </li>
+  );
+}
+
+const EVIDENCE_BADGE: Record<string, string> = {
+  verified: "border-[#14B8A6]/35 bg-[#14B8A6]/10 text-teal-700 dark:text-teal-300",
+  reported: "border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+};
+
+function SubHead({ children, note }: { children: React.ReactNode; note?: string }) {
+  return (
+    <div className="mb-2.5">
+      <h3 className="text-[13px] font-bold text-text-primary">{children}</h3>
+      {note && <p className="mt-0.5 text-[11.5px] leading-snug text-text-muted">{note}</p>}
+    </div>
+  );
+}
+
+export function ImplicationsSection({ implications }: { implications: Implications }) {
+  const perf = implications.sector_performance;
+  const exposure = implications.exposure ?? [];
+  const overlap = implications.overlap ?? [];
+  const links = implications.company_links ?? [];
+  const hasAny = !!(perf?.available || exposure.length || links.length || implications.items.length);
+
+  return (
+    <section aria-labelledby="implications-title" className="min-w-0">
+      <SectionTitle id="implications-title" title="Investor implications" note="Verified performance and general exposure are kept apart. Not a recommendation." />
+      {!hasAny ? (
+        <p className="rounded-2xl border border-dashed border-surface-border/20 p-5 text-[12.5px] text-text-muted">{perf?.note ?? implications.note ?? "No sector information is available yet."}</p>
       ) : (
-        <ul className="space-y-3">
-          {implications.items.map(r => (
-            <li key={r.sector} className="rounded-2xl border border-surface-border/10 bg-surface-card/60 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-[14px] font-semibold text-text-primary">{r.sector}</p>
-                <p className="text-[13px]"><Move pct={r.verified_move_pct} /></p>
-              </div>
-              <p className="mt-1 text-[12.5px] leading-relaxed text-text-secondary">{r.why}</p>
-              <ul className="mt-2 space-y-0.5">
-                {r.developments.slice(0, 2).map(d => <li key={d.id ?? d.headline} className="truncate text-[11.5px] text-text-muted">{LABEL_META[d.evidence_label].text}: {cleanText(d.headline)}</li>)}
-              </ul>
-              {r.companies_mentioned.length > 0 && (
-                <p className="mt-2 text-[11.5px] text-text-muted">
-                  {r.companies_label}:{" "}
-                  {r.companies_mentioned.map((s, i) => (
-                    <span key={s}>{i > 0 && ", "}<Link href={`/companies/${s}`} className={`rounded-sm font-medium text-text-secondary hover:text-text-primary ${FOCUS}`}>{s}</Link></span>
-                  ))}
-                </p>
+        <div className="space-y-6">
+          {perf && (
+            <div className="rounded-2xl border border-surface-border/10 bg-surface-card/60 p-4 sm:p-5">
+              <SubHead note={perf.available ? `As of ${perf.as_of}. ${perf.source}.` : undefined}>Sector performance, verified</SubHead>
+              {!perf.available ? (
+                <p className="text-[12.5px] text-text-muted">{perf.note}</p>
+              ) : (
+                <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+                  <div>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">Led</p>
+                    {perf.leaders.length ? <ul className="space-y-2.5">{perf.leaders.map(r => <PerfRow key={r.name} {...r} />)}</ul> : <p className="text-[12px] text-text-muted">No tracked sector gained.</p>}
+                  </div>
+                  <div>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">Lagged</p>
+                    {perf.laggards.length ? <ul className="space-y-2.5">{perf.laggards.map(r => <PerfRow key={r.name} {...r} />)}</ul> : <p className="text-[12px] text-text-muted">No tracked sector fell.</p>}
+                  </div>
+                </div>
               )}
-            </li>
-          ))}
-        </ul>
+            </div>
+          )}
+
+          {exposure.length > 0 && (
+            <div className="rounded-2xl border border-surface-border/10 bg-surface-card/60 p-4 sm:p-5">
+              <SubHead note="General economic exposure to what moved. Background knowledge from a documented rule table, not an observation about these sectors.">Typical exposure</SubHead>
+              <ul className="space-y-4">
+                {exposure.map(e => (
+                  <li key={e.variable} className="border-t border-surface-border/10 pt-3 first:border-t-0 first:pt-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-[13px] font-semibold text-text-primary">{e.label}</p>
+                      <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${EVIDENCE_BADGE[e.evidence] ?? ""}`}>{e.evidence === "verified" ? "Verified" : "Reported"}</span>
+                    </div>
+                    <p className="mt-1 text-[12px] leading-relaxed text-text-secondary">
+                      {cleanText(e.observed)}
+                      {(e.source || e.observed_at) && <span className="text-text-muted"> · {[e.source, e.observed_at ? `retrieved ${fmtIST(e.observed_at)}` : null].filter(Boolean).join(" · ")}</span>}
+                    </p>
+                    <dl className="mt-2 grid gap-x-4 gap-y-1 text-[12px] sm:grid-cols-[7.5rem_1fr]">
+                      {e.pressured.length > 0 && (<><dt className="font-medium text-rose-600 dark:text-rose-400">Typically pressured</dt><dd className="text-text-secondary">{e.pressured.join(", ")}</dd></>)}
+                      {e.helped.length > 0 && (<><dt className="font-medium text-emerald-600 dark:text-emerald-400">Typically helped</dt><dd className="text-text-secondary">{e.helped.join(", ")}</dd></>)}
+                    </dl>
+                    <p className="mt-1.5 text-[11.5px] leading-snug text-text-muted">{e.why}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {overlap.length > 0 && (
+            <div className="rounded-2xl border border-surface-border/10 bg-surface-card/60 p-4 sm:p-5">
+              <SubHead note="Where a sector's verified move matched or opposed its typical exposure. Timing is not cause.">Where they overlapped</SubHead>
+              <ul className="space-y-2.5">
+                {overlap.map(o => (
+                  <li key={`${o.sector}-${o.variable}`} className="flex gap-2.5 text-[12.5px] leading-relaxed text-text-secondary">
+                    <span aria-hidden="true" className={`mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full ${o.agrees ? "bg-[#14B8A6]" : "bg-amber-500"}`} />
+                    <span><span className="sr-only">{o.agrees ? "In line: " : "Against: "}</span>{o.text}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {links.length > 0 && (
+            <div className="rounded-2xl border border-surface-border/10 bg-surface-card/60 p-4 sm:p-5">
+              <SubHead note="Companies named in the developments, with the sector recorded in the company master. Not an assessment of impact.">Companies named</SubHead>
+              <ul className="space-y-2">
+                {links.map(l => (
+                  <li key={l.sector} className="text-[12.5px] text-text-secondary">
+                    <span className="font-semibold text-text-primary">{l.sector}: </span>
+                    {l.companies.map((s, i) => (<span key={s}>{i > 0 && ", "}<Link href={`/companies/${s}`} className={`rounded-sm font-medium hover:text-text-primary ${FOCUS}`}>{s}</Link></span>))}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {implications.items.length > 0 && (
+            <ul className="space-y-3">
+              {implications.items.map(r => (
+                <li key={r.sector} className="rounded-2xl border border-surface-border/10 bg-surface-card/60 p-4">
+                  <div className="flex items-center justify-between gap-3"><p className="text-[14px] font-semibold text-text-primary">{r.sector}</p><p className="text-[13px]"><Move pct={r.verified_move_pct} /></p></div>
+                  <p className="mt-1 text-[12.5px] leading-relaxed text-text-secondary">{r.why}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </section>
   );

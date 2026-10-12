@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 import structlog
 from fastapi import APIRouter
@@ -28,6 +29,7 @@ from app.db.session import AsyncSessionLocal
 from app.services import daily_brief_composer as composer
 from app.services import daily_brief_content as content
 from app.services import daily_brief_drivers as drivers_mod
+from app.services import daily_brief_exposure as exposure_mod
 from app.services.market_session_state import (
     AFTER_CLOSE, HOLIDAY, OPEN, PRE_OPEN, WEEKEND, MarketSession, classify_session, ist_now,
 )
@@ -132,9 +134,11 @@ async def _get_driver_inputs(session: MarketSession, now: datetime) -> tuple[lis
         links: dict[str, str] = {}
         if ids:
             async with AsyncSessionLocal() as db:
-                for row in (await db.execute(select(Event.id, Event.slug, Event.title, Event.source, Event.published_at).where(Event.id.in_(ids)))).all():
+                for row in (await db.execute(select(Event.id, Event.slug, Event.title, Event.source, Event.published_at, Event.companies).where(Event.id.in_(ids)))).all():
+                    comps = [c if isinstance(c, str) else (c.get("symbol") if isinstance(c, dict) else None) for c in (row.companies if isinstance(row.companies, list) else [])]
                     meta[row.id] = {"slug": row.slug or None, "title": row.title, "source": row.source,
-                                    "published_at": row.published_at.isoformat() if row.published_at else None}
+                                    "published_at": row.published_at.isoformat() if row.published_at else None,
+                                    "companies": [c for c in comps if c]}
                 arts = (await db.execute(
                     select(IntelligenceArticle.trigger_event_id, IntelligenceArticle.slug)
                     .where(IntelligenceArticle.status == "published", IntelligenceArticle.slug.is_not(None), IntelligenceArticle.trigger_event_id.in_(ids))
@@ -146,6 +150,21 @@ async def _get_driver_inputs(session: MarketSession, now: datetime) -> tuple[lis
     except Exception as exc:
         log.warning("daily_brief_intelligence.drivers_inputs_failed", error=str(exc))
         return [], {}, {}
+
+
+async def _get_company_sectors(symbols: list[str]) -> dict[str, str]:
+    """symbol -> sector from the company master, only where a sector is recorded there. Read-only."""
+    if not symbols:
+        return {}
+    from sqlalchemy import func, select
+    from app.db.models.company_entity import CompanyEntity
+    try:
+        async with AsyncSessionLocal() as db:
+            rows = (await db.execute(select(CompanyEntity.symbol, CompanyEntity.sector).where(func.upper(CompanyEntity.symbol).in_([s.upper() for s in symbols]), CompanyEntity.sector.is_not(None)))).all()
+        return {sym.upper(): sector for sym, sector in rows if sector}
+    except Exception as exc:
+        log.warning("daily_brief_intelligence.company_sectors_failed", error=str(exc))
+        return {}
 
 
 async def _get_scenario_inputs() -> tuple[list[dict], str | None]:
@@ -343,6 +362,13 @@ async def get_daily_brief_intelligence():
     for tile in signals_block["catalyst_details"] + signals_block["risk_details"]:
         ledger.add(tile["explanation"])                     # the signal tiles are on the page too: no later section repeats them
     implications = drivers_mod.build_implications(drivers)
+    symbols = [c["symbol"] for it in drivers["items"] for c in it["companies"]]
+    as_of = (f"{composer._fmt_date(session.reference_session_date)} close" if session.state in (AFTER_CLOSE, WEEKEND, HOLIDAY, PRE_OPEN)
+             else f"live, retrieved {now.astimezone(ZoneInfo('Asia/Kolkata')).strftime('%H:%M')} IST")
+    implications = {**implications, **exposure_mod.build_exposure(
+        sectors=snapshot.get("sectors"), smoves=drivers_mod.sector_moves(snapshot.get("sectors")), facts=facts, drivers=drivers,
+        as_of_label=as_of, company_sectors=await _get_company_sectors(symbols))}
+    implications["note"] = None if (implications["items"] or implications["sector_performance"]["available"] or implications["exposure"]) else implications["note"]
     if session.state == OPEN:
         scenarios = {"available": False, "reason": "The session is live. Scenarios for the next session return after the close.",
                      "target": composer._fmt_date(session.forecast_target_date), "generated_at": now.isoformat()}

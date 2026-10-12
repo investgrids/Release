@@ -320,7 +320,7 @@ export default async function DailyBriefPage() {
         <>
           <MarketDriversSection drivers={data.market_drivers!} sessionLabel="Window: from the previous session's close" />
 
-          <div className="mt-10 grid gap-8 lg:grid-cols-2">
+          <div className="mt-10 grid items-start gap-8 lg:grid-cols-2">
             <ImplicationsSection implications={data.investor_implications!} />
             <ScenariosSection scenarios={data.scenarios!} />
           </div>
