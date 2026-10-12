@@ -1,20 +1,34 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  TrendingUp, TrendingDown, Minus, ShieldAlert, Flame, Eye, Sparkles,
-  ChevronRight, BadgeCheck, CalendarClock, HelpCircle,
+  TrendingUp, TrendingDown, Minus, ShieldAlert, Eye, Sparkles,
+  ChevronRight, BadgeCheck, HelpCircle,
 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { cleanText, safeJsonLd } from "@/lib/text";
 import { RefreshButton } from "./RefreshButton";
+import {
+  ImplicationsSection, MarketDriversSection, ScenariosSection, TakeawaySection,
+  type Implications, type MarketDrivers, type Scenarios, type Takeaway,
+} from "./sections";
 
 // ── Types (subset of the real /api/daily-brief/intelligence response) ───────
 
 interface IndexQuote { name: string; value: string; change: string; pct: number; positive: boolean }
 interface Verdict {
+  // realized = what the market did in the reference session; forecast = opening outlook (pre-open only)
+  kind: "realized" | "forecast" | "unavailable";
+  headline: string;
   direction: string | null; confidence: number | null;
   primary_drivers: string[]; risks: string[];
   reasoning: string | null; ai_generated: boolean; unavailable?: boolean;
+  session_state: string; session_date: string | null; target_date: string | null;
+  direction_check?: { status: string; withheld: boolean; message: string | null } | null;
+  forecast?: { target_date: string; generated_at: string; method: string } | null;
+}
+interface SessionInfo {
+  state: "pre_open" | "open" | "after_close" | "weekend" | "holiday";
+  label: string; subtitle: string; reference_label: string;
 }
 interface Snapshot {
   nifty: IndexQuote | null; banknifty: IndexQuote | null; sensex: IndexQuote | null; vix: IndexQuote | null;
@@ -28,14 +42,16 @@ interface EventItem {
   sectors: string[]; tickers: string[]; sentiment: string | null; source: string | null;
 }
 interface EventsBlock { tiers: { critical: number; high: number; medium: number; other: number }; total: number; top: EventItem[] }
-interface WhyMattersItem { event: string; consequence: string; affected: string[] }
-interface StockToWatch { symbol: string; reason: string; priority_tier: string; sentiment: string | null }
+interface WhyMattersItem { event: string; consequence: string; affected: string[]; companies_named: string[]; affected_label: string }
+interface StockToWatch { symbol: string; reason: string; priority_tier: string; sentiment: string | null; basis?: string }
 interface HistoricalContext { available: boolean; message?: string; count?: number; success_rate_pct?: number | null; queried_sectors?: string[] }
 interface Question { question: string; answer: string; links: { label: string; href: string }[] }
 interface Evidence { claim: string; source: string; timestamp: string | null; confidence: number | null }
+interface SignalDetail { name: string; explanation: string; source: string | null }
 interface WatchNextItem { date: string | null; category: string | null; title: string | null; description: string | null }
 
 interface DailyBriefData {
+  session: SessionInfo;
   market_verdict: Verdict;
   market_snapshot: Snapshot;
   events: EventsBlock;
@@ -43,21 +59,54 @@ interface DailyBriefData {
   stocks_to_watch: StockToWatch[];
   sector_intelligence: { id: string; name: string; value: string; positive: boolean }[];
   historical_context: HistoricalContext;
-  catalysts: string[];
-  risks: string[];
+  summary: string;
+  // The four sections added in Part A. Optional: an older backend response has none of them.
+  market_drivers?: MarketDrivers;
+  investor_implications?: Implications;
+  scenarios?: Scenarios;
+  takeaway?: Takeaway;
+  catalysts?: string[];
+  risks?: string[];
+  catalyst_details: SignalDetail[];
+  risk_details: SignalDetail[];
   what_to_watch_next: WatchNextItem[];
   questions: Question[];
   evidence: Evidence[];
   generated_at: string;
 }
 
+// Tolerates an older backend response (rollout order, or a page cached before the backend changed): missing blocks get safe
+// defaults and a verdict without `kind` is treated as the forecast it was.
+function normalise(raw: Partial<DailyBriefData>): DailyBriefData {
+  const d = raw as DailyBriefData;
+  return {
+    ...d,
+    session: d.session ?? { state: "after_close", label: "Market Brief", subtitle: "", reference_label: "" },
+    summary: d.summary ?? "",
+    catalyst_details: d.catalyst_details ?? (d.catalysts ?? []).map(name => ({ name, explanation: name, source: null })),
+    risk_details: d.risk_details ?? (d.risks ?? []).map(name => ({ name, explanation: name, source: null })),
+    why_today_matters: (d.why_today_matters ?? []).map(w => ({ ...w, companies_named: w.companies_named ?? [], affected_label: w.affected_label ?? "Affected" })),
+    market_verdict: { ...d.market_verdict, kind: d.market_verdict?.kind ?? "forecast", headline: d.market_verdict?.headline ?? "" },
+  };
+}
+
 async function getData(): Promise<DailyBriefData | null> {
   try {
     const res = await fetch(`${API}/api/daily-brief/intelligence`, { next: { revalidate: 300 } });
     if (!res.ok) return null;
-    return res.json();
+    return normalise(await res.json());
   } catch {
     return null;
+  }
+}
+
+function fmtDay(isoDate: string): string {
+  try {
+    return new Date(`${isoDate}T00:00:00+05:30`).toLocaleDateString("en-IN", {
+      timeZone: "Asia/Kolkata", weekday: "short", day: "numeric", month: "short", year: "numeric",
+    });
+  } catch {
+    return isoDate;
   }
 }
 
@@ -78,21 +127,18 @@ const DIRECTION_META: Record<string, { label: string; color: string; icon: React
   Neutral:  { label: "Neutral", color: "text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20", icon: <Minus className="h-4 w-4" /> },
 };
 
-const TIER_COLOR: Record<string, string> = {
-  Critical: "bg-rose-500/10 text-rose-600 dark:text-rose-300 border-rose-500/20",
-  High:     "bg-amber-500/10 text-amber-600 dark:text-amber-300 border-amber-500/20",
-};
-
 export async function generateMetadata(): Promise<Metadata> {
   const data = await getData();
   const dateStr = data?.market_snapshot.market_status?.date;
-  const direction = data?.market_verdict.direction;
+  const verdictNow = data?.market_verdict;
   const title = dateStr
     ? `Indian Stock Market Today (${dateStr}): Nifty, Bank Nifty & Market Outlook | MarketRipple`
     : "Indian Stock Market Today: Nifty, Bank Nifty & Market Outlook | MarketRipple";
-  const description = direction
-    ? `Indian stock market today: ${direction.toLowerCase()} outlook, Nifty 50 and Bank Nifty levels, stocks to watch, sector performance, key events and risks for Indian investors.`
-    : "Indian stock market today: Nifty 50, Bank Nifty, market outlook, stocks to watch, sector performance, key events and risks for Indian investors.";
+  const description = verdictNow?.kind === "realized" && verdictNow.reasoning
+    ? `${verdictNow.reasoning} Sector performance, key events and risks for Indian investors.`
+    : verdictNow?.kind === "forecast" && verdictNow.direction
+      ? `Indian stock market opening outlook: Nifty 50 and Bank Nifty levels, stocks to watch, sector performance, key events and risks for Indian investors.`
+      : "Indian stock market today: Nifty 50, Bank Nifty, stocks to watch, sector performance, key events and risks for Indian investors.";
 
   return {
     title,
@@ -118,18 +164,16 @@ export default async function DailyBriefPage() {
     );
   }
 
-  const { market_verdict: verdict, market_snapshot: snap, events, why_today_matters, stocks_to_watch,
-    sector_intelligence, historical_context: historical, catalysts, risks, what_to_watch_next, questions, evidence } = data;
+  const { session, market_verdict: verdict, market_snapshot: snap, events, historical_context: historical, questions, evidence } = data;
 
-  const dirMeta = DIRECTION_META[verdict.direction ?? ""] ?? DIRECTION_META.Neutral;
-  const topDriver = catalysts[0] || events.top[0]?.one_liner || events.top[0]?.headline;
-  const topRisk = risks[0];
-
-  const thirtySecondAnswer = [
-    verdict.reasoning,
-    topDriver ? `Today's biggest driver: ${topDriver}.` : null,
-    topRisk ? `Key risk to watch: ${topRisk}.` : null,
-  ].filter(Boolean).join(" ");
+  const isForecast = verdict.kind === "forecast";
+  const baseMeta = DIRECTION_META[verdict.direction ?? ""] ?? DIRECTION_META.Neutral;
+  // A realized session is named by what happened (Lower close), a forecast keeps the Bullish/Bearish wording.
+  const dirMeta = isForecast && verdict.direction ? baseMeta : { ...baseMeta, label: verdict.headline || baseMeta.label };
+  const targetLabel = verdict.target_date ? fmtDay(verdict.target_date) : null;
+  // One source for the visible answer and the structured data: the backend's summary and questions are used verbatim.
+  const thirtySecondAnswer = data.summary;
+  const hasNewSections = !!(data.market_drivers && data.investor_implications && data.scenarios && data.takeaway);
 
   const faqJsonLd = questions.length > 0 ? {
     "@context": "https://schema.org",
@@ -162,41 +206,57 @@ export default async function DailyBriefPage() {
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-accent-violet">Market Intelligence</p>
-          <h1 className="mt-2 text-[26px] font-black leading-tight text-text-primary md:text-[32px]">
+          <h1 className="text-[26px] font-black leading-tight text-text-primary md:text-[32px]">
             Indian Stock Market Today
           </h1>
-          <p className="mt-1.5 text-[13px] text-text-muted">
-            {snap.market_status?.date} · {snap.market_status?.status === "pre_market" ? "Pre-Market Outlook" : snap.market_status?.status === "live" ? "Live Session" : "Market Wrap"} · Updated {fmtIST(data.generated_at)}
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-text-muted">
+            <span className="rounded-md border border-surface-border/15 bg-text-primary/[0.04] px-2 py-0.5 text-[11.5px] font-semibold text-text-secondary">{session.label}</span>
+            <span>{session.subtitle}</span>
+            <span aria-hidden="true">·</span>
+            <span>Updated {fmtIST(data.generated_at)}</span>
           </p>
         </div>
         <RefreshButton />
       </div>
 
-      {/* ── Above the fold: 2-column ─────────────────────────────────────── */}
+      {/* ── Above the fold: the result and the short answer ─────────────────── */}
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* LEFT: Verdict + Snapshot + Driver/Risk */}
         <div className="space-y-4">
           <div className={`rounded-2xl border p-5 ${dirMeta.color}`}>
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-bold uppercase tracking-wide opacity-80">Market Verdict</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-bold uppercase tracking-wide opacity-80">
+                {isForecast ? `Opening outlook${targetLabel ? ` for ${targetLabel}` : ""}` : `Session result · ${session.reference_label}`}
+              </p>
               {verdict.unavailable && <span className="text-[10px] opacity-70">Data unavailable</span>}
+              {isForecast && !verdict.unavailable && (
+                <span className="rounded-full border border-current/30 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wide opacity-80">Forecast</span>
+              )}
             </div>
             <div className="mt-2 flex items-center gap-2">
               {dirMeta.icon}
               <p className="text-[22px] font-black">{dirMeta.label}</p>
-              {/* CD3-C: this verdict is built the same way as
-                  opening_prediction_service.py's opening prediction (same
-                  ai_generated flag + fallback wording) -- confidence blends
-                  a bounded LLM self-report with deterministic signal
-                  adjustments, a HYBRID_RUBRIC. */}
+              {/* CD3-C: this verdict is built the same way as opening_prediction_service.py's opening prediction (same
+                  ai_generated flag + fallback wording) -- confidence blends a bounded LLM self-report with deterministic
+                  signal adjustments, a HYBRID_RUBRIC. */}
               {verdict.confidence != null && (
                 <span className="ml-auto text-[13px] font-bold tabular-nums" title="A blend of signal-based analysis and the model's own self-assessed certainty -- not a fully computed score">{verdict.confidence}% confidence</span>
               )}
             </div>
             {verdict.reasoning && <p className="mt-2 text-[12.5px] leading-relaxed opacity-90">{verdict.reasoning}</p>}
-            {!verdict.ai_generated && !verdict.unavailable && (
+            {isForecast && verdict.direction_check?.message && verdict.direction_check.status !== "aligned" && !verdict.direction_check.withheld && (
+              <p className="mt-2 text-[11.5px] leading-snug opacity-80">{verdict.direction_check.message}</p>
+            )}
+            {isForecast && verdict.forecast && (
+              <p className="mt-2 text-[10.5px] opacity-60">
+                Forecast for {fmtDay(verdict.forecast.target_date)} · generated {fmtIST(verdict.forecast.generated_at)} ·{" "}
+                {verdict.forecast.method === "deterministic_signals" ? "signal formula" : "AI checked against the signals"}
+              </p>
+            )}
+            {isForecast && !verdict.ai_generated && !verdict.unavailable && (
               <p className="mt-2 text-[10.5px] italic opacity-60">Deterministic signal-only estimate — AI reasoning layer unavailable this cycle.</p>
+            )}
+            {!isForecast && !verdict.unavailable && (
+              <p className="mt-2 text-[10.5px] opacity-60">Reported from index levels and market breadth. This is what happened, not a forecast.</p>
             )}
           </div>
 
@@ -217,182 +277,91 @@ export default async function DailyBriefPage() {
                 {snap.breadth.note && <span className="ml-1 opacity-70">({snap.breadth.note})</span>}
               </p>
             )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.04] p-4">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">Today&apos;s Biggest Driver</p>
-              <p className="mt-1.5 text-[12.5px] leading-snug text-text-primary">{topDriver || "No standout driver detected today."}</p>
-            </div>
-            <div className="rounded-xl border border-rose-500/15 bg-rose-500/[0.04] p-4">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-rose-600 dark:text-rose-300">Biggest Risk</p>
-              <p className="mt-1.5 text-[12.5px] leading-snug text-text-primary">{topRisk || "No standout risk detected today."}</p>
-            </div>
+            <Link href="/market-intelligence?tab=after-market" className="mt-3 inline-flex items-center gap-0.5 text-[11.5px] font-semibold text-[#6366F1] hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6366F1]">
+              Sector performance and top movers in After Market <ChevronRight className="h-3 w-3" aria-hidden="true" />
+            </Link>
           </div>
         </div>
 
-        {/* RIGHT: 30-sec answer + Stocks to Watch + Events */}
         <div className="space-y-4">
-          <div className="rounded-2xl border border-accent-violet/15 bg-accent-violet/[0.05] p-5">
-            <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-accent-violet">30-Second Answer</p>
+          <div className="rounded-2xl border border-[#6366F1]/20 bg-[#6366F1]/[0.05] p-5">
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#6366F1]">30-Second Answer</p>
             <p className="text-[13.5px] leading-relaxed text-text-primary">
               {thirtySecondAnswer || "Market intelligence is being compiled for today."}
             </p>
           </div>
 
-          <div className="rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] p-5">
-            <p className="mb-3 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-text-muted">
-              <Flame className="h-3 w-3 text-rose-400" /> Stocks to Watch Today
-            </p>
-            {stocks_to_watch.length === 0 ? (
-              <p className="text-[12px] text-text-muted">No standout stocks in today&apos;s high-impact events yet.</p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {stocks_to_watch.slice(0, 8).map(s => (
-                  <Link key={s.symbol} href={`/companies/${s.symbol}`} title={s.reason}
-                    className={`rounded-full border px-3 py-1.5 text-[11.5px] font-semibold transition hover:opacity-80 ${
-                      s.sentiment === "bullish" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
-                      : s.sentiment === "bearish" ? "border-rose-500/25 bg-rose-500/10 text-rose-600 dark:text-rose-300"
-                      : "border-surface-border/15 bg-surface-card text-text-secondary"
-                    }`}>
-                    {s.symbol}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-text-muted">Market-Moving Events</p>
-              <div className="flex gap-1.5 text-[10px] font-bold">
-                <span className="rounded-full bg-rose-500/10 px-2 py-0.5 text-rose-600 dark:text-rose-300">{events.tiers.critical} Critical</span>
-                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-600 dark:text-amber-300">{events.tiers.high} High</span>
-                <span className="rounded-full bg-surface-border/15 px-2 py-0.5 text-text-muted">{events.tiers.medium} Medium</span>
-              </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.04] p-4">
+              <p className="mb-2 flex items-center gap-1 text-[10.5px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-300"><TrendingUp className="h-3 w-3" aria-hidden="true" /> Supportive signals</p>
+              {data.catalyst_details.length === 0 ? <p className="text-[11.5px] text-text-muted">No supportive signal stands out.</p> : (
+                <ul className="space-y-2">
+                  {data.catalyst_details.map((c, i) => (
+                    <li key={i} className="text-[11.5px] leading-snug text-text-secondary"><span className="font-semibold text-text-primary">{cleanText(c.name)}.</span> {cleanText(c.explanation)}</li>
+                  ))}
+                </ul>
+              )}
             </div>
-            {events.top.length === 0 ? (
-              <p className="text-[12px] text-text-muted">No high-impact events right now.</p>
-            ) : (
-              <div className="space-y-2">
-                {events.top.slice(0, 4).map(e => (
-                  <div key={e.id} className="rounded-lg border border-surface-border/6 bg-surface-card p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-[12.5px] font-medium leading-snug text-text-primary">{cleanText(e.one_liner || e.headline)}</p>
-                      {TIER_COLOR[e.priority_tier] && (
-                        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9.5px] font-bold uppercase ${TIER_COLOR[e.priority_tier]}`}>{e.priority_tier}</span>
-                      )}
-                    </div>
-                    {e.sectors.length > 0 && <p className="mt-1 text-[10.5px] text-text-muted">{e.sectors.slice(0, 3).join(" · ")}</p>}
-                  </div>
-                ))}
-              </div>
-            )}
-            <Link href="/events" className="mt-3 inline-flex items-center gap-0.5 text-[11.5px] font-semibold text-accent-violet hover:text-accent-violet/80">
-              View all today&apos;s events <ChevronRight className="h-3 w-3" />
-            </Link>
+            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.05] p-4">
+              <p className="mb-2 flex items-center gap-1 text-[10.5px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300"><ShieldAlert className="h-3 w-3" aria-hidden="true" /> Risk signals</p>
+              {data.risk_details.length === 0 ? <p className="text-[11.5px] text-text-muted">No risk signal stands out.</p> : (
+                <ul className="space-y-2">
+                  {data.risk_details.map((r, i) => (
+                    <li key={i} className="text-[11.5px] leading-snug text-text-secondary"><span className="font-semibold text-text-primary">{cleanText(r.name)}.</span> {cleanText(r.explanation)}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ── Sector Intelligence ───────────────────────────────────────────── */}
-      {sector_intelligence.length > 0 && (
-        <section className="mt-8">
-          <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-text-muted">Sector Intelligence</p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-            {sector_intelligence.map(s => (
-              <Link key={s.id} href={`/sectors/${s.id}`} className="rounded-lg border border-surface-border/7 bg-text-primary/[0.02] p-3 transition hover:border-surface-border/20">
-                <p className="text-[11.5px] font-semibold text-text-primary">{s.name}</p>
-                <p className={`mt-0.5 text-[12px] font-bold tabular-nums ${s.positive ? "text-emerald-500" : "text-rose-500"}`}>{s.value}</p>
-              </Link>
-            ))}
+      {hasNewSections ? (
+        <>
+          <MarketDriversSection drivers={data.market_drivers!} sessionLabel="Window: from the previous session's close" />
+
+          <div className="mt-10 grid gap-8 lg:grid-cols-2">
+            <ImplicationsSection implications={data.investor_implications!} />
+            <ScenariosSection scenarios={data.scenarios!} />
           </div>
-        </section>
+
+          <TakeawaySection takeaway={data.takeaway!} />
+        </>
+      ) : (
+        /* An older backend response has none of the four sections: keep the page useful with the event tiers it does have. */
+        events.top.length > 0 && (
+          <section className="mt-10">
+            <h2 className="mb-3 text-[19px] font-bold tracking-tight text-text-primary">Market-moving events</h2>
+            <ul className="space-y-2">
+              {events.top.slice(0, 4).map(e => (
+                <li key={e.id} className="rounded-xl border border-surface-border/10 p-3 text-[13px] font-medium text-text-primary">{cleanText(e.one_liner || e.headline)}</li>
+              ))}
+            </ul>
+            <Link href="/events" className="mt-3 inline-flex items-center gap-0.5 text-[12px] font-semibold text-[#6366F1]">View all events <ChevronRight className="h-3 w-3" aria-hidden="true" /></Link>
+          </section>
+        )
       )}
 
-      {/* ── Why Today Matters ─────────────────────────────────────────────── */}
-      {why_today_matters.length > 0 && (
-        <section className="mt-8">
-          <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-text-muted">Why Today Matters</p>
-          <ul className="space-y-2">
-            {why_today_matters.map((w, i) => (
-              <li key={i} className="flex gap-2 rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-3 text-[12.5px] leading-relaxed text-text-secondary">
-                <span className="text-accent-violet">→</span>
-                <span><span className="font-semibold text-text-primary">{cleanText(w.event)}</span> — {cleanText(w.consequence)} <span className="text-text-muted">({w.affected.join(", ")})</span></span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* ── Historical Context / Catalysts+Risks — 2 col ─────────────────── */}
-      <div className="mt-8 grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] p-5">
+      {historical.available && (
+        <section className="mt-10 rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] p-5">
           <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-text-muted">
-            <BadgeCheck className="h-3 w-3" /> Historical Context
+            <BadgeCheck className="h-3 w-3" aria-hidden="true" /> Historical Context
           </p>
-          {historical.available ? (
-            <>
-              <p className="text-[12.5px] text-text-secondary">
-                {historical.count} similar historical setup{historical.count !== 1 ? "s" : ""} found for {historical.queried_sectors?.join(", ")}.
-                {historical.success_rate_pct != null && ` ${historical.success_rate_pct}% saw a positive next-day move.`}
-              </p>
-              <Link href="/historical" className="mt-2 inline-flex items-center gap-0.5 text-[11.5px] font-semibold text-accent-violet hover:text-accent-violet/80">
-                View Historical Patterns <ChevronRight className="h-3 w-3" />
-              </Link>
-            </>
-          ) : (
-            <p className="text-[12px] text-text-muted">{historical.message}</p>
-          )}
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.04] p-4">
-            <p className="mb-2 text-[10.5px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">Catalysts</p>
-            {catalysts.length === 0 ? <p className="text-[11.5px] text-text-muted">None detected today.</p> : (
-              <ul className="space-y-1.5">
-                {catalysts.map((c, i) => <li key={i} className="text-[11.5px] leading-snug text-text-secondary">🟢 {cleanText(c)}</li>)}
-              </ul>
-            )}
-          </div>
-          <div className="rounded-2xl border border-rose-500/15 bg-rose-500/[0.04] p-4">
-            <p className="mb-2 flex items-center gap-1 text-[10.5px] font-bold uppercase tracking-wide text-rose-600 dark:text-rose-300">
-              <ShieldAlert className="h-3 w-3" /> Risks
-            </p>
-            {risks.length === 0 ? <p className="text-[11.5px] text-text-muted">None detected today.</p> : (
-              <ul className="space-y-1.5">
-                {risks.map((r, i) => <li key={i} className="text-[11.5px] leading-snug text-text-secondary">🔴 {cleanText(r)}</li>)}
-              </ul>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── What to Watch Next ────────────────────────────────────────────── */}
-      {what_to_watch_next.length > 0 && (
-        <section className="mt-8">
-          <p className="mb-3 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-text-muted">
-            <CalendarClock className="h-3 w-3" /> What to Watch Next
+          <p className="text-[12.5px] text-text-secondary">
+            {historical.count} similar historical setup{historical.count !== 1 ? "s" : ""} found for {historical.queried_sectors?.join(", ")}.
+            {historical.success_rate_pct != null && ` ${historical.success_rate_pct}% saw a positive next-day move.`}
           </p>
-          <div className="space-y-2">
-            {what_to_watch_next.map((w, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-3">
-                <span className="shrink-0 rounded-md bg-accent-violet/10 px-2 py-1 text-[10.5px] font-bold text-accent-violet">{w.date}</span>
-                <div className="min-w-0">
-                  <p className="text-[12.5px] font-semibold text-text-primary">{w.title}</p>
-                  {w.description && <p className="truncate text-[11px] text-text-muted">{w.description}</p>}
-                </div>
-              </div>
-            ))}
-          </div>
+          <Link href="/historical" className="mt-2 inline-flex items-center gap-0.5 text-[11.5px] font-semibold text-[#6366F1] hover:opacity-80">
+            View Historical Patterns <ChevronRight className="h-3 w-3" aria-hidden="true" />
+          </Link>
         </section>
       )}
 
       {/* ── Questions Investors Are Asking (AEO) ──────────────────────────── */}
       {questions.length > 0 && (
-        <section className="mt-8">
+        <section className="mt-10">
           <p className="mb-3 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-text-muted">
-            <HelpCircle className="h-3 w-3" /> Questions Investors Are Asking
+            <HelpCircle className="h-3 w-3" aria-hidden="true" /> Questions Investors Are Asking
           </p>
           <div className="space-y-3">
             {questions.map((q, i) => (
@@ -402,7 +371,7 @@ export default async function DailyBriefPage() {
                 {q.links.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-3">
                     {q.links.map(l => (
-                      <Link key={l.href} href={l.href} className="text-[11.5px] font-semibold text-accent-violet hover:text-accent-violet/80">
+                      <Link key={l.href} href={l.href} className="text-[11.5px] font-semibold text-[#6366F1] hover:opacity-80">
                         {l.label} →
                       </Link>
                     ))}
@@ -416,18 +385,15 @@ export default async function DailyBriefPage() {
 
       {/* ── Evidence ───────────────────────────────────────────────────────── */}
       {evidence.length > 0 && (
-        <section className="mt-8 border-t border-surface-border/7 pt-6">
+        <section className="mt-10 border-t border-surface-border/7 pt-6">
           <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-text-muted">Evidence</p>
           <div className="grid gap-2 sm:grid-cols-2">
             {evidence.slice(0, 8).map((e, i) => (
               <div key={i} className="rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-3 text-[11.5px]">
                 <p className="text-text-secondary">{cleanText(e.claim)}</p>
-                {/* CD3-C: fact_registry.py folds several genuinely different
-                    producers (opening-prediction HYBRID_RUBRIC, EventTriage,
-                    raw market data with no confidence at all) into one
-                    per-fact `confidence` field -- mixed provenance,
-                    disclosed via tooltip rather than asserted as one clean
-                    measurement. */}
+                {/* CD3-C: fact_registry.py folds several genuinely different producers (opening-prediction HYBRID_RUBRIC,
+                    EventTriage, raw market data with no confidence at all) into one per-fact `confidence` field -- mixed
+                    provenance, disclosed via tooltip rather than asserted as one clean measurement. */}
                 <p className="mt-1 text-[10.5px] text-text-muted" title={e.confidence != null ? "Confidence provenance varies by fact source -- not a single uniform measurement" : undefined}>
                   {e.source}{e.confidence != null && ` · ${Math.round(e.confidence * 100)}% confidence`}
                 </p>
@@ -438,11 +404,11 @@ export default async function DailyBriefPage() {
       )}
 
       {/* ── Continue Research ─────────────────────────────────────────────── */}
-      <section className="mt-8 rounded-2xl border border-surface-border/7 bg-text-primary/[0.03] p-5 text-center">
+      <section className="mt-10 rounded-2xl border border-surface-border/7 bg-text-primary/[0.03] p-5 text-center">
         <p className="mb-3 text-[13px] font-semibold text-text-primary">Continue Your Research</p>
         <div className="flex flex-wrap items-center justify-center gap-2">
-          <Link href="/ai-search" className="inline-flex items-center gap-1.5 rounded-full bg-accent-violet px-4 py-2 text-[12px] font-semibold text-white transition hover:opacity-90">
-            <Sparkles className="h-3.5 w-3.5" /> Ask AI Search
+          <Link href="/ai-search" className="inline-flex items-center gap-1.5 rounded-full bg-[#6366F1] px-4 py-2 text-[12px] font-semibold text-white transition hover:opacity-90">
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Ask AI Search
           </Link>
           <Link href="/events" className="rounded-full border border-surface-border/15 px-4 py-2 text-[12px] font-semibold text-text-secondary transition hover:text-text-primary">All Events</Link>
           <Link href="/market-intelligence" className="rounded-full border border-surface-border/15 px-4 py-2 text-[12px] font-semibold text-text-secondary transition hover:text-text-primary">Market Intelligence</Link>
@@ -452,7 +418,7 @@ export default async function DailyBriefPage() {
       </section>
 
       <p className="mt-6 flex items-center gap-1 text-[10.5px] text-text-muted">
-        <Eye className="h-3 w-3" /> Every figure above is real, live market data — nothing on this page is fabricated or estimated beyond what&apos;s explicitly labeled.
+        <Eye className="h-3 w-3" aria-hidden="true" /> Figures come from market data feeds and MarketRipple&apos;s event scoring. Completed sessions are reported, not predicted; forecasts are labelled with their target date.
       </p>
     </div>
   );

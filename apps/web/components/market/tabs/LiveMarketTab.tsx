@@ -9,6 +9,7 @@ import { compareScoresDesc, impactToStyle } from "@/lib/scoring";
 import { API_BASE_URL as API } from "@/lib/api";
 import { calendarCategoryLabel } from "@/lib/economicCalendarCategory";
 import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
+import { indexSentimentScore } from "@/lib/marketSentiment";
 import {
   TrendingUp, TrendingDown, Minus, ChevronRight,
   CalendarClock,
@@ -35,7 +36,7 @@ type ReplayEntry = {
   generated_at: string; mood: string; pulse: string;
   direction: string; story: string; nifty_at: number; vix_at: number; confidence: number;
 };
-type IndexItem = { name: string; value: string; change: string; positive: boolean; chart?: { value: number }[] };
+type IndexItem = { name: string; value: string; change: string; positive: boolean; pct?: number; chart?: { value: number }[] };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function timeAgo(iso: string): string {
@@ -695,7 +696,15 @@ function MarketBreadthCard({ breadth }: { breadth: any }) {
 // Market Sentiment — real breadth-derived sentiment_score (not the fabricated /insights endpoint)
 // ─────────────────────────────────────────────────────────────────────────────
 function MarketSentimentCard({ value }: { value: number | null }) {
-  const v = value ?? 50;
+  if (value === null) {
+    return (
+      <div className="flex h-full flex-col items-center rounded-2xl border border-surface-border/7 bg-surface-card p-5">
+        <p className="mb-1 self-start text-[11px] font-bold uppercase tracking-wider text-text-secondary">Market Sentiment</p>
+        <p className="my-auto text-[12px] text-text-muted">Unavailable until index data loads.</p>
+      </div>
+    );
+  }
+  const v = value;
   const label = v >= 75 ? "Extreme Greed" : v >= 60 ? "Greed" : v >= 40 ? "Neutral" : v >= 25 ? "Fear" : "Extreme Fear";
   const color = v >= 75 ? "#22c55e" : v >= 60 ? "#84cc16" : v >= 40 ? "#f59e0b" : v >= 25 ? "#f97316" : "#f43f5e";
   const R = 44, CX = 52, CY = 52;
@@ -956,11 +965,9 @@ export function LiveMarketTab({ initialData }: { initialData?: any }) {
   // computeHealthScore() is now only a fallback for the brief window before
   // the Provider's first fetch resolves.
   const health  = mie?.market_health?.score ?? computeHealthScore(data, story);
-  // Same real formula the backend uses for /api/market/overview's sentiment_score,
+  // Same formula as the backend's /api/market/overview sentiment_score (lib/marketSentiment.ts mirrors it),
   // computed here from the indices we already have — /api/market/live has no such field.
-  const sentimentScore = indices.length
-    ? Math.min(90, Math.max(20, Math.round(50 + (indices.filter(i => i.positive).length / indices.length - 0.5) * 80)))
-    : null;
+  const sentimentScore = indexSentimentScore(indices);
 
   if (dataLoading && !initialData) {
     return (

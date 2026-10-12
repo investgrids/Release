@@ -19,26 +19,41 @@ GET /api/daily-brief/intelligence
 from __future__ import annotations
 
 import asyncio
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 
 import structlog
 from fastapi import APIRouter
 
 from app.db.session import AsyncSessionLocal
+from app.services import daily_brief_composer as composer
+from app.services import daily_brief_content as content
+from app.services import daily_brief_drivers as drivers_mod
+from app.services.market_session_state import (
+    AFTER_CLOSE, HOLIDAY, OPEN, PRE_OPEN, WEEKEND, MarketSession, classify_session, ist_now,
+)
 
 router = APIRouter()
 log = structlog.get_logger(__name__)
 
 
-async def _get_verdict() -> dict:
+async def _get_forecast_verdict(session: MarketSession) -> dict:
+    """The opening forecast. Only called before the open (session.shows_forecast); after the close, on weekends and on
+    holidays the page reports the realized session and this function is never reached, so no prediction is generated."""
     from app.services.opening_prediction_service import build_opening_prediction
     try:
         async with AsyncSessionLocal() as db:
             raw = await build_opening_prediction(db)
         pred = raw.get("prediction") or {}
         return {
-            "direction": pred.get("direction", "Neutral"),
+            "kind": "forecast",
+            "headline": "Signals disagree" if (pred.get("direction_check") or {}).get("withheld") else "Opening outlook",
+            "session_state": session.state,
+            "target_date": session.forecast_target_date.isoformat(),
+            "session_date": session.reference_session_date.isoformat(),
+            "direction": pred.get("direction"),
             "confidence": pred.get("confidence"),
+            "direction_check": pred.get("direction_check"),
+            "forecast": raw.get("forecast"),
             "primary_drivers": pred.get("primary_drivers", [])[:4],
             "risks": pred.get("risks", [])[:4],
             "expected_range": {"low": pred.get("range_low"), "high": pred.get("range_high")},
@@ -49,16 +64,26 @@ async def _get_verdict() -> dict:
     except Exception as exc:
         log.warning("daily_brief_intelligence.verdict_failed", error=str(exc))
         return {
+            "kind": "unavailable", "headline": "Outlook unavailable", "session_state": session.state,
+            "target_date": session.forecast_target_date.isoformat(), "forecast": None, "direction_check": None,
             "direction": None, "confidence": None, "primary_drivers": [], "risks": [],
             "expected_range": {"low": None, "high": None}, "reasoning": None,
             "ai_generated": False, "generated_at": None, "unavailable": True,
         }
 
 
-async def _get_snapshot() -> dict:
+def _status_for(session: MarketSession) -> dict:
+    """Backward-compatible market_status block, now fed by the canonical (holiday-aware) session state."""
+    legacy = {PRE_OPEN: "pre_market", OPEN: "open", AFTER_CLOSE: "closed", WEEKEND: "weekend", HOLIDAY: "holiday"}[session.state]
+    now = ist_now()
+    return {"is_open": session.state == OPEN, "status": legacy, "time_ist": now.strftime("%I:%M %p"), "date": now.strftime("%d %b %Y")}
+
+
+async def _get_snapshot(session: MarketSession) -> dict:
     from app.api.market import market_overview
     try:
         overview = await market_overview()
+        movers = overview.get("movers") or {}
         indices_by_name = {i.get("name"): i for i in overview.get("indices", [])}
         return {
             "nifty": indices_by_name.get("NIFTY 50"),
@@ -67,15 +92,16 @@ async def _get_snapshot() -> dict:
             "vix": indices_by_name.get("INDIA VIX"),
             "breadth": overview.get("breadth"),
             "sentiment_score": overview.get("sentiment_score"),
-            "market_status": overview.get("status"),
+            "market_status": _status_for(session),
             "sectors": overview.get("sectors", []),
+            "movers": {"gainers": (movers.get("gainers") or [])[:3], "losers": (movers.get("losers") or [])[:3]},
         }
     except Exception as exc:
         log.warning("daily_brief_intelligence.snapshot_failed", error=str(exc))
         return {
             "nifty": None, "banknifty": None, "sensex": None, "vix": None,
-            "breadth": None, "sentiment_score": None, "market_status": None,
-            "sectors": [], "unavailable": True,
+            "breadth": None, "sentiment_score": None, "market_status": _status_for(session),
+            "sectors": [], "movers": {"gainers": [], "losers": []}, "unavailable": True,
         }
 
 
@@ -88,6 +114,49 @@ async def _read_raw_events() -> list[dict]:
     except Exception as exc:
         log.warning("daily_brief_intelligence.events_failed", error=str(exc))
         return []
+
+
+async def _get_driver_inputs(session: MarketSession, now: datetime) -> tuple[list[dict], dict, dict]:
+    """Events for 'What moved the market' (from the close before the reference session until now), plus the event rows' own slug, outlet
+    and publication time, and the published article that was triggered by each event. Read-only; no LLM."""
+    from sqlalchemy import select
+    from app.db.models.event import Event
+    from app.db.models.intelligence_article import IntelligenceArticle
+    from app.services.intelligence.engine import read_top_events
+    try:
+        start, hours = drivers_mod.window_start_utc(session.reference_session_date, now)
+        raw = await read_top_events(limit=300, min_urgency=0, hours=hours)
+        events = [e for e in raw if (drivers_mod._ts(e) or now) >= start]
+        ids = [e["id"] for e in events if e.get("id")]
+        meta: dict[str, dict] = {}
+        links: dict[str, str] = {}
+        if ids:
+            async with AsyncSessionLocal() as db:
+                for row in (await db.execute(select(Event.id, Event.slug, Event.title, Event.source, Event.published_at).where(Event.id.in_(ids)))).all():
+                    meta[row.id] = {"slug": row.slug or None, "title": row.title, "source": row.source,
+                                    "published_at": row.published_at.isoformat() if row.published_at else None}
+                arts = (await db.execute(
+                    select(IntelligenceArticle.trigger_event_id, IntelligenceArticle.slug)
+                    .where(IntelligenceArticle.status == "published", IntelligenceArticle.slug.is_not(None), IntelligenceArticle.trigger_event_id.in_(ids))
+                    .order_by(IntelligenceArticle.published_at.asc())
+                )).all()
+                for ev_id, slug in arts:
+                    links[ev_id] = f"/newsroom/article/{slug}"      # newest published article wins (ordered ascending, last write)
+        return events, meta, links
+    except Exception as exc:
+        log.warning("daily_brief_intelligence.drivers_inputs_failed", error=str(exc))
+        return [], {}, {}
+
+
+async def _get_scenario_inputs() -> tuple[list[dict], str | None]:
+    """The deterministic opening signals (data only, cached by their providers; no LLM) as signal-breakdown rows."""
+    from app.services.opening_prediction_service import _build_signal_breakdown, _gather_signals
+    try:
+        signals = await _gather_signals()
+        return _build_signal_breakdown(signals), (signals.get("gift_nifty") or {}).get("status")
+    except Exception as exc:
+        log.warning("daily_brief_intelligence.scenario_signals_failed", error=str(exc))
+        return [], None
 
 
 def _tier_events(events: list[dict]) -> dict:
@@ -115,7 +184,30 @@ def _tier_events(events: list[dict]) -> dict:
     }
 
 
-async def _get_facts() -> list[dict]:
+def _present_fact(f, session: MarketSession) -> dict:
+    """Fact -> API row. Index claims are re-worded for the session being described ('today' is wrong on a weekend), and the
+    placeholder high/low the provider derives from price (+/-0.5%) is not exposed."""
+    claim, evidence = f.claim, dict(f.evidence or {})
+    evidence.pop("high", None)
+    evidence.pop("low", None)
+    if f.entity_type == "market_index" and f.value not in (None, "", "—"):
+        pct = f.numeric_value
+        move = f" ({pct:+.2f}%)" if isinstance(pct, (int, float)) else ""
+        when = f"in the {composer._fmt_date(session.reference_session_date)} session"
+        verb = "is trading at" if session.state == OPEN else "closed at"
+        claim = f"{f.name} {verb} {f.value}{move} {when}."
+    return {
+        "fact_key": f.fact_key, "entity_type": f.entity_type, "entity_key": f.entity_key,
+        "name": f.name, "claim": claim, "value": f.value, "direction": f.direction,
+        "change_pct": f.change_pct, "numeric_value": f.numeric_value,
+        "confidence": f.confidence, "source": f.source, "evidence": evidence,
+        "affected_sectors": f.affected_sectors, "affected_companies": f.affected_companies,
+        "as_of_session": session.reference_session_date.isoformat() if f.entity_type == "market_index" else None,
+        "observed_at": f.observed_at.replace(tzinfo=None).isoformat() + "Z" if f.observed_at else None,
+    }
+
+
+async def _get_facts(session: MarketSession) -> list[dict]:
     from app.services import fact_registry
     try:
         # refresh=True is cheap here — build_opening_prediction/market_overview
@@ -125,37 +217,12 @@ async def _get_facts() -> list[dict]:
         # request via asyncio.gather, and AsyncSession isn't safe to share
         # across concurrently-running coroutines.
         async with AsyncSessionLocal() as db:
-            facts = await fact_registry.get_facts_for_today(db, refresh=True)
-        return [
-            {
-                "fact_key": f.fact_key, "entity_type": f.entity_type, "entity_key": f.entity_key,
-                "name": f.name, "claim": f.claim, "value": f.value, "direction": f.direction,
-                "confidence": f.confidence, "source": f.source, "evidence": f.evidence,
-                "affected_sectors": f.affected_sectors, "affected_companies": f.affected_companies,
-                "observed_at": f.observed_at.replace(tzinfo=None).isoformat() + "Z" if f.observed_at else None,
-            }
-            for f in facts
-        ]
+            facts = await fact_registry.get_facts_for_today(db, refresh=True, include_forecast=session.shows_forecast)
+        # The opening-forecast fact restates the verdict card; it is never listed as evidence.
+        return [_present_fact(f, session) for f in facts if f.entity_type != "macro"]
     except Exception as exc:
         log.warning("daily_brief_intelligence.facts_failed", error=str(exc))
         return []
-
-
-def _why_today_matters(facts: list[dict]) -> list[dict]:
-    """Event -> consequence -> affected entities, one bullet per real fact
-    that has real affected sectors/companies — never a generic filler
-    bullet, and never the same fact repeated with different wording."""
-    bullets = []
-    for f in facts:
-        affected = (f.get("affected_sectors") or []) + (f.get("affected_companies") or [])
-        if not affected:
-            continue
-        bullets.append({
-            "event": f["name"], "consequence": f["claim"], "affected": affected[:5],
-        })
-        if len(bullets) >= 5:
-            break
-    return bullets
 
 
 def _stocks_to_watch(events: list[dict]) -> list[dict]:
@@ -179,49 +246,12 @@ def _stocks_to_watch(events: list[dict]) -> list[dict]:
             out.append({
                 "symbol": sym, "reason": e.get("one_liner") or e.get("headline"),
                 "priority_tier": e.get("priority_tier"), "sentiment": e.get("sentiment"),
+                # Named in a high-priority event's text. This is attention, not an assessment of the company's outlook.
+                "basis": "named_in_event",
             })
             if len(out) >= 8:
                 return out
     return out
-
-
-# Entities where a RISE is bad for Indian markets (import cost pressure,
-# rupee depreciation) rather than good — naively treating "direction: up"
-# as always positive would mislabel rising crude/a weakening rupee as a
-# "catalyst" instead of the risk it actually is.
-_RISK_ON_RISE_ENTITIES = {"BRENT_CRUDE", "USD_INR"}
-
-
-def _catalysts_and_risks(facts: list[dict]) -> dict:
-    catalysts, risks = [], []
-    for f in facts:
-        entity_type = f.get("entity_type")
-        name = f.get("name")
-
-        if entity_type == "event":
-            # Event facts already carry a real, LLM-assessed bullish/
-            # bearish sentiment (EventTriage.sentiment) — a much more
-            # honest catalyst/risk signal than re-deriving one from price
-            # direction, which events don't even have.
-            sentiment = (f.get("evidence") or {}).get("sentiment")
-            if sentiment == "bullish":
-                catalysts.append(name)
-            elif sentiment == "bearish":
-                risks.append(name)
-            continue
-
-        if entity_type == "macro":
-            continue  # the verdict itself is a summary, not a driver to list twice
-
-        direction = (f.get("direction") or "").lower()
-        if direction not in ("up", "down", "rising", "falling"):
-            continue
-        rising = direction in ("up", "rising")
-        bad_when_rising = f.get("entity_key") in _RISK_ON_RISE_ENTITIES
-        is_risk = rising == bad_when_rising
-        (risks if is_risk else catalysts).append(name)
-
-    return {"catalysts": catalysts[:4], "risks": risks[:4]}
 
 
 async def _get_historical_context(events: list[dict]) -> dict:
@@ -263,7 +293,7 @@ async def _get_watch_next() -> list[dict]:
     except Exception as exc:
         log.warning("daily_brief_intelligence.calendar_failed", error=str(exc))
         return []
-    today = date.today()
+    today = ist_now().date()
     out = []
     for ev in events:
         raw_date = getattr(ev, "date", None)
@@ -282,76 +312,69 @@ async def _get_watch_next() -> list[dict]:
     return out
 
 
-def _build_questions(verdict: dict, snapshot: dict, events_block: dict, facts: list[dict]) -> list[dict]:
-    """AEO — direct-answer questions built entirely from real data already
-    computed above. No question is added unless a real answer exists."""
-    questions = []
-
-    nifty = snapshot.get("nifty") or {}
-    if verdict.get("direction") and nifty.get("change"):
-        direction_word = "falling" if not nifty.get("positive") else "rising"
-        questions.append({
-            "question": f"Why is Nifty {direction_word} today?",
-            "answer": (verdict.get("reasoning") or f"Nifty is at {nifty.get('value')}, {nifty.get('change')} today.").strip(),
-            "links": [{"label": "Market Intelligence", "href": "/market-intelligence"}],
-        })
-
-    top_events = events_block.get("top") or []
-    if top_events:
-        questions.append({
-            "question": "What is happening in Indian markets today?",
-            "answer": top_events[0].get("one_liner") or top_events[0].get("headline"),
-            "links": [{"label": "View all events", "href": "/events"}],
-        })
-
-    positive_sectors = [s for s in snapshot.get("sectors", []) if s.get("positive")]
-    if positive_sectors:
-        names = ", ".join(s["name"] for s in positive_sectors[:3])
-        questions.append({
-            "question": "Which sectors are strongest today?",
-            "answer": f"{names} are showing positive movement today.",
-            "links": [{"label": "Sector Intelligence", "href": "/sectors"}],
-        })
-
-    crude = next((f for f in facts if f.get("entity_type") == "commodity" and "Crude" in f.get("name", "")), None)
-    if crude and crude.get("affected_sectors"):
-        questions.append({
-            "question": "How are crude oil prices affecting Indian stocks?",
-            "answer": crude["claim"] + f" This typically affects {', '.join(crude['affected_sectors'][:3])}.",
-            "links": [{"label": "Commodities", "href": "/commodities"}],
-        })
-
-    return questions[:5]
-
-
 @router.get("/intelligence")
 async def get_daily_brief_intelligence():
     # Each of these opens its own DB session internally — AsyncSession
     # can't safely be shared across coroutines running concurrently here.
-    verdict, snapshot, raw_events, facts = await asyncio.gather(
-        _get_verdict(), _get_snapshot(), _read_raw_events(), _get_facts(),
+    session = classify_session()
+    now = datetime.now(timezone.utc)
+    snapshot, raw_events, facts, driver_inputs = await asyncio.gather(
+        _get_snapshot(session), _read_raw_events(), _get_facts(session), _get_driver_inputs(session, now),
     )
+    if session.shows_forecast:
+        verdict = await _get_forecast_verdict(session)
+    else:
+        verdict = composer.realized_verdict(session, snapshot, datetime.now(timezone.utc).isoformat())
 
     events_block = _tier_events(raw_events)
     historical, watch_next = await asyncio.gather(
         _get_historical_context(raw_events), _get_watch_next(),
     )
 
+    signals_block = content.catalysts_and_risks(facts)
+    ledger = content.Ledger()
+    ledger.add(verdict.get("reasoning") or "")
+    summary = content.build_summary(session, verdict, signals_block["catalyst_details"], signals_block["risk_details"], events_block["top"])
+    ledger.add(summary)
+
+    # What moved the market, implications, scenarios, takeaway: deterministic, evidence-labelled, no LLM.
+    ev_list, ev_meta, ev_links = driver_inputs
+    drivers = drivers_mod.build_market_drivers(ev_list, snapshot=snapshot, facts=facts, now=now, event_meta=ev_meta, article_links=ev_links)
+    implications = drivers_mod.build_implications(drivers)
+    if session.state == OPEN:
+        scenarios = {"available": False, "reason": "The session is live. Scenarios for the next session return after the close.",
+                     "target": composer._fmt_date(session.forecast_target_date), "generated_at": now.isoformat()}
+    else:
+        rows, gift_status = await _get_scenario_inputs()
+        scenarios = drivers_mod.build_scenarios(rows, watch_next, target_label=composer._fmt_date(session.forecast_target_date),
+                                                generated_at=now.isoformat(), gift_status=gift_status)
+    takeaway = drivers_mod.build_takeaway(drivers, scenarios, verdict, composer.breadth_tone(snapshot.get("breadth")), watch_next)
+    for part in (takeaway["development"] and takeaway["development"]["text"], takeaway["uncertainty"]):
+        if part:
+            ledger.add(part)                                          # the FAQs and evidence below will not repeat the takeaway
+
+    questions = content.build_questions(session, verdict, snapshot, events_block["top"], facts, watch_next,
+                                        signals_block["risk_details"], ledger, drivers=drivers)
+    evidence = content.dedupe_evidence(facts, ledger)
+
     return {
+        "session": composer.session_block(session),
         "market_verdict": verdict,
         "market_snapshot": snapshot,
         "events": events_block,
         "facts": facts,
-        "why_today_matters": _why_today_matters(facts),
+        "summary": summary,
+        "market_drivers": drivers,
+        "investor_implications": implications,
+        "scenarios": scenarios,
+        "takeaway": takeaway,
+        "why_today_matters": content.why_today_matters(facts),
         "stocks_to_watch": _stocks_to_watch(raw_events),
         "sector_intelligence": snapshot.get("sectors", []),
         "historical_context": historical,
-        **_catalysts_and_risks(facts),
+        **signals_block,
         "what_to_watch_next": watch_next,
-        "questions": _build_questions(verdict, snapshot, events_block, facts),
-        "evidence": [
-            {"claim": f["claim"], "source": f["source"], "timestamp": f["observed_at"], "confidence": f["confidence"]}
-            for f in facts
-        ],
+        "questions": questions,
+        "evidence": evidence,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }

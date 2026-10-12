@@ -181,7 +181,8 @@ export function MarketIntelligenceSidebar({
     });
   }, []);
 
-  const fearGreed = liveInsights?.fear_greed ?? 72;
+  // null means the backend had no breadth sample: the gauge is hidden rather than showing an invented value.
+  const fearGreed: number | null = typeof liveInsights?.fear_greed === "number" ? liveInsights.fear_greed : null;
   const gainers   = liveMovers?.gainers ?? [];
   const losers    = liveMovers?.losers ?? [];
 
@@ -198,7 +199,7 @@ export function MarketIntelligenceSidebar({
         <UpcomingEventsPanel events={calendarEvents}/>
         <BreakingNewsPanel news={news}/>
       </div>
-      <FearGreedGauge value={fearGreed}/>
+      {fearGreed !== null && <FearGreedGauge value={fearGreed}/>}
     </div>
   );
 }

@@ -543,8 +543,8 @@ async def market_overview():
         get_top_movers(),
     )
     status = get_market_status()
-    pos_idx = sum(1 for i in indices if i.get("positive"))
-    sentiment_score = min(90, max(20, int(50 + (pos_idx / max(len(indices), 1) - 0.5) * 80)))
+    from app.services.market_sentiment import index_sentiment_score
+    sentiment_score = index_sentiment_score(indices)
     # Real breadth derived from the movers sample — previously a hardcoded
     # {1124, 387, 89, 47, 12} identical to /live's own placeholder,
     # unchanging regardless of actual market conditions (this is the
@@ -896,16 +896,18 @@ async def market_opening_prediction():
             "signals":    {},
             "events":     {"today": [], "tomorrow": [], "mie_signals": []},
             "historical": {"similar_events": [], "count": 0, "avg_nifty_1d": None},
+            # No direction, confidence or range is invented when the service fails: they are None and the UI says unavailable.
             "prediction": {
-                "direction": "Neutral", "confidence": 55,
-                "range_low": -15, "range_high": 25,
-                "primary_drivers": ["Data unavailable"],
-                "risks": ["Check backend logs"],
+                "direction": None, "confidence": None,
+                "range_low": None, "range_high": None,
+                "primary_drivers": [],
+                "risks": [],
                 "conflicting_signals": [],
-                "reasoning": "Prediction service encountered an error.",
+                "reasoning": "The opening forecast is unavailable right now.",
                 "historical_note": None,
-                "uncertainty_note": "AI layer unavailable.",
+                "uncertainty_note": "Forecast service unavailable.",
                 "ai_generated": False,
+                "direction_check": {"status": "unavailable", "withheld": True, "message": "The opening forecast is unavailable right now."},
             },
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "error": str(exc),
@@ -946,11 +948,11 @@ async def market_insights():
     `confidence`/`fear_greed`/`sentiment` are the only fields any
     consumer reads, and all three are genuinely derived from
     get_top_movers()'s real data, kept as-is."""
+    from app.services.market_sentiment import breadth_sentiment
     movers = await get_top_movers()
-    g = len(movers.get("gainers", []))
-    conf = min(95, 55 + g * 8)
-    return {
-        "confidence": conf,
-        "fear_greed": min(90, max(20, conf + 8)),
-        "sentiment":  "Bullish" if conf >= 65 else "Neutral" if conf >= 45 else "Bearish",
-    }
+    s = breadth_sentiment(movers.get("advancing_count"), movers.get("declining_count"))
+    if s is None:
+        # No sample: say so instead of returning a made-up score.
+        return {"confidence": None, "fear_greed": None, "sentiment": None}
+    return {"confidence": s["confidence"], "fear_greed": s["fear_greed"], "sentiment": s["sentiment"],
+            "basis": f"{s['advancing']} advancing / {s['declining']} declining among tracked large caps"}

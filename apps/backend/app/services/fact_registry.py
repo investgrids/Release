@@ -59,7 +59,9 @@ async def _upsert(db: AsyncSession, fact_key: str, **fields: Any) -> Fact:
     return row
 
 
-async def refresh_market_facts(db: AsyncSession) -> list[Fact]:
+async def refresh_market_facts(db: AsyncSession, include_forecast: bool = True) -> list[Fact]:
+    """include_forecast=False is for any caller rendering a completed session, weekend or holiday: crude and USD/INR come from
+    the raw signal gather (no LLM) and no opening-forecast fact is produced, so no AI call is made."""
     from app.api.market import market_overview
     from app.services.opening_prediction_service import build_opening_prediction
     from app.db.session import AsyncSessionLocal
@@ -92,10 +94,15 @@ async def refresh_market_facts(db: AsyncSession) -> list[Fact]:
         log.warning("fact_registry.market_overview_failed", error=str(exc))
 
     try:
-        async with AsyncSessionLocal() as db2:
-            raw = await build_opening_prediction(db2)
-        signals = raw.get("signals", {}) or {}
-        prediction = raw.get("prediction", {}) or {}
+        if include_forecast:
+            async with AsyncSessionLocal() as db2:
+                raw = await build_opening_prediction(db2)
+            signals = raw.get("signals", {}) or {}
+            prediction = raw.get("prediction", {}) or {}
+        else:
+            from app.services.opening_prediction_service import _gather_signals
+            signals = await _gather_signals()
+            prediction = {}
 
         crude = signals.get("brent_crude") or {}
         if crude.get("value") and crude.get("value") != "—":
@@ -128,6 +135,10 @@ async def refresh_market_facts(db: AsyncSession) -> list[Fact]:
                 affected_companies=[], observed_at=_now(),
             ))
 
+        if include_forecast and not prediction.get("direction") and db is not None:
+            from sqlalchemy import delete
+            await db.execute(delete(Fact).where(Fact.fact_key == f"market:VERDICT:{today}"))
+            await db.commit()
         if prediction.get("direction"):
             conf = prediction.get("confidence")
             ai_generated = prediction.get("ai_generated", False)
@@ -192,9 +203,9 @@ _SOURCE_CATEGORY_LABELS = {
 }
 
 
-async def get_facts_for_today(db: AsyncSession, refresh: bool = True) -> list[Fact]:
+async def get_facts_for_today(db: AsyncSession, refresh: bool = True, include_forecast: bool = True) -> list[Fact]:
     if refresh:
-        await refresh_market_facts(db)
+        await refresh_market_facts(db, include_forecast=include_forecast)
         await refresh_event_facts(db)
     today = _today_ist()
     return (await db.execute(

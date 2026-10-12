@@ -5,10 +5,11 @@ import { API_BASE_URL as API } from "@/lib/api";
 
 
 interface PredictionData {
-  direction:           string;
+  direction:           string | null;
+  direction_check?:    { status: string; withheld: boolean; message: string | null };
   confidence:          number | null;
-  range_low:           number;
-  range_high:          number;
+  range_low:           number | null;
+  range_high:          number | null;
   primary_drivers:     string[];
   risks:               string[];
   conflicting_signals: string[];
@@ -151,7 +152,7 @@ export default function OpeningPrediction() {
   const signals   = data?.signals    ?? {};
   const events    = data?.events     ?? { today: [], tomorrow: [], mie_signals: [] };
   const hist      = data?.historical ?? { avg_nifty_1d: null, bullish_sessions: 0, total_sessions: 0, historical_accuracy_hint: null, similar_events: [] };
-  const dc        = pred ? directionColor(pred.direction) : directionColor("Neutral");
+  const dc        = pred ? directionColor(pred.direction ?? "") : directionColor("Neutral");
   const generated = data?.generated_at ? new Date(data.generated_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : null;
 
   return (
@@ -196,8 +197,11 @@ export default function OpeningPrediction() {
               <div className="flex items-center gap-3">
                 <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${dc.dot}`} />
                 <div>
-                  <p className={`text-[18px] font-black leading-none ${dc.text}`}>{dirLabel(pred.direction)}</p>
-                  {pred.range_low !== undefined && (
+                  <p className={`text-[18px] font-black leading-none ${dc.text}`}>{pred.direction ? dirLabel(pred.direction) : "Signals disagree"}</p>
+                  {pred.direction_check?.message && pred.direction_check.status !== "aligned" && (
+                    <p className="mt-1 max-w-md text-[11px] leading-snug text-text-secondary">{pred.direction_check.message}</p>
+                  )}
+                  {pred.range_low != null && pred.range_high != null && (
                     <p className="mt-1 text-[11px] text-text-secondary">
                       Expected range:&nbsp;
                       <span className="font-bold text-text-primary">
