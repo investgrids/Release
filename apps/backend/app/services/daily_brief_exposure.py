@@ -1,71 +1,33 @@
-"""Investor implications that do not depend on event-triage sector tags.
+"""Investor implications that do not depend on event-triage sector tags, wired to the app's own data.
 
 Three separate things, never blended:
   1. VERIFIED SECTOR PERFORMANCE: what the sector indices actually did in the session (from the sector index quotes the brief already holds).
-  2. EVIDENCE-BACKED EXPOSURE: (a) sectors of companies that the day's developments name, taken from the company master (only where a
-     sector is recorded there); (b) general economic exposure to a market variable that verifiably or reportedly moved (rupee, crude, yields),
-     from the short documented rule table below. This is background economics, not an observation about the session.
-  3. OVERLAP: where an exposed sector's verified move agreed or disagreed with the typical exposure. Stated as an observation only; a sector
-     that moved against its typical exposure is reported as such, and nothing here says that a development caused a move.
+  2. EVIDENCE-BACKED EXPOSURE: (a) sectors of companies that the day's developments name, from the company master (only where a sector is
+     recorded there); (b) typical exposure to a market variable that verifiably or reportedly moved (rupee, crude, yields), read from the
+     knowledge graph (see daily_brief_graph.py): each sector comes with the graph edge's weight, confidence, lag and written rationale.
+  3. OVERLAP: where an exposed sector's verified move agreed or disagreed with the typical exposure. An observation only; a sector that moved
+     against its typical exposure is reported as such, and nothing here says that a development caused a move.
 
-Pure functions: no network, no DB, no LLM.
+Pure functions: no network, no DB, no LLM. The graph context is passed in; with no graph there is simply no exposure row.
 """
 from __future__ import annotations
 
 import re
 
 from app.services.daily_brief_composer import FLAT_PCT, parse_pct
+from app.services.daily_brief_drivers import _SECTOR_ALIASES, _canon_sector
 
-SOURCE_RULES = "General economic exposure (documented rule table), not derived from this session's data"
 SOURCE_SECTOR_INDEX = "Sector index quotes from the market data provider"
 
-# Sector index rows -> the exposure sector they speak for. Only real equivalences.
-_INDEX_KEYS = {
-    "IT": ("IT",), "Pharma": ("Pharma",), "Auto": ("Auto",), "Realty": ("Realty",), "FMCG": ("FMCG",), "Metal": ("Metal",),
-    "Banking": ("Banking", "Private Bank", "PSU Bank"),
-}
-
-# variable -> {label, pressured: [...], helped: [...], why}. Typical, widely understood exposures. Conservative on purpose.
-RULES: dict[str, dict] = {
-    "rupee_stronger": {
-        "label": "Rupee strengthens",
-        "pressured": ["IT", "Pharma", "Textiles"], "helped": ["Aviation", "Paints & chemicals", "Oil marketing companies"],
-        "why": "Export earners translate foreign revenue into fewer rupees; import-heavy businesses pay less in rupees for inputs and fuel.",
-    },
-    "rupee_weaker": {
-        "label": "Rupee weakens",
-        "pressured": ["Aviation", "Paints & chemicals", "Oil marketing companies"], "helped": ["IT", "Pharma", "Textiles"],
-        "why": "Import-heavy businesses pay more in rupees for inputs and fuel; export earners translate foreign revenue into more rupees.",
-    },
-    "crude_rising": {
-        "label": "Higher crude oil prices",
-        "pressured": ["Aviation", "Paints & chemicals", "Logistics", "Oil marketing companies"], "helped": ["Upstream oil & gas"],
-        "why": "Fuel and petro-derived inputs are major costs for these businesses; upstream producers realise higher prices.",
-    },
-    "crude_falling": {
-        "label": "Lower crude oil prices",
-        "pressured": ["Upstream oil & gas"], "helped": ["Aviation", "Paints & chemicals", "Logistics", "Oil marketing companies"],
-        "why": "Lower fuel and petro-derived input costs help these businesses; upstream producers realise lower prices.",
-    },
-    "yields_rising": {
-        "label": "Bond yields rise",
-        "pressured": ["Banking", "NBFCs", "Realty", "Auto"], "helped": [],
-        "why": "Banks mark down bond holdings; rate-sensitive borrowers (property, vehicles) face higher financing costs.",
-    },
-    "yields_falling": {
-        "label": "Bond yields fall",
-        "pressured": [], "helped": ["Banking", "NBFCs", "Realty", "Auto"],
-        "why": "Banks gain on bond holdings; rate-sensitive borrowers (property, vehicles) face lower financing costs.",
-    },
+# Display wording for the tracked variables (interface copy; the sectors and rationales come from the graph).
+VARIABLE_LABELS = {
+    "rupee_stronger": "Rupee strengthens", "rupee_weaker": "Rupee weakens",
+    "crude_rising": "Higher crude oil prices", "crude_falling": "Lower crude oil prices",
+    "yields_rising": "Bond yields rise", "yields_falling": "Bond yields fall",
 }
 
 _YIELD_UP = re.compile(r"(yields?\s+(rise|rises|rose|jump|jumps|surge|surges|spike|spikes|climb|climbs|harden|hardens)|bonds?\b.*\b(worst day|fall|falls|fell|slump|slumps|sell-?off|weigh|weighs|tumble|slide|slides)|weigh\w*\s+on\s+(govt|government)?\s*bonds?)", re.I)
 _YIELD_DOWN = re.compile(r"(yields?\s+(fall|falls|fell|ease|eases|eased|drop|drops|dropped|slide|slides|cool|cools)|bonds?\b.*\b(rally|rallies|gain|gains|best day|surge|surges))", re.I)
-
-
-def _canon_index_pct(smoves: dict[str, tuple[str, float]], sector: str) -> list[tuple[str, float]]:
-    names = _INDEX_KEYS.get(sector) or ()
-    return [(n, p) for n, p in smoves.values() if n in names]
 
 
 def sector_performance(sectors: list[dict] | None, *, as_of_label: str, top: int = 3) -> dict:
@@ -110,59 +72,35 @@ def _variables(facts: list[dict], driver_headlines: list[tuple[str, str | None]]
     return found
 
 
-# Sector names as they appear in headlines. Case-sensitive where a lower-case form is an ordinary word ('IT' vs 'it').
-_HEADLINE_SECTORS = (
-    ("IT", re.compile(r"\bIT\b(?!\s+(is|was|has|will)\b)")), ("Telecom", re.compile(r"\b[Tt]elecom\w*")), ("Banks", re.compile(r"\b[Bb]ank(s|ing)?\b")),
-    ("Financial Services", re.compile(r"\b[Ff]inancial [Ss]ervices\b")), ("Oil & Gas", re.compile(r"\b[Oo]il (&|and) [Gg]as\b")),
-    ("Pharma", re.compile(r"\b[Pp]harma\w*")), ("Auto", re.compile(r"\b[Aa]uto(mobile)?s?\b")), ("FMCG", re.compile(r"\bFMCG\b")),
-    ("Metals", re.compile(r"\b[Mm]etals?\b")), ("Realty", re.compile(r"\b[Rr]ealty\b|\b[Rr]eal estate\b")), ("Power", re.compile(r"\b[Pp]ower (sector|stocks|utilities)\b")),
-    ("Infrastructure", re.compile(r"\b[Ii]nfra(structure)?\b")), ("Aviation", re.compile(r"\b[Aa]viation\b|\b[Aa]irlines?\b")),
-)
-
-
-def sectors_mentioned(drivers: dict, company_sectors_links: list[dict] | None = None) -> list[dict]:
-    """Sectors that the developments themselves name: in the headline text, in a recorded event sector tag, or as the company-master sector
-    of a named company. Shows exposure to the news, not an observed sector move. Each entry says where it was found."""
-    found: dict[str, dict] = {}
-    for it in drivers.get("items", []):
-        if it.get("evidence_label") == "commentary":
-            continue
-        for name, rx in _HEADLINE_SECTORS:
-            if rx.search(it.get("headline") or ""):
-                found.setdefault(name, {"name": name, "via": []})["via"].append({"basis": "headline", "headline": it["headline"]})
-        for s in it.get("sectors", []):
-            if s.get("name"):
-                found.setdefault(s["name"], {"name": s["name"], "via": []})["via"].append({"basis": "event sector tag", "headline": it["headline"]})
-    for link in company_sectors_links or []:
-        found.setdefault(link["sector"], {"name": link["sector"], "via": []})["via"].append({"basis": "company master", "headline": ", ".join(link["companies"])})
-    return list(found.values())[:8]
-
-
 def build_exposure(*, sectors: list[dict] | None, smoves: dict[str, tuple[str, float]], facts: list[dict], drivers: dict,
-                   as_of_label: str, company_sectors: dict[str, str] | None = None) -> dict:
-    """The three parts of the implications (sector performance, exposure, overlap) plus company links by sector."""
+                   as_of_label: str, company_sectors: dict[str, str] | None = None, graph=None, vocabulary: list[str] | None = None) -> dict:
+    """The parts of the implications (sector performance, exposure, overlap, sectors named) plus company links by sector."""
     perf = sector_performance(sectors, as_of_label=as_of_label)
     headlines = [(it["headline"], it.get("source")) for it in drivers.get("items", []) if it.get("evidence_label") != "commentary"]
     variables = _variables(facts, headlines)
 
-    exposure, overlap = [], []
+    exposure, overlap, notes = [], [], []
     for v in variables:
-        rule = RULES[v["key"]]
-        row = {"variable": v["key"], "label": rule["label"], "evidence": v["evidence"], "observed": v["observed"], "source": v.get("source"),
-               "observed_at": v.get("observed_at"), "pressured": rule["pressured"], "helped": rule["helped"], "why": rule["why"],
-               "basis": SOURCE_RULES}
-        exposure.append(row)
-        for kind, names in (("pressured", rule["pressured"]), ("helped", rule["helped"])):
-            for sector in names:
-                for idx_name, pct in _canon_index_pct(smoves, sector):
-                    if abs(pct) < FLAT_PCT:
-                        continue
-                    agrees = (pct < 0) == (kind == "pressured")
-                    overlap.append({
-                        "sector": idx_name, "verified_move_pct": pct, "variable": v["key"], "typical": kind, "agrees": agrees,
-                        "text": (f"{idx_name} is typically {kind} by this; its index moved {pct:+.2f}% in the session, "
-                                 f"{'in line with' if agrees else 'against'} that typical exposure. An observation, not an attribution."),
-                    })
+        graph_row = graph.exposure(v["key"]) if graph is not None else None
+        if graph_row is None:
+            notes.append(f"The knowledge graph records no sector exposure for '{VARIABLE_LABELS[v['key']].lower()}', so none is shown.")
+            continue
+        exposure.append({"variable": v["key"], "label": VARIABLE_LABELS[v["key"]], "evidence": v["evidence"], "observed": v["observed"],
+                         "source": v.get("source"), "observed_at": v.get("observed_at"), "pressured": graph_row["pressured"], "helped": graph_row["helped"],
+                         "basis": graph_row["basis"], "node": graph_row["node_id"]})
+        for kind in ("pressured", "helped"):
+            for item in graph_row[kind]:
+                canon = _canon_sector(item["sector"])
+                moved = smoves.get(canon) if canon else None
+                if not moved or abs(moved[1]) < FLAT_PCT:
+                    continue
+                idx_name, pct = moved
+                agrees = (pct < 0) == (kind == "pressured")
+                overlap.append({
+                    "sector": idx_name, "verified_move_pct": pct, "variable": v["key"], "typical": kind, "agrees": agrees,
+                    "text": (f"{idx_name} is typically {kind} by this; its index moved {pct:+.2f}% in the session, "
+                             f"{'in line with' if agrees else 'against'} that typical exposure. An observation, not an attribution."),
+                })
 
     companies: dict[str, dict] = {}
     for it in drivers.get("items", []):
@@ -178,10 +116,63 @@ def build_exposure(*, sectors: list[dict] | None, smoves: dict[str, tuple[str, f
     company_links = [{"sector": r["sector"], "companies": r["companies"][:5], "via": r["developments"][:2],
                       "basis": "Named in the development; sector from the company master (not an assessment of impact)"} for r in companies.values()]
 
-    notes = []
-    if not exposure:
+    if not variables:
         notes.append("No market variable (rupee, crude, yields) moved enough to describe general exposure.")
     if not company_links:
         notes.append("No development names a company with a recorded sector.")
     return {"sector_performance": perf, "exposure": exposure, "overlap": overlap, "company_links": company_links, "exposure_notes": notes,
-            "sectors_mentioned": sectors_mentioned(drivers, company_links)}
+            "sectors_mentioned": sectors_mentioned(drivers, company_links, vocabulary=vocabulary, index_names=[n for n, _ in smoves.values()])}
+
+
+# ── sectors named in the developments themselves ───────────────────────────────────────────────────────────────────
+
+def _term_regex(term: str) -> re.Pattern:
+    """Whole-word match, plural-tolerant. Case-sensitive for short or all-caps terms ('IT'), so the pronoun 'it' is never a sector."""
+    body = re.escape(term.strip())
+    flags = 0 if (len(term) <= 3 or term.isupper()) else re.IGNORECASE
+    return re.compile(rf"(?<![A-Za-z]){body}(?:s|es)?(?![A-Za-z])", flags)
+
+
+def _vocabulary_terms(vocabulary: list[str] | None, index_names: list[str] | None) -> dict[str, list[str]]:
+    """display name -> search terms. Names come from the graph's own sector labels and the sector index names the brief already holds; the
+    alias table only joins different spellings of the same sector (banks/banking, real estate/realty)."""
+    names: dict[str, list[str]] = {}
+    for label in list(vocabulary or []) + list(index_names or []):
+        names.setdefault(label, [label])
+    for display in list(names):
+        canon = _canon_sector(display)
+        if canon:
+            for alias in _SECTOR_ALIASES.get(canon, ()):
+                if alias not in {t.lower() for t in names[display]}:
+                    names[display].append(alias)
+    return names
+
+
+def sectors_mentioned(drivers: dict, company_sectors_links: list[dict] | None = None, *, vocabulary: list[str] | None = None,
+                      index_names: list[str] | None = None) -> list[dict]:
+    """Sectors that the developments themselves name: in the headline text, in a recorded event sector tag, or as the company-master sector of
+    a named company. Shows exposure to the news, not an observed sector move. Each entry says where it was found."""
+    terms = _vocabulary_terms(vocabulary, index_names)
+    patterns = {name: [_term_regex(t) for t in ts if len(t.strip()) >= 2] for name, ts in terms.items()}
+    found: dict[str, dict] = {}
+    for it in drivers.get("items", []):
+        if it.get("evidence_label") == "commentary":
+            continue
+        for name, rxs in patterns.items():
+            if any(rx.search(it.get("headline") or "") for rx in rxs):
+                found.setdefault(name, {"name": name, "via": []})["via"].append({"basis": "headline", "headline": it["headline"]})
+        for s in it.get("sectors", []):
+            if s.get("name"):
+                found.setdefault(s["name"], {"name": s["name"], "via": []})["via"].append({"basis": "event sector tag", "headline": it["headline"]})
+    for link in company_sectors_links or []:
+        found.setdefault(link["sector"], {"name": link["sector"], "via": []})["via"].append({"basis": "company master", "headline": ", ".join(link["companies"])})
+    # one entry per sector even if the vocabulary spelt it two ways (Banking / Banks)
+    by_canon: dict[str, dict] = {}
+    for entry in found.values():
+        canon = _canon_sector(entry["name"]) or entry["name"].lower()
+        if canon in by_canon:
+            have = {(v["basis"], v["headline"]) for v in by_canon[canon]["via"]}
+            by_canon[canon]["via"].extend(v for v in entry["via"] if (v["basis"], v["headline"]) not in have)   # same sector spelt two ways: one entry, every place it was found
+        else:
+            by_canon[canon] = entry
+    return list(by_canon.values())[:8]

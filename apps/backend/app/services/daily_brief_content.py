@@ -40,31 +40,38 @@ _RISE_IS_RISK = {"BRENT_CRUDE", "USD_INR", "INDIA_VIX"}
 _OUTCOME_INDICES = {"NIFTY_50", "BANK_NIFTY", "SENSEX"}   # outcomes of the session, not drivers of it
 
 
-def _explain_signal(f: dict, rising: bool) -> tuple[str, str]:
-    """(kind, explanation) for a market signal fact, built only from the fact's own value/change."""
+def _graph_clause(graph, variable: str) -> str:
+    """': typically pressures A, B and typically helps C (knowledge graph).' from the graph's own edges, or '.' when it has none."""
+    row = graph.exposure(variable) if graph is not None else None
+    if not row:
+        return "."
+    parts = []
+    if row["pressured"]:
+        parts.append("typically pressures " + ", ".join(x["sector"] for x in row["pressured"][:3]))
+    if row["helped"]:
+        parts.append("typically helps " + ", ".join(x["sector"] for x in row["helped"][:3]))
+    return (": " + " and ".join(parts) + " (knowledge graph).") if parts else "."
+
+
+def _explain_signal(f: dict, rising: bool, graph=None) -> tuple[str, str]:
+    """(kind, explanation) for a market signal fact. Numbers come from the fact; any sector exposure comes from the knowledge graph."""
     key, name, value = f.get("entity_key"), f.get("name"), f.get("value")
     pct = f.get("change_pct")
     if pct is None:
         pct = f.get("numeric_value") if f.get("entity_type") == "market_index" else None
     move = f" ({pct:+.2f}%)" if isinstance(pct, (int, float)) else ""
     if key == "INDIA_VIX":
-        return ("risk", f"India VIX {'rose' if rising else 'fell'} to {value}{move}: "
-                        + ("expected volatility is higher, which usually goes with a more cautious market."
-                           if rising else "expected volatility eased, which usually goes with a calmer market."))
+        return ("risk", f"India VIX {'rose' if rising else 'fell'} to {value}{move}: implied volatility is {'higher' if rising else 'lower'}.")
     if key == "BRENT_CRUDE":
         return ("risk" if rising else "catalyst",
-                f"Brent crude is {'rising' if rising else 'falling'} at {value}: "
-                + ("higher import costs pressure oil-importing sectors and the rupee." if rising
-                   else "lower crude eases import costs for oil-importing sectors."))
+                f"Brent crude is {'rising' if rising else 'falling'} at {value}" + _graph_clause(graph, "crude_rising" if rising else "crude_falling"))
     if key == "USD_INR":
         return ("risk" if rising else "catalyst",
-                f"USD/INR is {'higher' if rising else 'lower'} at {value}: "
-                + ("a weaker rupee raises import costs but helps exporters." if rising
-                   else "a firmer rupee lowers import costs but squeezes exporters."))
+                f"USD/INR is {'higher' if rising else 'lower'} at {value}" + _graph_clause(graph, "rupee_weaker" if rising else "rupee_stronger"))
     return ("risk" if not rising else "catalyst", f"{name} {'rose' if rising else 'fell'}{move}.")
 
 
-def catalysts_and_risks(facts: list[dict]) -> dict:
+def catalysts_and_risks(facts: list[dict], graph=None) -> dict:
     """Names (backward compatible) plus evidence-backed explanations. Returns
     {catalysts, risks, catalyst_details, risk_details}; every detail carries the fact it came from."""
     cats: list[dict] = []
@@ -88,7 +95,7 @@ def catalysts_and_risks(facts: list[dict]) -> dict:
         if isinstance(pct, (int, float)) and abs(pct) < NEAR_FLAT_PCT:
             continue
         rising = direction in ("up", "rising")
-        kind, why = _explain_signal(f, rising)
+        kind, why = _explain_signal(f, rising, graph)
         if key in _RISE_IS_RISK:
             kind = "risk" if rising else "catalyst"
         item = {"name": name, "explanation": why, "source": f.get("source"), "fact_key": f.get("fact_key")}

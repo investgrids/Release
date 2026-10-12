@@ -30,6 +30,7 @@ from app.services import daily_brief_composer as composer
 from app.services import daily_brief_content as content
 from app.services import daily_brief_drivers as drivers_mod
 from app.services import daily_brief_exposure as exposure_mod
+from app.services import daily_brief_graph as graph_mod
 from app.services.market_session_state import (
     AFTER_CLOSE, HOLIDAY, OPEN, PRE_OPEN, WEEKEND, MarketSession, classify_session, ist_now,
 )
@@ -167,7 +168,7 @@ async def _get_company_sectors(symbols: list[str]) -> dict[str, str]:
         return {}
 
 
-def _enrich_signal_rows(rows: list[dict], signals: dict, gift_ts: datetime | None, retrieved: datetime) -> list[dict]:
+def _enrich_signal_rows(rows: list[dict], signals: dict, gift_ts: datetime | None, retrieved: datetime, gift_source: str | None = None) -> list[dict]:
     """Attach an interpretation, a source and an observation time to each signal row. A time is only a quote time where the provider gives one
     (GIFT Nifty) or a session date where the source gives one (FII flow); otherwise it is honestly the retrieval time."""
     ist = ZoneInfo("Asia/Kolkata")
@@ -177,24 +178,25 @@ def _enrich_signal_rows(rows: list[dict], signals: dict, gift_ts: datetime | Non
         label, d = r.get("label") or "", r.get("direction")
         r["time_basis"], r["observed_at"] = "retrieved", retrieved.isoformat()
         if label.startswith("GIFT"):
-            r["source"] = "GIFT Nifty (NSE IX)"
+            r["source"] = f"GIFT Nifty ({gift_source.replace('_', ' ')})" if gift_source else "GIFT Nifty"
             r["interpretation"] = {"positive": "Positive opening indication", "negative": "Negative opening indication"}.get(d, "Flat opening indication")
             if gift_ts is not None:
                 r["time_basis"], r["observed_at"] = "quote time", gift_ts.astimezone(timezone.utc).isoformat()
         elif label.startswith("Global"):
-            r["source"] = "Major global markets"
+            names = [m.get("name") for m in list(signals.get("us_futures") or []) + list(signals.get("asian_markets") or []) + list(signals.get("european_markets") or []) if m.get("name")]
+            r["source"] = ("Global markets: " + ", ".join(names[:4])) if names else None
             r["interpretation"] = {"positive": "Positive global participation", "negative": "Weak global participation"}.get(d, "Mixed global participation")
         elif label.startswith("FII"):
-            r["source"] = "NSE"
+            r["source"] = (signals.get("fii") or {}).get("source")
             r["interpretation"] = f"Net {'buying' if d == 'positive' else 'selling'} (prior session)"
             fii_date = (signals.get("fii") or {}).get("date")
             r["time_basis"], r["observed_at"] = ("session date", str(fii_date)) if fii_date else ("prior session", None)
         elif label.startswith("India VIX"):
-            r["source"] = "NSE"
+            r["source"] = "Market data provider"
             level = ((signals.get("india_vix") or {}).get("level") or "").upper()
             r["interpretation"] = {"ELEVATED": "Elevated volatility", "LOW": "Low volatility"}.get(level, "Moderate volatility")
         elif "fut" in label.lower() or "s&p" in label.lower():
-            r["source"] = "US index futures"
+            r["source"] = "Market data provider"
             r["interpretation"] = f"{'Positive' if d == 'positive' else 'Negative' if d == 'negative' else 'Flat'} US futures signal"
         out.append(r)
     return out
@@ -205,13 +207,14 @@ async def _get_scenario_inputs() -> tuple[list[dict], str | None]:
     from app.services.opening_prediction_service import _build_signal_breakdown, _gather_signals
     try:
         signals = await _gather_signals()
-        gift_ts = None
+        gift_ts, gift_source = None, None
         try:
             from app.services.gift_nifty_service import get_gift_nifty
-            gift_ts = (await get_gift_nifty()).source_timestamp
+            gift = await get_gift_nifty()
+            gift_ts, gift_source = gift.source_timestamp, gift.source
         except Exception:
             pass
-        rows = _enrich_signal_rows(_build_signal_breakdown(signals), signals, gift_ts, datetime.now(timezone.utc))
+        rows = _enrich_signal_rows(_build_signal_breakdown(signals), signals, gift_ts, datetime.now(timezone.utc), gift_source)
         return rows, (signals.get("gift_nifty") or {}).get("status")
     except Exception as exc:
         log.warning("daily_brief_intelligence.scenario_signals_failed", error=str(exc))
@@ -390,7 +393,8 @@ async def get_daily_brief_intelligence():
         _get_historical_context(raw_events), _get_watch_next(),
     )
 
-    signals_block = content.catalysts_and_risks(facts)
+    graph = await graph_mod.load_graph_context()
+    signals_block = content.catalysts_and_risks(facts, graph=graph)
     ledger = content.Ledger()
     ledger.add(verdict.get("reasoning") or "")
 
@@ -401,13 +405,16 @@ async def get_daily_brief_intelligence():
     ledger.add(summary)
     for tile in signals_block["catalyst_details"] + signals_block["risk_details"]:
         ledger.add(tile["explanation"])                     # the signal tiles are on the page too: no later section repeats them
+    window_start, _hours = drivers_mod.window_start_utc(session.reference_session_date, now)
+    drivers["window"] = {"start": window_start.isoformat(), "basis": "close of the session before the reference session"}
     implications = drivers_mod.build_implications(drivers)
     symbols = [c["symbol"] for it in drivers["items"] for c in it["companies"]]
     as_of = (f"{composer._fmt_date(session.reference_session_date)} close" if session.state in (AFTER_CLOSE, WEEKEND, HOLIDAY, PRE_OPEN)
              else f"live, retrieved {now.astimezone(ZoneInfo('Asia/Kolkata')).strftime('%H:%M')} IST")
     implications = {**implications, **exposure_mod.build_exposure(
         sectors=snapshot.get("sectors"), smoves=drivers_mod.sector_moves(snapshot.get("sectors")), facts=facts, drivers=drivers,
-        as_of_label=as_of, company_sectors=await _get_company_sectors(symbols))}
+        as_of_label=as_of, company_sectors=await _get_company_sectors(symbols), graph=graph,
+        vocabulary=graph.sector_vocabulary if graph else None)}
     implications["note"] = None if (implications["items"] or implications["sector_performance"]["available"] or implications["exposure"]) else implications["note"]
     if session.state == OPEN:
         scenarios = {"available": False, "reason": "The session is live. Scenarios for the next session return after the close.",

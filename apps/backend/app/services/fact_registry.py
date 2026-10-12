@@ -104,6 +104,8 @@ async def refresh_market_facts(db: AsyncSession, include_forecast: bool = True) 
             signals = await _gather_signals()
             prediction = {}
 
+        from app.services.daily_brief_graph import load_graph_context
+        graph = await load_graph_context()
         crude = signals.get("brent_crude") or {}
         if crude.get("value") and crude.get("value") != "—":
             facts.append(await _upsert(
@@ -115,7 +117,7 @@ async def refresh_market_facts(db: AsyncSession, include_forecast: bool = True) 
                 direction=crude.get("direction"), change_pct=None, confidence=None,
                 source="Global futures market data",
                 evidence={"change": crude.get("change")},
-                affected_sectors=["Aviation", "Paints", "Chemicals", "Oil & Gas", "Logistics"],
+                affected_sectors=graph.affected_labels("commodity:crude-oil") if graph else [],
                 affected_companies=[], observed_at=_now(),
             ))
 
@@ -131,7 +133,7 @@ async def refresh_market_facts(db: AsyncSession, include_forecast: bool = True) 
                 direction="up" if positive else "down" if positive is False else None,
                 change_pct=None, confidence=None,
                 source="Forex market data",
-                evidence={}, affected_sectors=["IT", "Pharma", "Textiles"],
+                evidence={}, affected_sectors=graph.affected_labels("currency:usd-inr") if graph else [],
                 affected_companies=[], observed_at=_now(),
             ))
 

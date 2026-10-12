@@ -352,7 +352,7 @@ export default async function DailyBriefPage() {
       {hasNewSections ? (
         <>
           <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-            <MarketDriversSection drivers={data.market_drivers!} sessionLabel="Window: from the previous session's close." />
+            <MarketDriversSection drivers={data.market_drivers!} sessionLabel={data.market_drivers!.window?.start ? `Window: since the previous close (${fmtIST(data.market_drivers!.window.start)}).` : "Window: from the previous session's close."} />
             <ImplicationsSection implications={data.investor_implications!} />
           </div>
 

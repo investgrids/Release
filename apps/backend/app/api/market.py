@@ -219,6 +219,7 @@ def _fetch_fii_dii() -> dict:
                     "dii_sell": _clean(dii.get("sellValue", 0)) if dii else 0.0,
                     "note": "Previous session (₹Cr)",
                     "date": str((fii or dii).get("date") or "") or None,      # NSE's own session date for the figures, e.g. "12-Oct-2026"
+                    "source": "NSE India",
                 }
     except Exception:
         pass
