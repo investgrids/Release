@@ -167,12 +167,52 @@ async def _get_company_sectors(symbols: list[str]) -> dict[str, str]:
         return {}
 
 
+def _enrich_signal_rows(rows: list[dict], signals: dict, gift_ts: datetime | None, retrieved: datetime) -> list[dict]:
+    """Attach an interpretation, a source and an observation time to each signal row. A time is only a quote time where the provider gives one
+    (GIFT Nifty) or a session date where the source gives one (FII flow); otherwise it is honestly the retrieval time."""
+    ist = ZoneInfo("Asia/Kolkata")
+    out = []
+    for r in rows:
+        r = dict(r)
+        label, d = r.get("label") or "", r.get("direction")
+        r["time_basis"], r["observed_at"] = "retrieved", retrieved.isoformat()
+        if label.startswith("GIFT"):
+            r["source"] = "GIFT Nifty (NSE IX)"
+            r["interpretation"] = {"positive": "Positive opening indication", "negative": "Negative opening indication"}.get(d, "Flat opening indication")
+            if gift_ts is not None:
+                r["time_basis"], r["observed_at"] = "quote time", gift_ts.astimezone(timezone.utc).isoformat()
+        elif label.startswith("Global"):
+            r["source"] = "Major global markets"
+            r["interpretation"] = {"positive": "Positive global participation", "negative": "Weak global participation"}.get(d, "Mixed global participation")
+        elif label.startswith("FII"):
+            r["source"] = "NSE"
+            r["interpretation"] = f"Net {'buying' if d == 'positive' else 'selling'} (prior session)"
+            fii_date = (signals.get("fii") or {}).get("date")
+            r["time_basis"], r["observed_at"] = ("session date", str(fii_date)) if fii_date else ("prior session", None)
+        elif label.startswith("India VIX"):
+            r["source"] = "NSE"
+            level = ((signals.get("india_vix") or {}).get("level") or "").upper()
+            r["interpretation"] = {"ELEVATED": "Elevated volatility", "LOW": "Low volatility"}.get(level, "Moderate volatility")
+        elif "fut" in label.lower() or "s&p" in label.lower():
+            r["source"] = "US index futures"
+            r["interpretation"] = f"{'Positive' if d == 'positive' else 'Negative' if d == 'negative' else 'Flat'} US futures signal"
+        out.append(r)
+    return out
+
+
 async def _get_scenario_inputs() -> tuple[list[dict], str | None]:
     """The deterministic opening signals (data only, cached by their providers; no LLM) as signal-breakdown rows."""
     from app.services.opening_prediction_service import _build_signal_breakdown, _gather_signals
     try:
         signals = await _gather_signals()
-        return _build_signal_breakdown(signals), (signals.get("gift_nifty") or {}).get("status")
+        gift_ts = None
+        try:
+            from app.services.gift_nifty_service import get_gift_nifty
+            gift_ts = (await get_gift_nifty()).source_timestamp
+        except Exception:
+            pass
+        rows = _enrich_signal_rows(_build_signal_breakdown(signals), signals, gift_ts, datetime.now(timezone.utc))
+        return rows, (signals.get("gift_nifty") or {}).get("status")
     except Exception as exc:
         log.warning("daily_brief_intelligence.scenario_signals_failed", error=str(exc))
         return [], None
@@ -375,7 +415,8 @@ async def get_daily_brief_intelligence():
     else:
         rows, gift_status = await _get_scenario_inputs()
         scenarios = drivers_mod.build_scenarios(rows, watch_next, target_label=composer._fmt_date(session.forecast_target_date),
-                                                generated_at=now.isoformat(), gift_status=gift_status)
+                                                generated_at=now.isoformat(), gift_status=gift_status,
+                                                result_direction=verdict.get("direction") if verdict.get("kind") == "realized" else None)
     takeaway = drivers_mod.build_takeaway(drivers, scenarios, verdict, composer.breadth_tone(snapshot.get("breadth")), watch_next)
     for part in (takeaway["development"] and takeaway["development"]["text"], takeaway["uncertainty"]):
         if part:

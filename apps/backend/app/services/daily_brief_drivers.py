@@ -382,50 +382,100 @@ def build_implications(drivers: dict) -> dict:
 
 # ── next-session scenarios ─────────────────────────────────────────────────────────────────────────────────────────
 
-_SIGNAL_PHRASES = {
-    "GIFT Nifty": ("GIFT Nifty indicates a higher open", "GIFT Nifty indicates a lower open"),
-    "Global Breadth": ("most tracked global markets are positive", "most tracked global markets are negative"),
-    "FII Flow": ("FII flow turns to net buying", "FII flow stays net selling"),
+_TITLES = {
+    "Negative": ("Recovery scenario", "Mixed / range-bound scenario", "Selling-pressure scenario"),
+    "Positive": ("Continuation scenario", "Mixed / range-bound scenario", "Pullback scenario"),
 }
+_DEFAULT_TITLES = ("Upside scenario", "Mixed / range-bound scenario", "Downside scenario")
 
 
-def _phrase(label: str, positive: bool) -> str:
-    if label in _SIGNAL_PHRASES:
-        return _SIGNAL_PHRASES[label][0 if positive else 1]
-    if "futures" in label.lower() or "s&p" in label.lower():
-        return "US futures point higher" if positive else "US futures point lower"
-    return f"{label} turns positive" if positive else f"{label} turns negative"
+def _row(rows: list[dict], prefix: str) -> dict | None:
+    return next((r for r in rows if (r.get("label") or "").lower().startswith(prefix.lower())), None)
 
 
-def build_scenarios(rows: list[dict], catalysts: list[dict], *, target_label: str, generated_at: str, gift_status: str | None) -> dict:
-    """Three conditional scenarios from the deterministic opening signals. They state what would have to be observed; they carry no
-    probability, target, range, support or resistance, and none is marked as the expected one."""
+def _gift_move(row: dict | None) -> float | None:
+    return parse_pct(row.get("value")) if row else None
+
+
+def _setup(rows: list[dict]) -> dict:
+    """A plain description of how the overnight signals line up. No lean is declared when they disagree."""
+    directional = [r for r in rows if r.get("direction") in ("positive", "negative", "neutral")]
+    pos = [r for r in directional if r["direction"] == "positive"]
+    neg = [r for r in directional if r["direction"] == "negative"]
+    if pos and neg:
+        title = "Mixed overnight setup"
+    elif len(pos) >= 2 and not neg:
+        title = "Positive overnight setup"
+    elif len(neg) >= 2 and not pos:
+        title = "Negative overnight setup"
+    else:
+        title = "Flat overnight setup"
+
+    parts: list[str] = []
+    gift, fut, breadth, fii, vix = _row(rows, "GIFT"), next((r for r in rows if "fut" in (r.get("label") or "").lower()), None), _row(rows, "Global"), _row(rows, "FII"), _row(rows, "India VIX")
+    gm = _gift_move(gift)
+    if gift and gift["direction"] != "contextual":
+        mild = "mildly " if gm is not None and abs(gm) < 0.5 else ""
+        parts.append(f"GIFT Nifty indicates a {mild}{'positive' if gift['direction'] == 'positive' else 'negative' if gift['direction'] == 'negative' else 'flat'} start")
+    if fut:
+        word = {"positive": "higher", "negative": "lower"}.get(fut["direction"], "flat")
+        parts.append(f"US futures are {word}")
+    if breadth:
+        parts.append("global participation is " + {"positive": "positive", "negative": "weak"}.get(breadth["direction"], "mixed"))
+    text = ""
+    if parts:
+        head = parts[0] + (", but " if (pos and neg and len(parts) > 1) else ", and " if len(parts) > 1 else "")
+        text = head + (", ".join(parts[1:-1]) + (" and " if len(parts) > 2 else "") + parts[-1] if len(parts) > 1 else "") + "."
+    if fii:
+        text += f" The reported FII flow shows net {'buying' if fii['direction'] == 'positive' else 'selling'} in the previous session"
+        text += (", and " + (vix_phrase(vix)) + ".") if vix else "."
+    elif vix:
+        text += " " + vix_phrase(vix).capitalize() + "."
+    text += " There is no clear alignment across the available signals." if (pos and neg) else " The available signals point the same way." if (pos or neg) else ""
+    return {"title": title, "text": text.strip()}
+
+
+def vix_phrase(vix: dict) -> str:
+    interp = (vix.get("interpretation") or "").lower()
+    return "India VIX remains elevated" if "elevated" in interp else "India VIX is low" if "low" in interp else "India VIX is moderate"
+
+
+def build_scenarios(rows: list[dict], catalysts: list[dict], *, target_label: str, generated_at: str, gift_status: str | None,
+                    result_direction: str | None = None) -> dict:
+    """Three conditional paths written from the current overnight observations (value, source and time shown with each). They state what to
+    watch and what would confirm it. No probability, target, range, support or resistance, and none is marked as the expected one."""
     directional = [r for r in rows if r.get("direction") in ("positive", "negative", "neutral")]
     if not directional:
         return {"available": False, "reason": "Overnight signals are unavailable right now.", "target": target_label, "generated_at": generated_at}
-    pos = [r for r in directional if r["direction"] == "positive"]
-    neg = [r for r in directional if r["direction"] == "negative"]
-    watch_catalysts = [f"{c.get('title')} ({c.get('date')})" for c in catalysts[:3] if c.get("title")]
-    current = [{"label": r["label"], "reading": r.get("value"), "direction": r["direction"], "detail": r.get("detail")} for r in rows]
-
-    def cond(rs: list[dict], positive: bool) -> str:
-        parts = [_phrase(r["label"], positive) for r in rs[:3]]
-        return "If " + ", ".join(parts[:-1]) + (" and " if len(parts) > 1 else "") + parts[-1] + "." if parts else "If the overnight signals line up that way."
-
-    bullish_needs = [r for r in directional if r["direction"] != "positive"] or pos
-    bearish_needs = [r for r in directional if r["direction"] != "negative"] or neg
+    gift = _row(rows, "GIFT")
+    gm = _gift_move(gift)
+    gnow = f" (now {gift['value']})" if gift and gift.get("value") else ""
+    up_t, mid_t, down_t = _TITLES.get(result_direction or "", _DEFAULT_TITLES)
+    holding = ("remains positive" if gift and gift["direction"] == "positive" else "turns positive") if gift else "improve"
+    after_fall = result_direction != "Positive"
     scenarios = [
-        {"key": "bullish", "title": "Bullish scenario", "condition": cond(bullish_needs or pos, True),
-         "watch": [f"{r['label']} turning positive" for r in bullish_needs[:3]] or ["Overnight signals staying positive"]},
-        {"key": "neutral", "title": "Neutral scenario",
-         "condition": "If the overnight signals stay mixed, with some positive and some negative, and no scheduled catalyst changes the picture.",
+        {"key": "bullish", "title": up_t,
+         "condition": (f"If GIFT Nifty{gnow} {holding} and global participation improves, watch whether Indian market breadth strengthens after the open."
+                       if gift else "If the overnight signals improve, watch whether Indian market breadth strengthens after the open."),
+         "confirmation": "stronger breadth and a sustained index recovery." if after_fall else "broad participation and follow-through in the index.",
+         "watch": [f"{r['label']} turning positive" for r in directional if r["direction"] != "positive"][:3] or ["Overnight signals staying positive"]},
+        {"key": "neutral", "title": mid_t,
+         "condition": "If GIFT Nifty stays near flat while global markets and US futures disagree, watch whether the index holds a narrow range without broad participation.",
+         "confirmation": "mixed breadth and limited follow-through.",
          "watch": [f"{r['label']} staying {r['direction']}" for r in directional[:3]]},
-        {"key": "bearish", "title": "Bearish scenario", "condition": cond(bearish_needs or neg, False),
-         "watch": [f"{r['label']} turning negative" for r in bearish_needs[:3]] or ["Overnight signals staying negative"]},
+        {"key": "bearish", "title": down_t,
+         "condition": (f"If GIFT Nifty{gnow} turns negative and global markets weaken further, watch whether the previous session's selling extends into the next session."
+                       if after_fall else f"If GIFT Nifty{gnow} turns negative and global markets weaken further, watch whether the previous session's gains are reversed."),
+         "confirmation": "weakening breadth and persistent pressure on major indices.",
+         "watch": [f"{r['label']} turning negative" for r in directional if r["direction"] != "negative"][:3] or ["Overnight signals staying negative"]},
     ]
-    return {"available": True, "target": target_label, "generated_at": generated_at, "current_signals": current, "scenarios": scenarios,
-            "catalysts": watch_catalysts, "gift_nifty_status": gift_status,
-            "note": "Conditional scenarios, not predictions. No probability, target, range or support/resistance is given, and none is marked as expected."}
+    current = [{"label": r["label"], "reading": r.get("value"), "direction": r["direction"], "detail": r.get("detail"),
+                "interpretation": r.get("interpretation"), "source": r.get("source"), "observed_at": r.get("observed_at"), "time_basis": r.get("time_basis")}
+               for r in rows]
+    return {"available": True, "target": target_label, "generated_at": generated_at, "current_signals": current, "setup": _setup(rows),
+            "scenarios": scenarios, "catalysts": [f"{c.get('title')} ({c.get('date')})" for c in catalysts[:3] if c.get("title")],
+            "gift_nifty_status": gift_status,
+            "note": "Conditional paths, not predictions. No probability, target, range or support/resistance is given, and none is marked as expected."}
 
 
 # ── investor takeaway ───────────────────────────────────────────────────────────────────────────────────────────────

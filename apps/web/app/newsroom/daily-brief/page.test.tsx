@@ -71,7 +71,7 @@ describe("daily brief page", () => {
     mockApi(newShape);
     const { container, getByText, queryByText } = await renderPage();
     expect(getByText("Lower close")).toBeInTheDocument();
-    expect(getByText("Market Wrap")).toBeInTheDocument();
+    expect(getByText("Market wrap, Mon 12 Oct 2026")).toBeInTheDocument();
     expect(queryByText(/Bullish|Bearish/)).toBeNull();
     expect(container.textContent).toContain("what happened, not a forecast");
     const md = await generateMetadata();
@@ -185,7 +185,7 @@ describe("daily brief V2 sections", () => {
     mockApi(withSections([driver()]));
     const first = await renderPage();
     expect(first.container.textContent).toContain("Next session: Tue 13 Oct 2026");
-    expect(first.container.textContent).toContain("Conditional scenarios");
+    expect(first.container.textContent).toContain("Conditional outlook");
     expect(first.container.textContent ?? "").not.toMatch(/probability|price target|support level|resistance|expected range/i);
     first.unmount();
     mockApi(withSections([driver()], { scenarios: { available: false, reason: "The session is live. Scenarios for the next session return after the close.", target: "Tue 13 Oct 2026", generated_at: "t" } }));
@@ -239,14 +239,14 @@ describe("investor implications (V2.1)", () => {
   it("shows verified sector performance, typical exposure with evidence levels, overlap and company links, and never the empty message", async () => {
     mockApi(withSections([driver()], { investor_implications: v21 }));
     const { container, getByText, queryByText } = await renderPage();
-    expect(getByText("Sector performance, verified")).toBeInTheDocument();
+    expect(getByText("Verified sector performance")).toBeInTheDocument();
     expect(container.textContent).toContain("As of Mon 12 Oct 2026 close");
     expect(container.textContent).toContain("Realty");
     expect(container.textContent).toContain("-2.00%");
-    expect(getByText("Typical exposure")).toBeInTheDocument();
+    expect(getByText("Typical exposure by market variable")).toBeInTheDocument();
     expect(container.textContent).toContain("Verified");
     expect(container.textContent).toContain("Reported");
-    expect(container.textContent).toContain("Typically pressured");
+    expect((container.textContent ?? "").toLowerCase()).toContain("typically pressured");
     expect(container.textContent).toContain("USD/INR lower at 95.76");
     expect(container.textContent).toContain("against that typical exposure");
     expect(container.textContent).toContain("Companies named");
