@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import re
 
-from app.services.daily_brief_composer import FLAT_PCT, NEAR_FLAT_PCT, parse_pct
+from app.services.daily_brief_composer import FLAT_PCT, parse_pct
 
 SOURCE_RULES = "General economic exposure (documented rule table), not derived from this session's data"
 SOURCE_SECTOR_INDEX = "Sector index quotes from the market data provider"
@@ -127,7 +127,7 @@ def build_exposure(*, sectors: list[dict] | None, smoves: dict[str, tuple[str, f
         for kind, names in (("pressured", rule["pressured"]), ("helped", rule["helped"])):
             for sector in names:
                 for idx_name, pct in _canon_index_pct(smoves, sector):
-                    if abs(pct) < NEAR_FLAT_PCT:
+                    if abs(pct) < FLAT_PCT:
                         continue
                     agrees = (pct < 0) == (kind == "pressured")
                     overlap.append({
