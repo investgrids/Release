@@ -86,7 +86,9 @@ async def get_top_active_events(db: AsyncSession, limit: int = 3, pool_size: int
     from app.schemas.event import CompanyImpact, EventSummary
     from app.api.events import _build_summary
 
-    pool_rows = await get_events(db, limit=pool_size, sort_by="published_at")
+    # The pool is the newest `pool_size` SCORED events, filtered in SQL. It used to take the newest rows first and drop unscored ones afterwards: when enrichment is behind (provider quota),
+    # the newest 300 events can contain no scored event at all, the engine returned [], and the homepage's "Other Major Events", "Companies to Watch" and hero went empty (2026-10-12).
+    pool_rows = await get_events(db, limit=pool_size, sort_by="published_at", scored_only=True)
     all_events: list[EventSummary] = []
     for e in pool_rows:
         # 0/None means "not yet scored" (routine NSE compliance filings
