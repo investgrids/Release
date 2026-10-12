@@ -205,3 +205,16 @@ async def test_fact_refresh_without_forecast_makes_no_ai_call(monkeypatch):
     await fact_registry.refresh_market_facts(None, include_forecast=False)
     keys = [k for k, _ in written]
     assert any("BRENT_CRUDE" in k for k in keys) and any("USD_INR" in k for k in keys) and not any("VERDICT" in k for k in keys)
+
+
+@pytest.fixture(autouse=True)
+def _no_live_inputs(monkeypatch):
+    """The brief's event-window query and overnight-signal gather are data reads; tests never touch the DB or network for them."""
+    async def driver_inputs(session, now):
+        return [], {}, {}
+
+    async def scenario_inputs():
+        return [], None
+
+    monkeypatch.setattr(brief, "_get_driver_inputs", driver_inputs)
+    monkeypatch.setattr(brief, "_get_scenario_inputs", scenario_inputs)

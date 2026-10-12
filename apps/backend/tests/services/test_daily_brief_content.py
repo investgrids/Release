@@ -238,3 +238,16 @@ def test_sector_answer_does_not_call_a_falling_sector_a_leader():
     all_down = {"sectors": [{"name": "IT", "value": "-1.8%"}, {"name": "Auto", "value": "-0.5%"}]}
     ans = next(x["answer"] for x in content.build_questions(s, {"kind": "realized"}, all_down, [], [], [], [], content.Ledger()))
     assert ans.startswith("No tracked sector gained.")
+
+
+@pytest.fixture(autouse=True)
+def _no_live_inputs(monkeypatch):
+    """The brief's event-window query and overnight-signal gather are data reads; tests never touch the DB or network for them."""
+    async def driver_inputs(session, now):
+        return [], {}, {}
+
+    async def scenario_inputs():
+        return [], None
+
+    monkeypatch.setattr(brief, "_get_driver_inputs", driver_inputs)
+    monkeypatch.setattr(brief, "_get_scenario_inputs", scenario_inputs)

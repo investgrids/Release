@@ -27,6 +27,7 @@ from fastapi import APIRouter
 from app.db.session import AsyncSessionLocal
 from app.services import daily_brief_composer as composer
 from app.services import daily_brief_content as content
+from app.services import daily_brief_drivers as drivers_mod
 from app.services.market_session_state import (
     AFTER_CLOSE, HOLIDAY, OPEN, PRE_OPEN, WEEKEND, MarketSession, classify_session, ist_now,
 )
@@ -113,6 +114,49 @@ async def _read_raw_events() -> list[dict]:
     except Exception as exc:
         log.warning("daily_brief_intelligence.events_failed", error=str(exc))
         return []
+
+
+async def _get_driver_inputs(session: MarketSession, now: datetime) -> tuple[list[dict], dict, dict]:
+    """Events for 'What moved the market' (from the close before the reference session until now), plus the event rows' own slug, outlet
+    and publication time, and the published article that was triggered by each event. Read-only; no LLM."""
+    from sqlalchemy import select
+    from app.db.models.event import Event
+    from app.db.models.intelligence_article import IntelligenceArticle
+    from app.services.intelligence.engine import read_top_events
+    try:
+        start, hours = drivers_mod.window_start_utc(session.reference_session_date, now)
+        raw = await read_top_events(limit=300, min_urgency=0, hours=hours)
+        events = [e for e in raw if (drivers_mod._ts(e) or now) >= start]
+        ids = [e["id"] for e in events if e.get("id")]
+        meta: dict[str, dict] = {}
+        links: dict[str, str] = {}
+        if ids:
+            async with AsyncSessionLocal() as db:
+                for row in (await db.execute(select(Event.id, Event.slug, Event.title, Event.source, Event.published_at).where(Event.id.in_(ids)))).all():
+                    meta[row.id] = {"slug": row.slug or None, "title": row.title, "source": row.source,
+                                    "published_at": row.published_at.isoformat() if row.published_at else None}
+                arts = (await db.execute(
+                    select(IntelligenceArticle.trigger_event_id, IntelligenceArticle.slug)
+                    .where(IntelligenceArticle.status == "published", IntelligenceArticle.slug.is_not(None), IntelligenceArticle.trigger_event_id.in_(ids))
+                    .order_by(IntelligenceArticle.published_at.asc())
+                )).all()
+                for ev_id, slug in arts:
+                    links[ev_id] = f"/newsroom/article/{slug}"      # newest published article wins (ordered ascending, last write)
+        return events, meta, links
+    except Exception as exc:
+        log.warning("daily_brief_intelligence.drivers_inputs_failed", error=str(exc))
+        return [], {}, {}
+
+
+async def _get_scenario_inputs() -> tuple[list[dict], str | None]:
+    """The deterministic opening signals (data only, cached by their providers; no LLM) as signal-breakdown rows."""
+    from app.services.opening_prediction_service import _build_signal_breakdown, _gather_signals
+    try:
+        signals = await _gather_signals()
+        return _build_signal_breakdown(signals), (signals.get("gift_nifty") or {}).get("status")
+    except Exception as exc:
+        log.warning("daily_brief_intelligence.scenario_signals_failed", error=str(exc))
+        return [], None
 
 
 def _tier_events(events: list[dict]) -> dict:
@@ -273,7 +317,10 @@ async def get_daily_brief_intelligence():
     # Each of these opens its own DB session internally — AsyncSession
     # can't safely be shared across coroutines running concurrently here.
     session = classify_session()
-    snapshot, raw_events, facts = await asyncio.gather(_get_snapshot(session), _read_raw_events(), _get_facts(session))
+    now = datetime.now(timezone.utc)
+    snapshot, raw_events, facts, driver_inputs = await asyncio.gather(
+        _get_snapshot(session), _read_raw_events(), _get_facts(session), _get_driver_inputs(session, now),
+    )
     if session.shows_forecast:
         verdict = await _get_forecast_verdict(session)
     else:
@@ -289,8 +336,25 @@ async def get_daily_brief_intelligence():
     ledger.add(verdict.get("reasoning") or "")
     summary = content.build_summary(session, verdict, signals_block["catalyst_details"], signals_block["risk_details"], events_block["top"])
     ledger.add(summary)
+
+    # What moved the market, implications, scenarios, takeaway: deterministic, evidence-labelled, no LLM.
+    ev_list, ev_meta, ev_links = driver_inputs
+    drivers = drivers_mod.build_market_drivers(ev_list, snapshot=snapshot, facts=facts, now=now, event_meta=ev_meta, article_links=ev_links)
+    implications = drivers_mod.build_implications(drivers)
+    if session.state == OPEN:
+        scenarios = {"available": False, "reason": "The session is live. Scenarios for the next session return after the close.",
+                     "target": composer._fmt_date(session.forecast_target_date), "generated_at": now.isoformat()}
+    else:
+        rows, gift_status = await _get_scenario_inputs()
+        scenarios = drivers_mod.build_scenarios(rows, watch_next, target_label=composer._fmt_date(session.forecast_target_date),
+                                                generated_at=now.isoformat(), gift_status=gift_status)
+    takeaway = drivers_mod.build_takeaway(drivers, scenarios, verdict, composer.breadth_tone(snapshot.get("breadth")), watch_next)
+    for part in (takeaway["development"] and takeaway["development"]["text"], takeaway["uncertainty"]):
+        if part:
+            ledger.add(part)                                          # the FAQs and evidence below will not repeat the takeaway
+
     questions = content.build_questions(session, verdict, snapshot, events_block["top"], facts, watch_next,
-                                        signals_block["risk_details"], ledger)
+                                        signals_block["risk_details"], ledger, drivers=drivers)
     evidence = content.dedupe_evidence(facts, ledger)
 
     return {
@@ -300,6 +364,10 @@ async def get_daily_brief_intelligence():
         "events": events_block,
         "facts": facts,
         "summary": summary,
+        "market_drivers": drivers,
+        "investor_implications": implications,
+        "scenarios": scenarios,
+        "takeaway": takeaway,
         "why_today_matters": content.why_today_matters(facts),
         "stocks_to_watch": _stocks_to_watch(raw_events),
         "sector_intelligence": snapshot.get("sectors", []),

@@ -214,3 +214,16 @@ def test_none_never_becomes_zero_or_neutral_in_the_brief_forecast_block():
         svc.build_opening_prediction = orig
     assert v["direction"] is None and v["confidence"] is None and v["expected_range"] == {"low": None, "high": None}
     assert v["headline"] == "Signals disagree"
+
+
+@pytest.fixture(autouse=True)
+def _no_live_inputs(monkeypatch):
+    """The brief's event-window query and overnight-signal gather are data reads; tests never touch the DB or network for them."""
+    async def driver_inputs(session, now):
+        return [], {}, {}
+
+    async def scenario_inputs():
+        return [], None
+
+    monkeypatch.setattr(brief, "_get_driver_inputs", driver_inputs)
+    monkeypatch.setattr(brief, "_get_scenario_inputs", scenario_inputs)

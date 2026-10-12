@@ -153,7 +153,7 @@ def _pct_text(pct: float) -> str:
 
 
 def build_questions(session: MarketSession, verdict: dict, snapshot: dict, events_top: list[dict], facts: list[dict],
-                    watch_next: list[dict], risk_details: list[dict], ledger: "Ledger") -> list[dict]:
+                    watch_next: list[dict], risk_details: list[dict], ledger: "Ledger", drivers: dict | None = None) -> list[dict]:
     """Session-aware, question-specific FAQs. Every answer comes from a different slice of data than the verdict card and the
     30-second answer, and nothing is added whose sentences already appear elsewhere (ledger)."""
     when = _when(session)
@@ -210,8 +210,18 @@ def build_questions(session: MarketSession, verdict: dict, snapshot: dict, event
         cands.append({"question": f"Which large-cap stocks moved the most {when}?", "answer": answer,
                       "links": [{"label": "Top movers", "href": "/market-intelligence"}]})
 
-    # 4. most important event
-    if events_top:
+    # 4. what moved the market, by evidence label (never a causal claim for a same-day coincidence)
+    groups = (drivers or {}).get("groups") or {}
+    conf, pot = groups.get("confirmed_driver") or [], groups.get("potential_contributor") or []
+    if conf or pot:
+        parts = []
+        if conf:
+            parts.append("Confirmed: " + "; ".join(_ensure_stop(c["headline"]).rstrip(".") for c in conf[:2]) + ".")
+        if pot:
+            parts.append("Potential contributors: " + "; ".join(_ensure_stop(p["headline"]).rstrip(".") for p in pot[:2]) + ". Timing alone does not establish cause.")
+        cands.append({"question": f"What may have moved the market {when}?", "answer": " ".join(parts),
+                      "links": [{"label": "View all events", "href": "/events"}]})
+    elif events_top:
         e = events_top[0]
         body = _ensure_stop(e.get("one_liner") or e.get("headline") or "")
         sect = f" Sectors tagged: {', '.join((e.get('sectors') or [])[:3])}." if e.get("sectors") else ""
