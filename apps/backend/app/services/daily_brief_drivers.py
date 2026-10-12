@@ -313,6 +313,7 @@ def build_market_drivers(events: list[dict], *, snapshot: dict, facts: list[dict
             reasons.append(f"Covered in {len(members)} articles from {len({m.get('origin') or m.get('source') for m in members})} source(s), including other angles on the same development; shown once.")
 
         meta = event_meta.get(lead.get("id") or "", {})
+        named = [str(t).upper().split(".")[0] for t in list(lead.get("tickers") or []) + list(meta.get("companies") or []) if t]
         ts = _ts({"published_at": meta.get("published_at")}) or _ts(lead)
         item = {
             "id": lead.get("id"),
@@ -322,7 +323,7 @@ def build_market_drivers(events: list[dict], *, snapshot: dict, facts: list[dict
             "evidence_label": label,
             "relevance": reasons,
             "sectors": [{"name": n, "verified_move_pct": m} for n, m in hits[:4]],
-            "companies": [{"symbol": str(t).upper().split(".")[0], "relation": "mentioned"} for t in dict.fromkeys(lead.get("tickers") or [])][:4],
+            "companies": [{"symbol": sym, "relation": "mentioned"} for sym in dict.fromkeys(named)][:4],
             "articles_merged": len(members),
             "links": {
                 "event": f"/events/{meta.get('slug') or lead.get('id')}" if lead.get("id") else None,

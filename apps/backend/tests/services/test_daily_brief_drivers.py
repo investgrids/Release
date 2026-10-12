@@ -259,6 +259,10 @@ def _endpoint_stubs(monkeypatch, when, events=None):
     async def no_llm(*a, **k):
         raise AssertionError("LLM call")
 
+    async def company_sectors(symbols):
+        return {}
+
+    monkeypatch.setattr(brief, "_get_company_sectors", company_sectors)
     for name, fn in (("_get_snapshot", snapshot), ("_read_raw_events", none_list), ("_get_facts", facts), ("_get_historical_context", hist),
                      ("_get_watch_next", lambda: _watch()), ("_get_driver_inputs", drv), ("_get_scenario_inputs", scn), ("_get_forecast_verdict", forecast)):
         monkeypatch.setattr(brief, name, fn)

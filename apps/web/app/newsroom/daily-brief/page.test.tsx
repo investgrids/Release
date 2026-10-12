@@ -217,3 +217,53 @@ describe("daily brief V2 sections", () => {
     expect(container.textContent).toContain("After Market");
   });
 });
+
+describe("investor implications (V2.1)", () => {
+  const v21 = {
+    items: [], note: null,
+    sector_performance: { available: true, as_of: "Mon 12 Oct 2026 close", source: "Sector index quotes from the market data provider", note: null,
+      leaders: [{ name: "Realty", pct: 0.9 }, { name: "Auto", pct: 0.5 }], laggards: [{ name: "FMCG", pct: -2.0 }, { name: "IT", pct: -1.3 }] },
+    exposure: [
+      { variable: "rupee_stronger", label: "Stronger rupee (USD/INR lower)", evidence: "verified", observed: "USD/INR lower at 95.76", source: "Forex market data", observed_at: "2026-10-12T16:00:00Z",
+        pressured: ["IT", "Pharma"], helped: ["Aviation"], why: "Export earners translate foreign revenue into fewer rupees.", basis: "rule" },
+      { variable: "yields_rising", label: "Rising bond yields (reported)", evidence: "reported", observed: "Reported: India benchmark bond posts worst day", source: "Economic Times", observed_at: null,
+        pressured: ["Banking", "Realty"], helped: [], why: "Banks mark down bond holdings.", basis: "rule" },
+    ],
+    overlap: [
+      { sector: "IT", verified_move_pct: -1.3, variable: "rupee_stronger", typical: "pressured", agrees: true, text: "IT is typically pressured by this; its index moved -1.30% in the session, in line with that typical exposure. An observation, not an attribution." },
+      { sector: "Realty", verified_move_pct: 0.9, variable: "yields_rising", typical: "pressured", agrees: false, text: "Realty is typically pressured by this; its index moved +0.90% in the session, against that typical exposure. An observation, not an attribution." },
+    ],
+    company_links: [{ sector: "IT", companies: ["TCS"], via: ["TCS wins deal"], basis: "b" }], exposure_notes: [],
+  };
+
+  it("shows verified sector performance, typical exposure with evidence levels, overlap and company links, and never the empty message", async () => {
+    mockApi(withSections([driver()], { investor_implications: v21 }));
+    const { container, getByText, queryByText } = await renderPage();
+    expect(getByText("Sector performance, verified")).toBeInTheDocument();
+    expect(container.textContent).toContain("As of Mon 12 Oct 2026 close");
+    expect(container.textContent).toContain("Realty");
+    expect(container.textContent).toContain("-2.00%");
+    expect(getByText("Typical exposure")).toBeInTheDocument();
+    expect(container.textContent).toContain("Verified");
+    expect(container.textContent).toContain("Reported");
+    expect(container.textContent).toContain("Typically pressured");
+    expect(container.textContent).toContain("USD/INR lower at 95.76");
+    expect(container.textContent).toContain("against that typical exposure");
+    expect(container.textContent).toContain("Companies named");
+    expect(queryByText("No sector is tied to a verified development yet.")).toBeNull();
+    expect(container.textContent ?? "").not.toMatch(/\b(because|due to|caused by|driven by)\b/i);
+  });
+
+  it("when nothing is available it says so once and does not crash", async () => {
+    mockApi(withSections([driver()], { investor_implications: { items: [], note: "No sector information is available yet.", sector_performance: { available: false, leaders: [], laggards: [], as_of: "x", source: "s", note: "Sector index quotes are unavailable right now." } } }));
+    const { container } = await renderPage();
+    expect(container.textContent).toContain("Sector index quotes are unavailable right now.");
+  });
+
+  it("an older implications payload (tag rows only) still renders", async () => {
+    mockApi(withSections([driver()]));
+    const { container } = await renderPage();
+    expect(container.textContent).toContain("Investor implications");
+    expect(container.textContent).toContain("Banking");
+  });
+});
