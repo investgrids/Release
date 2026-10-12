@@ -38,11 +38,12 @@ interface EventItem {
   sectors: string[]; tickers: string[]; sentiment: string | null; source: string | null;
 }
 interface EventsBlock { tiers: { critical: number; high: number; medium: number; other: number }; total: number; top: EventItem[] }
-interface WhyMattersItem { event: string; consequence: string; affected: string[] }
-interface StockToWatch { symbol: string; reason: string; priority_tier: string; sentiment: string | null }
+interface WhyMattersItem { event: string; consequence: string; affected: string[]; companies_named: string[]; affected_label: string }
+interface StockToWatch { symbol: string; reason: string; priority_tier: string; sentiment: string | null; basis?: string }
 interface HistoricalContext { available: boolean; message?: string; count?: number; success_rate_pct?: number | null; queried_sectors?: string[] }
 interface Question { question: string; answer: string; links: { label: string; href: string }[] }
 interface Evidence { claim: string; source: string; timestamp: string | null; confidence: number | null }
+interface SignalDetail { name: string; explanation: string; source: string | null }
 interface WatchNextItem { date: string | null; category: string | null; title: string | null; description: string | null }
 
 interface DailyBriefData {
@@ -54,19 +55,37 @@ interface DailyBriefData {
   stocks_to_watch: StockToWatch[];
   sector_intelligence: { id: string; name: string; value: string; positive: boolean }[];
   historical_context: HistoricalContext;
-  catalysts: string[];
-  risks: string[];
+  summary: string;
+  catalysts?: string[];
+  risks?: string[];
+  catalyst_details: SignalDetail[];
+  risk_details: SignalDetail[];
   what_to_watch_next: WatchNextItem[];
   questions: Question[];
   evidence: Evidence[];
   generated_at: string;
 }
 
+// Tolerates an older backend response (rollout order, or a page cached before the backend changed): missing blocks get safe
+// defaults and a verdict without `kind` is treated as the forecast it was.
+function normalise(raw: Partial<DailyBriefData>): DailyBriefData {
+  const d = raw as DailyBriefData;
+  return {
+    ...d,
+    session: d.session ?? { state: "after_close", label: "Market Brief", subtitle: "", reference_label: "" },
+    summary: d.summary ?? "",
+    catalyst_details: d.catalyst_details ?? (d.catalysts ?? []).map(name => ({ name, explanation: name, source: null })),
+    risk_details: d.risk_details ?? (d.risks ?? []).map(name => ({ name, explanation: name, source: null })),
+    why_today_matters: (d.why_today_matters ?? []).map(w => ({ ...w, companies_named: w.companies_named ?? [], affected_label: w.affected_label ?? "Affected" })),
+    market_verdict: { ...d.market_verdict, kind: d.market_verdict?.kind ?? "forecast", headline: d.market_verdict?.headline ?? "" },
+  };
+}
+
 async function getData(): Promise<DailyBriefData | null> {
   try {
     const res = await fetch(`${API}/api/daily-brief/intelligence`, { next: { revalidate: 300 } });
     if (!res.ok) return null;
-    return res.json();
+    return normalise(await res.json());
   } catch {
     return null;
   }
@@ -142,21 +161,17 @@ export default async function DailyBriefPage() {
   }
 
   const { session, market_verdict: verdict, market_snapshot: snap, events, why_today_matters, stocks_to_watch,
-    sector_intelligence, historical_context: historical, catalysts, risks, what_to_watch_next, questions, evidence } = data;
+    sector_intelligence, historical_context: historical, what_to_watch_next, questions, evidence } = data;
 
   const isForecast = verdict.kind === "forecast";
   const baseMeta = DIRECTION_META[verdict.direction ?? ""] ?? DIRECTION_META.Neutral;
   // A realized session is named by what happened (Lower close), a forecast keeps the Bullish/Bearish wording.
   const dirMeta = isForecast && verdict.direction ? baseMeta : { ...baseMeta, label: verdict.headline || baseMeta.label };
   const targetLabel = verdict.target_date ? fmtDay(verdict.target_date) : null;
-  const topDriver = catalysts[0] || events.top[0]?.one_liner || events.top[0]?.headline;
-  const topRisk = risks[0];
-
-  const thirtySecondAnswer = [
-    verdict.reasoning,
-    topDriver ? `Today's biggest driver: ${topDriver}.` : null,
-    topRisk ? `Key risk to watch: ${topRisk}.` : null,
-  ].filter(Boolean).join(" ");
+  // One source for the visible answer and the structured data: the backend's summary and questions are used verbatim.
+  const thirtySecondAnswer = data.summary;
+  const topSupport = data.catalyst_details[0]?.explanation || events.top[0]?.one_liner || events.top[0]?.headline;
+  const topRisk = data.risk_details[0]?.explanation;
 
   const faqJsonLd = questions.length > 0 ? {
     "@context": "https://schema.org",
@@ -267,12 +282,12 @@ export default async function DailyBriefPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.04] p-4">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">Today&apos;s Biggest Driver</p>
-              <p className="mt-1.5 text-[12.5px] leading-snug text-text-primary">{topDriver || "No standout driver detected today."}</p>
+              <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-300"><TrendingUp className="h-3 w-3" aria-hidden="true" /> Strongest supportive signal</p>
+              <p className="mt-1.5 text-[12.5px] leading-snug text-text-primary">{cleanText(topSupport || "No supportive signal stands out.")}</p>
             </div>
             <div className="rounded-xl border border-rose-500/15 bg-rose-500/[0.04] p-4">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-rose-600 dark:text-rose-300">Biggest Risk</p>
-              <p className="mt-1.5 text-[12.5px] leading-snug text-text-primary">{topRisk || "No standout risk detected today."}</p>
+              <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-rose-600 dark:text-rose-300"><ShieldAlert className="h-3 w-3" aria-hidden="true" /> Biggest risk signal</p>
+              <p className="mt-1.5 text-[12.5px] leading-snug text-text-primary">{cleanText(topRisk || "No risk signal stands out.")}</p>
             </div>
           </div>
         </div>
@@ -288,23 +303,22 @@ export default async function DailyBriefPage() {
 
           <div className="rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] p-5">
             <p className="mb-3 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-text-muted">
-              <Flame className="h-3 w-3 text-rose-400" /> Stocks to Watch Today
+              <Flame className="h-3 w-3 text-rose-400" aria-hidden="true" /> Companies named in high-priority events
             </p>
             {stocks_to_watch.length === 0 ? (
-              <p className="text-[12px] text-text-muted">No standout stocks in today&apos;s high-impact events yet.</p>
+              <p className="text-[12px] text-text-muted">No company is named in a high-priority event right now.</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {stocks_to_watch.slice(0, 8).map(s => (
                   <Link key={s.symbol} href={`/companies/${s.symbol}`} title={s.reason}
-                    className={`rounded-full border px-3 py-1.5 text-[11.5px] font-semibold transition hover:opacity-80 ${
-                      s.sentiment === "bullish" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
-                      : s.sentiment === "bearish" ? "border-rose-500/25 bg-rose-500/10 text-rose-600 dark:text-rose-300"
-                      : "border-surface-border/15 bg-surface-card text-text-secondary"
-                    }`}>
+                    className="rounded-full border border-surface-border/15 bg-surface-card px-3 py-1.5 text-[11.5px] font-semibold text-text-secondary transition hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-violet">
                     {s.symbol}
                   </Link>
                 ))}
               </div>
+            )}
+            {stocks_to_watch.length > 0 && (
+              <p className="mt-3 text-[10.5px] text-text-muted">Named in the event text. This shows attention, not a view on the company.</p>
             )}
           </div>
 
@@ -364,7 +378,11 @@ export default async function DailyBriefPage() {
             {why_today_matters.map((w, i) => (
               <li key={i} className="flex gap-2 rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-3 text-[12.5px] leading-relaxed text-text-secondary">
                 <span className="text-accent-violet">→</span>
-                <span><span className="font-semibold text-text-primary">{cleanText(w.event)}</span> — {cleanText(w.consequence)} <span className="text-text-muted">({w.affected.join(", ")})</span></span>
+                <span>
+                  <span className="font-semibold text-text-primary">{cleanText(w.event)}</span> — {cleanText(w.consequence)}
+                  {w.affected.length > 0 && <span className="block text-[11px] text-text-muted">{w.affected_label}: {w.affected.join(", ")}</span>}
+                  {w.companies_named.length > 0 && <span className="block text-[11px] text-text-muted">Companies named: {w.companies_named.join(", ")}</span>}
+                </span>
               </li>
             ))}
           </ul>
@@ -395,9 +413,14 @@ export default async function DailyBriefPage() {
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.04] p-4">
             <p className="mb-2 text-[10.5px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">Catalysts</p>
-            {catalysts.length === 0 ? <p className="text-[11.5px] text-text-muted">None detected today.</p> : (
-              <ul className="space-y-1.5">
-                {catalysts.map((c, i) => <li key={i} className="text-[11.5px] leading-snug text-text-secondary">🟢 {cleanText(c)}</li>)}
+            {data.catalyst_details.length === 0 ? <p className="text-[11.5px] text-text-muted">No supportive signal stands out.</p> : (
+              <ul className="space-y-2">
+                {data.catalyst_details.map((c, i) => (
+                  <li key={i} className="flex gap-1.5 text-[11.5px] leading-snug text-text-secondary">
+                    <TrendingUp className="mt-0.5 h-3 w-3 shrink-0 text-emerald-500" aria-hidden="true" />
+                    <span><span className="font-semibold text-text-primary">{cleanText(c.name)}.</span> {cleanText(c.explanation)}</span>
+                  </li>
+                ))}
               </ul>
             )}
           </div>
@@ -405,9 +428,14 @@ export default async function DailyBriefPage() {
             <p className="mb-2 flex items-center gap-1 text-[10.5px] font-bold uppercase tracking-wide text-rose-600 dark:text-rose-300">
               <ShieldAlert className="h-3 w-3" /> Risks
             </p>
-            {risks.length === 0 ? <p className="text-[11.5px] text-text-muted">None detected today.</p> : (
-              <ul className="space-y-1.5">
-                {risks.map((r, i) => <li key={i} className="text-[11.5px] leading-snug text-text-secondary">🔴 {cleanText(r)}</li>)}
+            {data.risk_details.length === 0 ? <p className="text-[11.5px] text-text-muted">No risk signal stands out.</p> : (
+              <ul className="space-y-2">
+                {data.risk_details.map((r, i) => (
+                  <li key={i} className="flex gap-1.5 text-[11.5px] leading-snug text-text-secondary">
+                    <TrendingDown className="mt-0.5 h-3 w-3 shrink-0 text-rose-500" aria-hidden="true" />
+                    <span><span className="font-semibold text-text-primary">{cleanText(r.name)}.</span> {cleanText(r.explanation)}</span>
+                  </li>
+                ))}
               </ul>
             )}
           </div>
@@ -498,7 +526,7 @@ export default async function DailyBriefPage() {
       </section>
 
       <p className="mt-6 flex items-center gap-1 text-[10.5px] text-text-muted">
-        <Eye className="h-3 w-3" /> Every figure above is real, live market data — nothing on this page is fabricated or estimated beyond what&apos;s explicitly labeled.
+        <Eye className="h-3 w-3" /> Figures come from market data feeds and MarketRipple&apos;s event scoring. Completed sessions are reported, not predicted; forecasts are labelled with their target date.
       </p>
     </div>
   );

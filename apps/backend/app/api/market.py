@@ -543,8 +543,8 @@ async def market_overview():
         get_top_movers(),
     )
     status = get_market_status()
-    pos_idx = sum(1 for i in indices if i.get("positive"))
-    sentiment_score = min(90, max(20, int(50 + (pos_idx / max(len(indices), 1) - 0.5) * 80)))
+    from app.services.market_sentiment import index_sentiment_score
+    sentiment_score = index_sentiment_score(indices)
     # Real breadth derived from the movers sample — previously a hardcoded
     # {1124, 387, 89, 47, 12} identical to /live's own placeholder,
     # unchanging regardless of actual market conditions (this is the
@@ -948,11 +948,11 @@ async def market_insights():
     `confidence`/`fear_greed`/`sentiment` are the only fields any
     consumer reads, and all three are genuinely derived from
     get_top_movers()'s real data, kept as-is."""
+    from app.services.market_sentiment import breadth_sentiment
     movers = await get_top_movers()
-    g = len(movers.get("gainers", []))
-    conf = min(95, 55 + g * 8)
-    return {
-        "confidence": conf,
-        "fear_greed": min(90, max(20, conf + 8)),
-        "sentiment":  "Bullish" if conf >= 65 else "Neutral" if conf >= 45 else "Bearish",
-    }
+    s = breadth_sentiment(movers.get("advancing_count"), movers.get("declining_count"))
+    if s is None:
+        # No sample: say so instead of returning a made-up score.
+        return {"confidence": None, "fear_greed": None, "sentiment": None}
+    return {"confidence": s["confidence"], "fear_greed": s["fear_greed"], "sentiment": s["sentiment"],
+            "basis": f"{s['advancing']} advancing / {s['declining']} declining among tracked large caps"}

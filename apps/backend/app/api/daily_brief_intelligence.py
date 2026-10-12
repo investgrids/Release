@@ -26,6 +26,7 @@ from fastapi import APIRouter
 
 from app.db.session import AsyncSessionLocal
 from app.services import daily_brief_composer as composer
+from app.services import daily_brief_content as content
 from app.services.market_session_state import (
     AFTER_CLOSE, HOLIDAY, OPEN, PRE_OPEN, WEEKEND, MarketSession, classify_session, ist_now,
 )
@@ -180,23 +181,6 @@ async def _get_facts(session: MarketSession) -> list[dict]:
         return []
 
 
-def _why_today_matters(facts: list[dict]) -> list[dict]:
-    """Event -> consequence -> affected entities, one bullet per real fact
-    that has real affected sectors/companies — never a generic filler
-    bullet, and never the same fact repeated with different wording."""
-    bullets = []
-    for f in facts:
-        affected = (f.get("affected_sectors") or []) + (f.get("affected_companies") or [])
-        if not affected:
-            continue
-        bullets.append({
-            "event": f["name"], "consequence": f["claim"], "affected": affected[:5],
-        })
-        if len(bullets) >= 5:
-            break
-    return bullets
-
-
 def _stocks_to_watch(events: list[dict]) -> list[dict]:
     """Real companies named in today's Critical/High events — not a
     ranked recommendation list, just which tickers are actually in real,
@@ -218,49 +202,12 @@ def _stocks_to_watch(events: list[dict]) -> list[dict]:
             out.append({
                 "symbol": sym, "reason": e.get("one_liner") or e.get("headline"),
                 "priority_tier": e.get("priority_tier"), "sentiment": e.get("sentiment"),
+                # Named in a high-priority event's text. This is attention, not an assessment of the company's outlook.
+                "basis": "named_in_event",
             })
             if len(out) >= 8:
                 return out
     return out
-
-
-# Entities where a RISE is bad for Indian markets (import cost pressure,
-# rupee depreciation) rather than good — naively treating "direction: up"
-# as always positive would mislabel rising crude/a weakening rupee as a
-# "catalyst" instead of the risk it actually is.
-_RISK_ON_RISE_ENTITIES = {"BRENT_CRUDE", "USD_INR"}
-
-
-def _catalysts_and_risks(facts: list[dict]) -> dict:
-    catalysts, risks = [], []
-    for f in facts:
-        entity_type = f.get("entity_type")
-        name = f.get("name")
-
-        if entity_type == "event":
-            # Event facts already carry a real, LLM-assessed bullish/
-            # bearish sentiment (EventTriage.sentiment) — a much more
-            # honest catalyst/risk signal than re-deriving one from price
-            # direction, which events don't even have.
-            sentiment = (f.get("evidence") or {}).get("sentiment")
-            if sentiment == "bullish":
-                catalysts.append(name)
-            elif sentiment == "bearish":
-                risks.append(name)
-            continue
-
-        if entity_type == "macro":
-            continue  # the verdict itself is a summary, not a driver to list twice
-
-        direction = (f.get("direction") or "").lower()
-        if direction not in ("up", "down", "rising", "falling"):
-            continue
-        rising = direction in ("up", "rising")
-        bad_when_rising = f.get("entity_key") in _RISK_ON_RISE_ENTITIES
-        is_risk = rising == bad_when_rising
-        (risks if is_risk else catalysts).append(name)
-
-    return {"catalysts": catalysts[:4], "risks": risks[:4]}
 
 
 async def _get_historical_context(events: list[dict]) -> dict:
@@ -321,56 +268,6 @@ async def _get_watch_next() -> list[dict]:
     return out
 
 
-def _build_questions(verdict: dict, snapshot: dict, events_block: dict, facts: list[dict], session: MarketSession) -> list[dict]:
-    """AEO — direct-answer questions built entirely from real data already
-    computed above. No question is added unless a real answer exists."""
-    questions = []
-
-    nifty = snapshot.get("nifty") or {}
-    if verdict.get("direction") and nifty.get("change"):
-        word = "fall" if not nifty.get("positive") else "rise"
-        if session.state == PRE_OPEN:
-            question = "What is the outlook for the Nifty at the open?"
-        elif session.state == OPEN:
-            question = f"Why is the Nifty {'falling' if word == 'fall' else 'rising'} today?"
-        elif session.state == AFTER_CLOSE:
-            question = f"Why did the Nifty {word} today?"
-        else:
-            question = f"Why did the Nifty {word} in the last session ({composer._fmt_date(session.reference_session_date)})?"
-        questions.append({
-            "question": question,
-            "answer": (verdict.get("reasoning") or f"Nifty is at {nifty.get('value')}, {nifty.get('change')} today.").strip(),
-            "links": [{"label": "Market Intelligence", "href": "/market-intelligence"}],
-        })
-
-    top_events = events_block.get("top") or []
-    if top_events:
-        questions.append({
-            "question": "What is happening in Indian markets today?",
-            "answer": top_events[0].get("one_liner") or top_events[0].get("headline"),
-            "links": [{"label": "View all events", "href": "/events"}],
-        })
-
-    positive_sectors = [s for s in snapshot.get("sectors", []) if s.get("positive")]
-    if positive_sectors:
-        names = ", ".join(s["name"] for s in positive_sectors[:3])
-        questions.append({
-            "question": "Which sectors are strongest today?",
-            "answer": f"{names} are showing positive movement today.",
-            "links": [{"label": "Sector Intelligence", "href": "/sectors"}],
-        })
-
-    crude = next((f for f in facts if f.get("entity_type") == "commodity" and "Crude" in f.get("name", "")), None)
-    if crude and crude.get("affected_sectors"):
-        questions.append({
-            "question": "How are crude oil prices affecting Indian stocks?",
-            "answer": crude["claim"] + f" This typically affects {', '.join(crude['affected_sectors'][:3])}.",
-            "links": [{"label": "Commodities", "href": "/commodities"}],
-        })
-
-    return questions[:5]
-
-
 @router.get("/intelligence")
 async def get_daily_brief_intelligence():
     # Each of these opens its own DB session internally — AsyncSession
@@ -387,22 +284,29 @@ async def get_daily_brief_intelligence():
         _get_historical_context(raw_events), _get_watch_next(),
     )
 
+    signals_block = content.catalysts_and_risks(facts)
+    ledger = content.Ledger()
+    ledger.add(verdict.get("reasoning") or "")
+    summary = content.build_summary(session, verdict, signals_block["catalyst_details"], signals_block["risk_details"], events_block["top"])
+    ledger.add(summary)
+    questions = content.build_questions(session, verdict, snapshot, events_block["top"], facts, watch_next,
+                                        signals_block["risk_details"], ledger)
+    evidence = content.dedupe_evidence(facts, ledger)
+
     return {
         "session": composer.session_block(session),
         "market_verdict": verdict,
         "market_snapshot": snapshot,
         "events": events_block,
         "facts": facts,
-        "why_today_matters": _why_today_matters(facts),
+        "summary": summary,
+        "why_today_matters": content.why_today_matters(facts),
         "stocks_to_watch": _stocks_to_watch(raw_events),
         "sector_intelligence": snapshot.get("sectors", []),
         "historical_context": historical,
-        **_catalysts_and_risks(facts),
+        **signals_block,
         "what_to_watch_next": watch_next,
-        "questions": _build_questions(verdict, snapshot, events_block, facts, session),
-        "evidence": [
-            {"claim": f["claim"], "source": f["source"], "timestamp": f["observed_at"], "confidence": f["confidence"]}
-            for f in facts
-        ],
+        "questions": questions,
+        "evidence": evidence,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
