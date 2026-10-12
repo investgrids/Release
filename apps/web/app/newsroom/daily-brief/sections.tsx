@@ -16,7 +16,16 @@ export interface DriverItem {
   articles_merged: number;
   links: { event: string | null; article: string | null };
 }
-export interface MarketDrivers { items: DriverItem[]; groups: Record<EvidenceLabel, DriverItem[]>; note: string | null; method: string }
+export interface MarketDrivers { items: DriverItem[]; groups: Record<EvidenceLabel, DriverItem[]>; note: string | null; method: string; window?: { start: string; basis: string } }
+/** A sector from a knowledge-graph edge, with the edge's own evidence. (Older payloads sent plain names; both are accepted.) */
+export type GraphSector = string | { sector: string; weight: number | null; confidence: number | null; lag_days: number | null; why: string | null };
+const sectorName = (g: GraphSector) => (typeof g === "string" ? g : g.sector);
+function sectorTip(g: GraphSector): string | undefined {
+  if (typeof g === "string") return undefined;
+  const bits = [g.why, g.confidence != null ? `graph confidence ${g.confidence}` : null, g.lag_days != null ? (g.lag_days === 0 ? "effect is immediate" : `effect typically within ${g.lag_days} days`) : null];
+  return bits.filter(Boolean).join(" · ") || undefined;
+}
+
 export interface Implications {
   // Tag-derived rows (event sector tags); often empty because most events carry no sector tag.
   items: { sector: string; verified_move_pct: number | null; why: string; developments: { id: string | null; headline: string; evidence_label: EvidenceLabel }[];
@@ -24,7 +33,7 @@ export interface Implications {
   note: string | null;
   sector_performance?: { available: boolean; leaders: { name: string; pct: number }[]; laggards: { name: string; pct: number }[]; as_of: string; source: string; note: string | null };
   exposure?: { variable: string; label: string; evidence: "verified" | "reported"; observed: string; source: string | null; observed_at: string | null;
-               pressured: string[]; helped: string[]; why: string; basis: string }[];
+               pressured: GraphSector[]; helped: GraphSector[]; basis: string; node?: string }[];
   overlap?: { sector: string; verified_move_pct: number; variable: string; typical: "pressured" | "helped"; agrees: boolean; text: string }[];
   company_links?: { sector: string; companies: string[]; via: string[]; basis: string }[];
   sectors_mentioned?: { name: string; via: { basis: string; headline: string }[] }[];
@@ -252,9 +261,10 @@ export function ImplicationsSection({ implications }: { implications: Implicatio
                         {(e.source || e.observed_at) && <> · {[e.source, e.observed_at ? `retrieved ${fmtIST(e.observed_at)}` : null].filter(Boolean).join(" · ")}</>}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {e.pressured.map(s => <span key={`p-${s}`} title="Typically pressured" className="inline-flex items-center gap-1.5 rounded-full border border-surface-border/15 bg-surface-card px-2.5 py-1 text-[11.5px] text-text-secondary"><span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-rose-500" />{s}<span className="sr-only"> (typically pressured)</span></span>)}
-                        {e.helped.map(s => <span key={`h-${s}`} title="Typically helped" className="inline-flex items-center gap-1.5 rounded-full border border-surface-border/15 bg-surface-card px-2.5 py-1 text-[11.5px] text-text-secondary"><span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{s}<span className="sr-only"> (typically helped)</span></span>)}
+                        {e.pressured.map(s => <span key={`p-${sectorName(s)}`} title={sectorTip(s) ?? "Typically pressured"} className="inline-flex items-center gap-1.5 rounded-full border border-surface-border/15 bg-surface-card px-2.5 py-1 text-[11.5px] text-text-secondary"><span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-rose-500" />{sectorName(s)}<span className="sr-only"> (typically pressured)</span></span>)}
+                        {e.helped.map(s => <span key={`h-${sectorName(s)}`} title={sectorTip(s) ?? "Typically helped"} className="inline-flex items-center gap-1.5 rounded-full border border-surface-border/15 bg-surface-card px-2.5 py-1 text-[11.5px] text-text-secondary"><span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{sectorName(s)}<span className="sr-only"> (typically helped)</span></span>)}
                       </div>
+                      {e.basis && <p className="mt-1.5 text-[10.5px] leading-snug text-text-muted">{e.basis}. Hover a sector for the recorded rationale.</p>}
                     </li>
                   );
                 })}

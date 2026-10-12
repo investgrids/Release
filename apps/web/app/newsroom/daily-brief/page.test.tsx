@@ -225,9 +225,9 @@ describe("investor implications (V2.1)", () => {
       leaders: [{ name: "Realty", pct: 0.9 }, { name: "Auto", pct: 0.5 }], laggards: [{ name: "FMCG", pct: -2.0 }, { name: "IT", pct: -1.3 }] },
     exposure: [
       { variable: "rupee_stronger", label: "Stronger rupee (USD/INR lower)", evidence: "verified", observed: "USD/INR lower at 95.76", source: "Forex market data", observed_at: "2026-10-12T16:00:00Z",
-        pressured: ["IT", "Pharma"], helped: ["Aviation"], why: "Export earners translate foreign revenue into fewer rupees.", basis: "rule" },
+        pressured: [{ sector: "IT", weight: 0.85, confidence: 0.95, lag_days: 0, why: "IT earns USD" }, { sector: "Pharma", weight: 0.75, confidence: 0.9, lag_days: 7, why: "Generic pharma exports USD" }], helped: [{ sector: "Airlines", weight: 0.7, confidence: 0.88, lag_days: 0, why: "Fuel costs in USD" }], basis: "Knowledge graph: USD/INR edges to sectors (inverted for this direction of move)" },
       { variable: "yields_rising", label: "Rising bond yields (reported)", evidence: "reported", observed: "Reported: India benchmark bond posts worst day", source: "Economic Times", observed_at: null,
-        pressured: ["Banking", "Realty"], helped: [], why: "Banks mark down bond holdings.", basis: "rule" },
+        pressured: [{ sector: "Real Estate", weight: 0.85, confidence: 0.92, lag_days: 30, why: "Higher home loan rates" }], helped: [], basis: "Knowledge graph: RBI Rate Hike edges to sectors" },
     ],
     overlap: [
       { sector: "IT", verified_move_pct: -1.3, variable: "rupee_stronger", typical: "pressured", agrees: true, text: "IT is typically pressured by this; its index moved -1.30% in the session, in line with that typical exposure. An observation, not an attribution." },
@@ -265,5 +265,39 @@ describe("investor implications (V2.1)", () => {
     const { container } = await renderPage();
     expect(container.textContent).toContain("Investor implications");
     expect(container.textContent).toContain("Banking");
+  });
+});
+
+
+describe("graph-wired exposure and window (no hand-typed sector lists in the page)", () => {
+  const sec = { available: true, as_of: "Mon 12 Oct 2026 close", source: "s", note: null, leaders: [], laggards: [] };
+  const row = (pressured: unknown, helped: unknown) => ({ variable: "crude_rising", label: "Higher crude oil prices", evidence: "verified", observed: "Brent crude rising at 106.85", source: "Global futures market data", observed_at: null,
+    pressured, helped, basis: "Knowledge graph: Crude Oil edges to sectors" });
+
+  it("shows the graph's sectors with the edge rationale as the tooltip and names the basis", async () => {
+    mockApi(withSections([driver()], { investor_implications: { items: [], note: null, sector_performance: sec,
+      exposure: [row([{ sector: "Airlines", weight: 0.9, confidence: 0.95, lag_days: 0, why: "Jet fuel = 35-45% of airline operating costs" }], [{ sector: "Oil & Gas", weight: 0.85, confidence: 0.92, lag_days: 14, why: "Upstream producers realise higher prices" }])] } }));
+    const { container } = await renderPage();
+    const airlines = Array.from(container.querySelectorAll("span[title]")).find(e => e.textContent?.includes("Airlines"));
+    expect(airlines?.getAttribute("title")).toContain("Jet fuel = 35-45% of airline operating costs");
+    expect(airlines?.getAttribute("title")).toContain("graph confidence 0.95");
+    expect(airlines?.getAttribute("title")).toContain("effect is immediate");
+    const oil = Array.from(container.querySelectorAll("span[title]")).find(e => e.textContent?.includes("Oil & Gas"));
+    expect(oil?.getAttribute("title")).toContain("effect typically within 14 days");
+    expect(container.textContent).toContain("Knowledge graph: Crude Oil edges to sectors");
+  });
+
+  it("still renders when an older payload sends plain sector names", async () => {
+    mockApi(withSections([driver()], { investor_implications: { items: [], note: null, sector_performance: sec, exposure: [row(["Airlines", "Paints"], ["Oil & Gas"])] } }));
+    const { container } = await renderPage();
+    expect(container.textContent).toContain("Airlines");
+    expect(container.textContent).toContain("Paints");
+  });
+
+  it("the drivers window caption comes from the API's window start", async () => {
+    mockApi(withSections([driver()], { market_drivers: { items: [driver()], groups: { confirmed_driver: [], potential_contributor: [driver()], commentary: [] }, note: null, method: "m",
+      window: { start: "2026-10-09T10:00:00+00:00", basis: "x" } } }));
+    const { container } = await renderPage();
+    expect(container.textContent).toContain("Window: since the previous close (9 Oct, 3:30 pm IST).");
   });
 });
