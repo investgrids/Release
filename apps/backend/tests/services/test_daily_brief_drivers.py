@@ -187,13 +187,50 @@ def scen(rows=ROWS, status="live"):
 def test_scenarios_are_conditional_with_no_probability_target_or_range():
     out = scen()
     assert out["available"] and [s["key"] for s in out["scenarios"]] == ["bullish", "neutral", "bearish"]
-    assert out["scenarios"][0]["condition"].startswith("If ") and "GIFT Nifty indicates a higher open" in out["scenarios"][0]["condition"]
+    bull = out["scenarios"][0]
+    assert bull["condition"].startswith("If GIFT Nifty (now -0.4%) turns positive") and "watch whether" in bull["condition"]   # specific to the observed reading
     assert "CPI inflation data (Oct 14, 2026)" in out["catalysts"]
-    text = " ".join([s["condition"] + " " + " ".join(s["watch"]) for s in out["scenarios"]]).lower()      # what a reader is told in each scenario
-    for forbidden in ("probab", "chance", "target", "support", "resistance", "range", "expected move", "likely", "%"):
+    text = " ".join([s["condition"] + " " + s["confirmation"] + " " + " ".join(s["watch"]) for s in out["scenarios"]]).lower()
+    for forbidden in ("probab", "chance", "price target", "support level", "resistance", "expected range", "likely", "will rise", "will fall"):
         assert forbidden not in text
-    assert set(out["scenarios"][0]) == {"key", "title", "condition", "watch"}                            # no probability/target/range fields at all
+    assert set(out["scenarios"][0]) == {"key", "title", "condition", "confirmation", "watch"}                     # no probability/target/range fields at all
     assert not any(s.get("expected") or s.get("probability") for s in out["scenarios"])
+
+
+def test_scenario_titles_follow_the_completed_session_and_setup_describes_the_alignment():
+    assert [s["title"] for s in d.build_scenarios(ROWS, CATALYSTS, target_label="t", generated_at="g", gift_status="live", result_direction="Negative")["scenarios"]] == [
+        "Recovery scenario", "Mixed / range-bound scenario", "Selling-pressure scenario"]
+    assert [s["title"] for s in d.build_scenarios(ROWS, CATALYSTS, target_label="t", generated_at="g", gift_status="live", result_direction="Positive")["scenarios"]] == [
+        "Continuation scenario", "Mixed / range-bound scenario", "Pullback scenario"]
+    mixed = d.build_scenarios(ROWS, CATALYSTS, target_label="t", generated_at="g", gift_status="live")["setup"]
+    assert mixed["title"] == "Flat overnight setup" or mixed["title"] == "Negative overnight setup"            # ROWS: GIFT/FII/futures negative, breadth neutral
+    aligned = d.build_scenarios([dict(r, direction="positive" if r["direction"] == "negative" else r["direction"]) for r in ROWS], CATALYSTS, target_label="t", generated_at="g", gift_status="live")["setup"]
+    assert aligned["title"] == "Positive overnight setup" and "point the same way" in aligned["text"]
+
+
+def test_october_12_mock_setup_is_a_mixed_description_with_no_lean():
+    rows = [
+        {"label": "GIFT Nifty", "value": "+0.21%", "direction": "positive"}, {"label": "Global Breadth", "value": "5/10 positive", "direction": "neutral"},
+        {"label": "FII Flow", "value": "-1,708 Cr", "direction": "negative"}, {"label": "S&P 500 Fut.", "value": "-0.26%", "direction": "negative"},
+        {"label": "India VIX", "value": "15.25", "direction": "contextual", "interpretation": "Elevated volatility"},
+    ]
+    setup = d.build_scenarios(rows, [], target_label="t", generated_at="g", gift_status="live")["setup"]
+    assert setup["title"] == "Mixed overnight setup"
+    assert setup["text"].startswith("GIFT Nifty indicates a mildly positive start, but US futures are lower and global participation is mixed.")
+    assert "net selling in the previous session" in setup["text"] and "India VIX remains elevated" in setup["text"] and setup["text"].endswith("no clear alignment across the available signals.")
+
+
+def test_signal_rows_carry_source_and_time_basis_without_inventing_times():
+    from datetime import datetime, timezone
+    rows = brief._enrich_signal_rows(
+        [{"label": "GIFT Nifty", "direction": "positive"}, {"label": "FII Flow", "direction": "negative"}, {"label": "S&P 500 Fut.", "direction": "negative"}, {"label": "India VIX", "direction": "contextual"}],
+        {"fii": {"date": "12-Oct-2026"}, "india_vix": {"level": "ELEVATED"}}, datetime(2026, 10, 13, 1, 12, tzinfo=timezone.utc), datetime(2026, 10, 13, 1, 15, tzinfo=timezone.utc))
+    by = {r["label"]: r for r in rows}
+    assert by["GIFT Nifty"]["time_basis"] == "quote time" and by["GIFT Nifty"]["observed_at"].startswith("2026-10-13T01:12")
+    assert by["FII Flow"]["time_basis"] == "session date" and by["FII Flow"]["observed_at"] == "12-Oct-2026" and by["FII Flow"]["interpretation"] == "Net selling (prior session)"
+    assert by["S&P 500 Fut."]["time_basis"] == "retrieved" and by["India VIX"]["interpretation"] == "Elevated volatility"
+    no_ts = brief._enrich_signal_rows([{"label": "GIFT Nifty", "direction": "positive"}], {}, None, datetime(2026, 10, 13, 1, 15, tzinfo=timezone.utc))
+    assert no_ts[0]["time_basis"] == "retrieved"                                                                  # no provider time: never presented as a quote time
 
 
 def test_scenarios_unavailable_without_signals_and_stale_gift_is_reported():

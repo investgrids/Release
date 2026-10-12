@@ -469,6 +469,7 @@ async def _gather_signals() -> dict:
             "net":       fii_net,
             "available": bool(fii_dii.get("available", False)),
             "buying":    (fii_net >= 0) if fii_net is not None else None,
+            "date":      fii_dii.get("date"),
         },
         "us_futures":       us_futures[:3],
         "asian_markets":    asian[:4],

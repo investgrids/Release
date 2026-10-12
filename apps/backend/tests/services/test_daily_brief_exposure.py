@@ -187,3 +187,25 @@ async def test_live_session_labels_the_sector_snapshot_as_live_not_a_close(monke
     monkeypatch.setattr(brief, "classify_session", lambda: classify_session(datetime(2026, 10, 12, 11, 0, tzinfo=IST)))
     imp = (await brief.get_daily_brief_intelligence())["investor_implications"]
     assert imp["sector_performance"]["as_of"].startswith("live, retrieved ") and "close" not in imp["sector_performance"]["as_of"]
+
+
+def test_sectors_mentioned_come_from_headline_text_tags_and_company_master_only():
+    drivers = {"items": [
+        {"headline": "IT, telecom stocks decline as market selloff resumes amid FII outflows", "evidence_label": "potential_contributor", "sectors": [], "companies": []},
+        {"headline": "Oil prices, yields among key factors behind Sensex's 800 pts intraday fall", "evidence_label": "potential_contributor", "sectors": [], "companies": []},
+        {"headline": "Banks tighten lending after RBI circular", "evidence_label": "potential_contributor", "sectors": [{"name": "Financial Services", "verified_move_pct": None}], "companies": []},
+        {"headline": "Analysts say pharma outlook is strong", "evidence_label": "commentary", "sectors": [], "companies": []},
+    ]}
+    names = [m["name"] for m in x.sectors_mentioned(drivers)]
+    assert names[:2] == ["IT", "Telecom"] and "Banks" in names and "Financial Services" in names
+    assert "Pharma" not in names                                              # commentary items are not used
+    via = {m["name"]: m["via"][0]["basis"] for m in x.sectors_mentioned(drivers)}
+    assert via["IT"] == "headline" and via["Financial Services"] == "event sector tag"
+    # the word 'it' in running text is not the IT sector
+    assert x.sectors_mentioned({"items": [{"headline": "Why it matters for markets", "evidence_label": "potential_contributor", "sectors": [], "companies": []}]}) == []
+    links = [{"sector": "Oil & Gas", "companies": ["ONGC"], "via": [], "basis": "b"}]
+    assert any(m["name"] == "Oil & Gas" and m["via"][0]["basis"] == "company master" for m in x.sectors_mentioned({"items": []}, links))
+
+
+def test_variable_labels_use_plain_wording():
+    assert [e["label"] for e in build()["exposure"]] == ["Rupee strengthens", "Higher crude oil prices", "Bond yields rise"]

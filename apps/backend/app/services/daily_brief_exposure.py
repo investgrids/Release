@@ -28,32 +28,32 @@ _INDEX_KEYS = {
 # variable -> {label, pressured: [...], helped: [...], why}. Typical, widely understood exposures. Conservative on purpose.
 RULES: dict[str, dict] = {
     "rupee_stronger": {
-        "label": "Stronger rupee (USD/INR lower)",
+        "label": "Rupee strengthens",
         "pressured": ["IT", "Pharma", "Textiles"], "helped": ["Aviation", "Paints & chemicals", "Oil marketing companies"],
         "why": "Export earners translate foreign revenue into fewer rupees; import-heavy businesses pay less in rupees for inputs and fuel.",
     },
     "rupee_weaker": {
-        "label": "Weaker rupee (USD/INR higher)",
+        "label": "Rupee weakens",
         "pressured": ["Aviation", "Paints & chemicals", "Oil marketing companies"], "helped": ["IT", "Pharma", "Textiles"],
         "why": "Import-heavy businesses pay more in rupees for inputs and fuel; export earners translate foreign revenue into more rupees.",
     },
     "crude_rising": {
-        "label": "Rising Brent crude",
+        "label": "Higher crude oil prices",
         "pressured": ["Aviation", "Paints & chemicals", "Logistics", "Oil marketing companies"], "helped": ["Upstream oil & gas"],
         "why": "Fuel and petro-derived inputs are major costs for these businesses; upstream producers realise higher prices.",
     },
     "crude_falling": {
-        "label": "Falling Brent crude",
+        "label": "Lower crude oil prices",
         "pressured": ["Upstream oil & gas"], "helped": ["Aviation", "Paints & chemicals", "Logistics", "Oil marketing companies"],
         "why": "Lower fuel and petro-derived input costs help these businesses; upstream producers realise lower prices.",
     },
     "yields_rising": {
-        "label": "Rising bond yields (reported)",
+        "label": "Bond yields rise",
         "pressured": ["Banking", "NBFCs", "Realty", "Auto"], "helped": [],
         "why": "Banks mark down bond holdings; rate-sensitive borrowers (property, vehicles) face higher financing costs.",
     },
     "yields_falling": {
-        "label": "Falling bond yields (reported)",
+        "label": "Bond yields fall",
         "pressured": [], "helped": ["Banking", "NBFCs", "Realty", "Auto"],
         "why": "Banks gain on bond holdings; rate-sensitive borrowers (property, vehicles) face lower financing costs.",
     },
@@ -110,6 +110,34 @@ def _variables(facts: list[dict], driver_headlines: list[tuple[str, str | None]]
     return found
 
 
+# Sector names as they appear in headlines. Case-sensitive where a lower-case form is an ordinary word ('IT' vs 'it').
+_HEADLINE_SECTORS = (
+    ("IT", re.compile(r"\bIT\b(?!\s+(is|was|has|will)\b)")), ("Telecom", re.compile(r"\b[Tt]elecom\w*")), ("Banks", re.compile(r"\b[Bb]ank(s|ing)?\b")),
+    ("Financial Services", re.compile(r"\b[Ff]inancial [Ss]ervices\b")), ("Oil & Gas", re.compile(r"\b[Oo]il (&|and) [Gg]as\b")),
+    ("Pharma", re.compile(r"\b[Pp]harma\w*")), ("Auto", re.compile(r"\b[Aa]uto(mobile)?s?\b")), ("FMCG", re.compile(r"\bFMCG\b")),
+    ("Metals", re.compile(r"\b[Mm]etals?\b")), ("Realty", re.compile(r"\b[Rr]ealty\b|\b[Rr]eal estate\b")), ("Power", re.compile(r"\b[Pp]ower (sector|stocks|utilities)\b")),
+    ("Infrastructure", re.compile(r"\b[Ii]nfra(structure)?\b")), ("Aviation", re.compile(r"\b[Aa]viation\b|\b[Aa]irlines?\b")),
+)
+
+
+def sectors_mentioned(drivers: dict, company_sectors_links: list[dict] | None = None) -> list[dict]:
+    """Sectors that the developments themselves name: in the headline text, in a recorded event sector tag, or as the company-master sector
+    of a named company. Shows exposure to the news, not an observed sector move. Each entry says where it was found."""
+    found: dict[str, dict] = {}
+    for it in drivers.get("items", []):
+        if it.get("evidence_label") == "commentary":
+            continue
+        for name, rx in _HEADLINE_SECTORS:
+            if rx.search(it.get("headline") or ""):
+                found.setdefault(name, {"name": name, "via": []})["via"].append({"basis": "headline", "headline": it["headline"]})
+        for s in it.get("sectors", []):
+            if s.get("name"):
+                found.setdefault(s["name"], {"name": s["name"], "via": []})["via"].append({"basis": "event sector tag", "headline": it["headline"]})
+    for link in company_sectors_links or []:
+        found.setdefault(link["sector"], {"name": link["sector"], "via": []})["via"].append({"basis": "company master", "headline": ", ".join(link["companies"])})
+    return list(found.values())[:8]
+
+
 def build_exposure(*, sectors: list[dict] | None, smoves: dict[str, tuple[str, float]], facts: list[dict], drivers: dict,
                    as_of_label: str, company_sectors: dict[str, str] | None = None) -> dict:
     """The three parts of the implications (sector performance, exposure, overlap) plus company links by sector."""
@@ -155,4 +183,5 @@ def build_exposure(*, sectors: list[dict] | None, smoves: dict[str, tuple[str, f
         notes.append("No market variable (rupee, crude, yields) moved enough to describe general exposure.")
     if not company_links:
         notes.append("No development names a company with a recorded sector.")
-    return {"sector_performance": perf, "exposure": exposure, "overlap": overlap, "company_links": company_links, "exposure_notes": notes}
+    return {"sector_performance": perf, "exposure": exposure, "overlap": overlap, "company_links": company_links, "exposure_notes": notes,
+            "sectors_mentioned": sectors_mentioned(drivers, company_links)}
