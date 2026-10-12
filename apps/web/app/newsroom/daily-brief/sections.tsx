@@ -91,11 +91,9 @@ function DriverRow({ it }: { it: DriverItem }) {
   const meta = LABEL_META[it.evidence_label];
   const published = fmtIST(it.published_at);
   return (
-    <li className="grid gap-x-4 gap-y-2 py-4 first:pt-0 sm:grid-cols-[8.75rem_minmax(0,1fr)_auto]">
+    <li className="grid gap-x-4 gap-y-2 py-4 first:pt-0 sm:grid-cols-[9.5rem_minmax(0,1fr)_auto]">
       <div>
-        <span className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11.5px] font-semibold ${meta.cls}`}>
-          <meta.Icon className="h-3 w-3" aria-hidden="true" /> {meta.text}
-        </span>
+        <span className={`inline-flex items-center whitespace-nowrap rounded-md border px-2.5 py-1 text-[11.5px] font-semibold ${meta.cls}`}>{meta.text}</span>
       </div>
       <div className="min-w-0">
         <h3 className="text-[14px] font-semibold leading-snug text-text-primary">
