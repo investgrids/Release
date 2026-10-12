@@ -334,12 +334,14 @@ async def get_daily_brief_intelligence():
     signals_block = content.catalysts_and_risks(facts)
     ledger = content.Ledger()
     ledger.add(verdict.get("reasoning") or "")
-    summary = content.build_summary(session, verdict, signals_block["catalyst_details"], signals_block["risk_details"], events_block["top"])
-    ledger.add(summary)
 
     # What moved the market, implications, scenarios, takeaway: deterministic, evidence-labelled, no LLM.
     ev_list, ev_meta, ev_links = driver_inputs
     drivers = drivers_mod.build_market_drivers(ev_list, snapshot=snapshot, facts=facts, now=now, event_meta=ev_meta, article_links=ev_links)
+    summary = content.build_summary(session, verdict, signals_block["catalyst_details"], signals_block["risk_details"], events_block["top"], drivers=drivers)
+    ledger.add(summary)
+    for tile in signals_block["catalyst_details"] + signals_block["risk_details"]:
+        ledger.add(tile["explanation"])                     # the signal tiles are on the page too: no later section repeats them
     implications = drivers_mod.build_implications(drivers)
     if session.state == OPEN:
         scenarios = {"available": False, "reason": "The session is live. Scenarios for the next session return after the close.",

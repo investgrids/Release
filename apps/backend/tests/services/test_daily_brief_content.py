@@ -187,7 +187,7 @@ def test_faqs_are_distinct_session_aware_and_do_not_repeat_the_verdict(payload):
 
 def test_summary_adds_driver_and_risk_without_repeating_the_verdict_card(payload):
     assert payload["summary"].startswith("Lower close on Mon 12 Oct 2026.")
-    assert "Main risk:" in payload["summary"]
+    assert "flagged below" in payload["summary"]
     assert "30 declined" not in payload["summary"] and "0.70% lower" not in payload["summary"]
 
 

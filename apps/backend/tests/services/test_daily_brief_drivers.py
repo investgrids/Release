@@ -352,3 +352,44 @@ def test_single_company_results_and_notices_are_not_offered_as_market_drivers():
     # the same kind of company item IS shown when a verified sector move gives it something to coincide with
     with_sector = build([ev("r3", "Infosys Q2 results beat estimates", tier="High", tickers=["INFY"], sectors=["IT"])])
     assert with_sector["items"] and with_sector["items"][0]["evidence_label"] == "potential_contributor"
+
+
+@pytest.mark.asyncio
+async def test_no_sentence_is_repeated_across_the_page(monkeypatch):
+    """The 30-second answer, verdict, signal tiles, takeaway, FAQs and evidence each say something different; evidence lists market
+    facts only (each development shows its own source under 'What moved the market')."""
+    _endpoint_stubs(monkeypatch, datetime(2026, 10, 12, 17, 0, tzinfo=IST),
+                    events=[RUPEE, ev("t1", "TCS wins large deal from European bank", sectors=["IT"], tickers=["TCS"])])
+    out = await brief.get_daily_brief_intelligence()
+
+    surfaces: dict[str, list[str]] = {
+        "verdict": content.sentences_of(out["market_verdict"]["reasoning"] or ""),
+        "summary": content.sentences_of(out["summary"]),
+        "tiles": [s for t in out["catalyst_details"] + out["risk_details"] for s in content.sentences_of(t["explanation"])],
+        "takeaway": content.sentences_of(out["takeaway"]["uncertainty"]) + content.sentences_of((out["takeaway"]["development"] or {}).get("text", "")),
+        "faq": [s for q in out["questions"] for s in content.sentences_of(q["answer"])],
+        "evidence": [s for e in out["evidence"] for s in content.sentences_of(e["claim"])],
+    }
+    owner: dict[str, str] = {}
+    for name, sentences in surfaces.items():
+        for s in sentences:
+            key = content.normalise(s)
+            assert key not in owner or owner[key] == name, f"'{s}' appears in both {owner[key]} and {name}"
+            owner.setdefault(key, name)
+    assert all(e.get("as_of_session") is not None or "event" not in repr(e).lower() for e in out["evidence"])
+
+
+@pytest.mark.asyncio
+async def test_evidence_lists_market_facts_never_event_headlines(monkeypatch):
+    _endpoint_stubs(monkeypatch, datetime(2026, 10, 12, 17, 0, tzinfo=IST), events=[RUPEE])
+
+    async def facts(session):
+        base = dict(value="1", source="s", evidence={}, affected_sectors=[], affected_companies=[], observed_at=None, confidence=None)
+        return [dict(base, entity_type="event", entity_key="e1", fact_key="event:e1", name="E", claim=RUPEE["headline"]),
+                dict(base, entity_type="market_index", entity_key="NIFTY_50", fact_key="market:NIFTY_50:x", name="NIFTY 50",
+                     claim="NIFTY 50 closed at 22,363.35 (-0.70%) in the Mon 12 Oct 2026 session.", direction="down", change_pct=-0.7)]
+
+    monkeypatch.setattr(brief, "_get_facts", facts)
+    out = await brief.get_daily_brief_intelligence()
+    claims = [e["claim"] for e in out["evidence"]]
+    assert claims == ["NIFTY 50 closed at 22,363.35 (-0.70%) in the Mon 12 Oct 2026 session."]

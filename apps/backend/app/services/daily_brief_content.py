@@ -123,9 +123,10 @@ def _when(session: MarketSession) -> str:
 
 
 def build_summary(session: MarketSession, verdict: dict, catalyst_details: list[dict], risk_details: list[dict],
-                  events_top: list[dict]) -> str:
-    """The 30-second answer. It does not restate the verdict card: it names the session outcome in a few words, then adds the
-    strongest supportive signal and the main risk signal, each from its own evidence."""
+                  events_top: list[dict], drivers: dict | None = None) -> str:
+    """The 30-second answer. It does not restate the verdict card or the signal tiles next to it: it names the session outcome in a few
+    words and says what the page below holds (counts only), so every sentence on the page is said once. Without driver data (older
+    callers) it falls back to naming the strongest supportive signal and the main risk."""
     kind = verdict.get("kind")
     if kind == "forecast":
         if verdict.get("direction"):
@@ -138,6 +139,15 @@ def build_summary(session: MarketSession, verdict: dict, catalyst_details: list[
         lead = "Market data is limited right now."
 
     parts = [lead]
+    if drivers is not None:
+        n_dev, n_sig = len(drivers.get("items") or []), len(catalyst_details) + len(risk_details)
+        pieces = []
+        if n_dev:
+            pieces.append(f"{n_dev} market development{'s' if n_dev != 1 else ''}")
+        if n_sig:
+            pieces.append(f"{n_sig} signal{'s' if n_sig != 1 else ''}")
+        parts.append((" and ".join(pieces) + " are flagged below.") if pieces else "No development or signal met the evidence threshold.")
+        return " ".join(parts)
     if catalyst_details:
         parts.append("Supportive signal: " + _ensure_stop(_first_sentence(catalyst_details[0]["explanation"])))
     elif events_top:
@@ -229,10 +239,12 @@ def build_questions(session: MarketSession, verdict: dict, snapshot: dict, event
                       "answer": f"{body} MarketRipple rates it {e.get('priority_tier', 'High')} priority.{sect}",
                       "links": [{"label": "View all events", "href": "/events"}]})
 
-    # 5. volatility
-    vix = next((r for r in risk_details if (r.get("fact_key") or "").startswith("market:INDIA_VIX")), None)
-    if vix:
-        cands.append({"question": "Is market volatility rising?", "answer": vix["explanation"],
+    # 5. volatility: stated from the VIX fact itself, in different words from the signal tiles beside the summary
+    vix = next((f for f in facts if f.get("entity_key") == "INDIA_VIX" and isinstance(f.get("change_pct"), (int, float)) and f.get("value") not in (None, "", "—")), None)
+    if vix and abs(vix["change_pct"]) >= NEAR_FLAT_PCT:
+        rose = vix["change_pct"] > 0
+        cands.append({"question": f"Did market volatility rise or fall {when}?",
+                      "answer": f"India VIX stands at {vix['value']}, {'up' if rose else 'down'} {abs(vix['change_pct']):.2f}% in the session, so expected swings {'widened' if rose else 'narrowed'}.",
                       "links": [{"label": "Market Intelligence", "href": "/market-intelligence"}]})
 
     # 6. crude
@@ -263,9 +275,12 @@ def build_questions(session: MarketSession, verdict: dict, snapshot: dict, event
 
 
 def dedupe_evidence(facts: list[dict], ledger: "Ledger") -> list[dict]:
-    """Evidence rows: one per fact, no repeated claim, none that merely repeats the verdict or the summary."""
+    """Evidence rows: one per market fact, no repeated claim, none that merely repeats the verdict or the summary. Event facts are not
+    listed here: each development already shows its own source and time under 'What moved the market'."""
     out, seen = [], set()
     for f in facts:
+        if f.get("entity_type") == "event":
+            continue
         claim = (f.get("claim") or "").strip()
         norm = normalise(claim)
         if not claim or norm in seen or ledger.is_duplicate(claim):
