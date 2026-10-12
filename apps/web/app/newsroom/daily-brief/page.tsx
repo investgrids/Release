@@ -19,6 +19,8 @@ interface Verdict {
   primary_drivers: string[]; risks: string[];
   reasoning: string | null; ai_generated: boolean; unavailable?: boolean;
   session_state: string; session_date: string | null; target_date: string | null;
+  direction_check?: { status: string; withheld: boolean; message: string | null } | null;
+  forecast?: { target_date: string; generated_at: string; method: string } | null;
 }
 interface SessionInfo {
   state: "pre_open" | "open" | "after_close" | "weekend" | "holiday";
@@ -145,7 +147,7 @@ export default async function DailyBriefPage() {
   const isForecast = verdict.kind === "forecast";
   const baseMeta = DIRECTION_META[verdict.direction ?? ""] ?? DIRECTION_META.Neutral;
   // A realized session is named by what happened (Lower close), a forecast keeps the Bullish/Bearish wording.
-  const dirMeta = isForecast ? baseMeta : { ...baseMeta, label: verdict.headline || baseMeta.label };
+  const dirMeta = isForecast && verdict.direction ? baseMeta : { ...baseMeta, label: verdict.headline || baseMeta.label };
   const targetLabel = verdict.target_date ? fmtDay(verdict.target_date) : null;
   const topDriver = catalysts[0] || events.top[0]?.one_liner || events.top[0]?.headline;
   const topRisk = risks[0];
@@ -227,6 +229,15 @@ export default async function DailyBriefPage() {
               )}
             </div>
             {verdict.reasoning && <p className="mt-2 text-[12.5px] leading-relaxed opacity-90">{verdict.reasoning}</p>}
+            {isForecast && verdict.direction_check?.message && verdict.direction_check.status !== "aligned" && !verdict.direction_check.withheld && (
+              <p className="mt-2 text-[11.5px] leading-snug opacity-80">{verdict.direction_check.message}</p>
+            )}
+            {isForecast && verdict.forecast && (
+              <p className="mt-2 text-[10.5px] opacity-60">
+                Forecast for {fmtDay(verdict.forecast.target_date)} · generated {fmtIST(verdict.forecast.generated_at)} ·{" "}
+                {verdict.forecast.method === "deterministic_signals" ? "signal formula" : "AI checked against the signals"}
+              </p>
+            )}
             {isForecast && !verdict.ai_generated && !verdict.unavailable && (
               <p className="mt-2 text-[10.5px] italic opacity-60">Deterministic signal-only estimate — AI reasoning layer unavailable this cycle.</p>
             )}

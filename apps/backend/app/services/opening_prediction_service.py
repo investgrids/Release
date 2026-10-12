@@ -112,9 +112,14 @@ async def build_opening_prediction(db, weekend_context: "WeekendContext | None" 
     # weekend_context in this phase (see final report §D) — they must
     # keep getting the no-context result, not whatever the last caller
     # who DID pass context happened to produce.
-    cache_key = "opening_prediction"
+    # The forecast is about a specific session, so the cache key carries the target date and the session state: a result produced
+    # for one target (or in one session state) is never served for another, e.g. across the close or over a weekend.
+    from app.services.market_session_state import classify_session
+    session = classify_session()
+    target_date = session.forecast_target_date.isoformat()
+    cache_key = f"opening_prediction:{target_date}:{session.state}"
     if weekend_context is not None:
-        cache_key = f"opening_prediction:wi:{weekend_context.snapshot_id}:{weekend_context.snapshot_version}"
+        cache_key = f"{cache_key}:wi:{weekend_context.snapshot_id}:{weekend_context.snapshot_version}"
 
     cached = _cget(cache_key)
     if cached:
@@ -148,7 +153,18 @@ async def build_opening_prediction(db, weekend_context: "WeekendContext | None" 
     # docstring for why this is a diagnostic lens, not a second engine.
     weekend_adjustment = _weekend_adjusted_score(signals, weekend_context)
 
-    prediction = await _run_ai(signals, events, historical, weekend_context, weekend_adjustment)
+    prediction = await _run_ai(signals, events, historical, weekend_context, weekend_adjustment, target_date=target_date)
+
+    # Integrity (Daily Brief V2, Phase 1): the AI direction is compared with the deterministic signals. On a genuine conflict the
+    # direction is withheld rather than shown, and the disagreement is stated; nothing is substituted.
+    from app.services import opening_forecast_integrity as integrity
+    prediction = integrity.apply_integrity(prediction, _base_fallback_score(signals)["direction"], signal_breakdown)
+    generated_at = datetime.now(timezone.utc).isoformat()
+    forecast_meta = integrity.build_forecast_meta(
+        target_date=target_date, session_state=session.state, generated_at=generated_at,
+        ai_generated=bool(prediction.get("ai_generated")), signals=signals, rows=signal_breakdown,
+        weekend_snapshot_id=getattr(weekend_context, "snapshot_id", None),
+    )
 
     result = {
         "signals":         signals,
@@ -156,11 +172,12 @@ async def build_opening_prediction(db, weekend_context: "WeekendContext | None" 
         "historical":      historical,
         "prediction":      prediction,
         "signal_breakdown": signal_breakdown,
-        "strategy_note":   _strategy_note(prediction.get("direction", "Neutral")),
+        "strategy_note":   _strategy_note(prediction["direction"]) if prediction.get("direction") else None,
+        "forecast":        forecast_meta,
         "sector_setup":      impact_zones["sector_setup"],
         "companies_in_focus": impact_zones["companies_in_focus"],
         "weekend_adjustment": weekend_adjustment,
-        "generated_at":    datetime.now(timezone.utc).isoformat(),
+        "generated_at":    generated_at,
         "cache_ttl_seconds": _TTL,
     }
     if weekend_context is not None:
@@ -787,6 +804,7 @@ def _weekend_prompt_lines(events: dict, weekend_context: "WeekendContext | None"
 async def _run_ai(
     signals: dict, events: dict, historical: dict,
     weekend_context: "WeekendContext | None" = None, weekend_adjustment: dict | None = None,
+    target_date: str | None = None,
 ) -> dict:
     from app.services.ai_service import _call_with_fallback
 
@@ -861,33 +879,34 @@ async def _run_ai(
     ) if weekend_lines else ""
 
     prompt = (
-        "Predict tomorrow's NSE Nifty 50 market opening based on the following data.\n\n"
+        (f"Predict the NSE Nifty 50 market opening for {target_date} based on the following data.\n\n" if target_date
+           else "Predict the next NSE Nifty 50 market opening based on the following data.\n\n") +
         "SIGNAL LAYER:\n" + "\n".join(f"  • {l}" for l in signal_lines) + "\n\n"
         "EVENT LAYER:\n" + "\n".join(f"  • {l}" for l in event_lines) + "\n\n"
         "HISTORICAL CONTEXT:\n" + "\n".join(f"  {l}" for l in hist_lines) + "\n\n"
         + weekend_section +
-        "Nifty 50 previous close: ~24,300 points.\n\n"
+        "Do not state or assume any absolute Nifty index level; express everything as moves in points from the previous close.\n\n"
         "Task:\n"
         "  1. Identify dominant direction (Positive / Negative / Neutral)\n"
         "  2. Note any CONFLICTING signals between layers (SIGNAL/EVENT layers "
         "reflect this morning and take precedence over the WEEKEND layer if they conflict)\n"
-        "  3. Set confidence 45-90% based on signal agreement and event risk\n"
+        "  3. Set confidence 45-90% based on signal agreement and event risk; when the layers disagree, lower it and say so\n"
         "  4. Give expected opening range in Nifty POINTS (e.g., +25 to +60, or -50 to -15)\n"
         "  5. List exactly 3 primary_drivers (specific data points from above)\n"
         "  6. List exactly 2 risks\n"
         "  7. Write 2-sentence reasoning explaining the prediction\n\n"
         "Respond ONLY with this JSON (no markdown, no extra text):\n"
         '{\n'
-        '  "direction": "Positive",\n'
-        '  "confidence": 68,\n'
-        '  "range_low": 20,\n'
-        '  "range_high": 55,\n'
-        '  "primary_drivers": ["...", "...", "..."],\n'
-        '  "risks": ["...", "..."],\n'
-        '  "conflicting_signals": ["..."],\n'
-        '  "reasoning": "Two sentences here.",\n'
-        '  "historical_note": "One sentence or null",\n'
-        '  "uncertainty_note": "One sentence or null"\n'
+        '  "direction": "<exactly one of: Positive, Negative, Neutral>",\n'
+        '  "confidence": <integer 45-90>,\n'
+        '  "range_low": <integer points from previous close, negative if lower>,\n'
+        '  "range_high": <integer points from previous close, greater than range_low>,\n'
+        '  "primary_drivers": ["<specific data point>", "<specific data point>", "<specific data point>"],\n'
+        '  "risks": ["<risk>", "<risk>"],\n'
+        '  "conflicting_signals": ["<signal that disagrees, or leave the list empty>"],\n'
+        '  "reasoning": "<two sentences>",\n'
+        '  "historical_note": "<one sentence or null>",\n'
+        '  "uncertainty_note": "<one sentence or null>"\n'
         '}'
     )
 
@@ -906,11 +925,17 @@ async def _run_ai(
         # Find first { ... }
         m = re.search(r"\{.*\}", cleaned, re.DOTALL)
         data = json.loads(m.group(0) if m else cleaned)
+        if data.get("direction") not in ("Positive", "Negative", "Neutral"):
+            raise ValueError("model returned no valid direction")
+        conf = _int_or_none(data.get("confidence"))
+        low, high = _int_or_none(data.get("range_low")), _int_or_none(data.get("range_high"))
+        if low is None or high is None or low > high:
+            low = high = None                       # an unusable range is dropped, never replaced by a made-up one
         return {
-            "direction":           data.get("direction", "Neutral"),
-            "confidence":          max(45, min(92, int(data.get("confidence", 60)))),
-            "range_low":           int(data.get("range_low", -20)),
-            "range_high":          int(data.get("range_high", 30)),
+            "direction":           data["direction"],
+            "confidence":          None if conf is None else max(45, min(92, conf)),
+            "range_low":           low,
+            "range_high":          high,
             "primary_drivers":     (data.get("primary_drivers") or [])[:3],
             "risks":               (data.get("risks") or [])[:3],
             "conflicting_signals": (data.get("conflicting_signals") or [])[:3],
@@ -994,6 +1019,13 @@ def _build_signal_breakdown(signals: dict) -> list[dict]:
     return rows
 
 
+def _int_or_none(value) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _strategy_note(direction: str) -> str:
     """Pure function of the ONE canonical direction -- replaces market.py's
     former second, independently-computed sentiment/bull/bear engine
@@ -1039,8 +1071,6 @@ def _base_fallback_score(signals: dict) -> dict:
     confidence_penalty = 0 if gift_usable else (6 if gift_stale else 12)
     confidence = max(45, min(78, base_confidence - confidence_penalty))
 
-    base = 25 if direction == "Positive" else -45 if direction == "Negative" else -10
-
     if gift_status == "unavailable" or gift["value"] == "—":
         gift_driver = "GIFT Nifty unavailable — overnight signal not available this session"
     elif gift_stale:
@@ -1051,8 +1081,9 @@ def _base_fallback_score(signals: dict) -> dict:
     return {
         "direction":  direction,
         "confidence": confidence,
-        "range_low":  base,
-        "range_high": base + 40,
+        # The formula has no basis for a point range, so none is given (it used to emit fixed +25/-45/-10 offsets).
+        "range_low":  None,
+        "range_high": None,
         "primary_drivers": [
             gift_driver,
             f"India VIX {vix['value']} ({vix['level'].lower()} volatility)",
@@ -1095,12 +1126,11 @@ def _fallback_prediction(signals: dict, weekend_adjustment: dict | None = None) 
 
     direction  = weekend_adjustment["final_direction"]
     confidence = max(45, min(90, int(round(abs(weekend_adjustment["final_score"])))))
-    base       = 25 if direction == "Positive" else -45 if direction == "Negative" else -10
 
     result["direction"]  = direction
     result["confidence"] = confidence
-    result["range_low"]  = base
-    result["range_high"] = base + 40
+    result["range_low"]  = None
+    result["range_high"] = None
     result["primary_drivers"] = result["primary_drivers"][:2] + [
         f"Weekend intelligence: {weekend_adjustment['weekend_direction']} bias "
         f"({weekend_adjustment['weekend_confidence']:.0f}% confidence)"

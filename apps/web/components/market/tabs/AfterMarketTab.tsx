@@ -127,7 +127,8 @@ export function AfterMarketTab({ initialData }: { initialData?: any }) {
   const pred = openingPred?.prediction;
   const dirUp = pred?.direction === "Positive";
   const dirDown = pred?.direction === "Negative";
-  const predLabel = dirUp ? "Bullish" : dirDown ? "Bearish" : "Neutral";
+  const predWithheld = !!pred && !pred.direction;
+  const predLabel = predWithheld ? "Signals disagree" : dirUp ? "Bullish" : dirDown ? "Bearish" : "Neutral";
   const predCls   = dirUp ? "text-emerald-400" : dirDown ? "text-rose-400" : "text-amber-400";
 
   return (
@@ -256,7 +257,7 @@ export function AfterMarketTab({ initialData }: { initialData?: any }) {
                 Tooltip discloses the self-report component per the
                 HYBRID_RUBRIC authorization boundary. */}
             <div className="flex items-baseline gap-3" title="A blend of signal-based analysis and the model's own self-assessed certainty -- not a fully computed score">
-              <span className={`text-[30px] font-black leading-none ${predCls}`}>{pred.confidence}%</span>
+              {pred.confidence != null && <span className={`text-[30px] font-black leading-none ${predCls}`}>{pred.confidence}%</span>}
               <span className={`text-[14px] font-bold ${predCls}`}>{predLabel}</span>
               {pred.ai_generated === false && <span className="text-[10px] text-text-muted">Signal-based estimate</span>}
             </div>

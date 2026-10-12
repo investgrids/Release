@@ -44,12 +44,14 @@ async def _get_forecast_verdict(session: MarketSession) -> dict:
         pred = raw.get("prediction") or {}
         return {
             "kind": "forecast",
-            "headline": "Opening outlook",
+            "headline": "Signals disagree" if (pred.get("direction_check") or {}).get("withheld") else "Opening outlook",
             "session_state": session.state,
             "target_date": session.forecast_target_date.isoformat(),
             "session_date": session.reference_session_date.isoformat(),
-            "direction": pred.get("direction", "Neutral"),
+            "direction": pred.get("direction"),
             "confidence": pred.get("confidence"),
+            "direction_check": pred.get("direction_check"),
+            "forecast": raw.get("forecast"),
             "primary_drivers": pred.get("primary_drivers", [])[:4],
             "risks": pred.get("risks", [])[:4],
             "expected_range": {"low": pred.get("range_low"), "high": pred.get("range_high")},
@@ -61,7 +63,7 @@ async def _get_forecast_verdict(session: MarketSession) -> dict:
         log.warning("daily_brief_intelligence.verdict_failed", error=str(exc))
         return {
             "kind": "unavailable", "headline": "Outlook unavailable", "session_state": session.state,
-            "target_date": session.forecast_target_date.isoformat(),
+            "target_date": session.forecast_target_date.isoformat(), "forecast": None, "direction_check": None,
             "direction": None, "confidence": None, "primary_drivers": [], "risks": [],
             "expected_range": {"low": None, "high": None}, "reasoning": None,
             "ai_generated": False, "generated_at": None, "unavailable": True,

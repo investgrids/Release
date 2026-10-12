@@ -454,7 +454,8 @@ function Hero({ pred, generatedAt, greeting, dateLabel, dataCoverage }: {
   pred: any; generatedAt: string | null; greeting: string; dateLabel: string;
   dataCoverage: { available: number; total: number } | null;
 }) {
-  const dir = DIR_STYLE[pred?.direction ?? "Neutral"];
+  const withheld = !!pred?.direction_check?.withheld || !pred?.direction;
+  const dir = withheld ? { ...DIR_STYLE.Neutral, label: "Signals disagree" } : DIR_STYLE[pred.direction];
   const DirIcon = dir.icon;
   const timeLabel = generatedAt ? new Date(generatedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : null;
 
@@ -504,6 +505,9 @@ function Hero({ pred, generatedAt, greeting, dateLabel, dataCoverage }: {
 
       {pred?.reasoning && (
         <p className="mt-4 max-w-2xl text-[13px] leading-6 text-text-secondary">{pred.reasoning}</p>
+      )}
+      {!withheld && pred?.direction_check?.message && (
+        <p className="mt-2 max-w-2xl text-[12px] leading-5 text-amber-500">{pred.direction_check.message}</p>
       )}
       {pred?.ai_generated === false && pred?.uncertainty_note && (
         <p className="mt-2 text-[11px] italic text-text-muted">{pred.uncertainty_note}</p>
