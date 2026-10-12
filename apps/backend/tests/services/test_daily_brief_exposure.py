@@ -334,3 +334,8 @@ async def test_fact_registry_affected_sectors_come_from_the_graph(monkeypatch):
     written.clear()
     await fr.refresh_market_facts(None, include_forecast=False)
     assert next(v for k, v in written.items() if "BRENT_CRUDE" in k)["affected_sectors"] == []        # never a typed-in fallback list
+
+
+def test_display_label_fixes_capitalisation_only():
+    assert graph_mod.display_label("oil & gas") == "Oil & Gas" and graph_mod.display_label("cement") == "Cement"
+    assert graph_mod.display_label("IT") == "IT" and graph_mod.display_label("FMCG") == "FMCG" and graph_mod.display_label("Real Estate") == "Real Estate"

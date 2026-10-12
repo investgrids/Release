@@ -85,6 +85,11 @@ def _clean_label(label: str | None) -> str | None:
     return label.strip()
 
 
+def display_label(label: str) -> str:
+    """Capitalisation only: the graph stores some labels in lower case ('oil & gas'); show them as names. Content is never changed."""
+    return label.title() if label and label == label.lower() else label
+
+
 _cache: dict[str, object] = {"ctx": None, "at": 0.0}
 
 
@@ -110,10 +115,10 @@ async def load_graph_context(force: bool = False) -> GraphContext | None:
             )).all()
         ctx = GraphContext(loaded_at=now)
         for r in rows:
-            sector = labels.get(r.target_id) or r.target_id.split(":", 1)[-1].replace("-", " ").title()
+            sector = display_label(labels.get(r.target_id) or r.target_id.split(":", 1)[-1].replace("-", " "))
             ctx.edges.setdefault(r.source_id, []).append(Edge(r.target_id, sector, r.edge_type, r.weight, r.confidence, r.lag_days, r.description))
         ctx.node_labels = {n: labels[n] for n in MACRO_NODES if n in labels}
-        ctx.sector_vocabulary = sorted({c for (lbl,) in vocab_rows if (c := _clean_label(lbl))})
+        ctx.sector_vocabulary = sorted({display_label(c) for (lbl,) in vocab_rows if (c := _clean_label(lbl))})
         _cache["ctx"], _cache["at"] = ctx, now
         return ctx
     except Exception as exc:  # noqa: BLE001
