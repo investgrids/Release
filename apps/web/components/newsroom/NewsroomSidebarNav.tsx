@@ -45,26 +45,21 @@ export function isNewsroomNavActive(pathname: string, href: string): boolean {
   return href === "/newsroom" ? pathname === "/newsroom" : pathname.startsWith(href);
 }
 
-const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f3dc92]";
-const SERIF = "font-[family-name:var(--font-newsroom-serif)]";
-// Gold foil: the plaque behind the current page. Text on it is the deep royal blue (contrast above 9:1).
-const FOIL = "bg-[linear-gradient(135deg,#f8e9ae_0%,#e0bc62_48%,#b88a30_100%)] text-[#150e52] shadow-[0_6px_18px_-6px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.55)]";
+const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-violet";
+// The current page: royal indigo with a gold icon. White on #2b2087 is above 12:1.
+const ACTIVE = "bg-[#2b2087] text-white shadow-[0_6px_16px_-8px_rgba(43,32,135,0.8)]";
+const GOLD = "text-[#e8c766]";
 
-/** Desktop rail: grouped under ornamental headings, the current page set on a gold-foil plaque. */
+/** Desktop rail. Uses the site's own surface, border and type tokens; royal indigo and gold only mark the current page. */
 export function NewsroomSidebarNav() {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="AI Newsroom" className="space-y-7">
+    <nav aria-label="AI Newsroom" className="space-y-5">
       {NEWSROOM_NAV.map((group) => (
         <div key={group.title}>
-          <div className="mb-3 flex items-center gap-2.5 px-1" aria-hidden="true">
-            <span className="h-px flex-1 bg-gradient-to-r from-transparent to-[#e0bc62]/55" />
-            <span className={`${SERIF} text-[13px] font-semibold uppercase tracking-[0.28em] text-[#ecd48a]`}>{group.title}</span>
-            <span className="h-px flex-1 bg-gradient-to-l from-transparent to-[#e0bc62]/55" />
-          </div>
-          <h2 className="sr-only">{group.title}</h2>
-          <ul className="space-y-1">
+          <h2 className="mb-1.5 px-3 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-text-muted">{group.title}</h2>
+          <ul className="space-y-0.5">
             {group.items.map((n) => {
               const active = isNewsroomNavActive(pathname, n.href);
               const Icon = n.icon;
@@ -73,20 +68,18 @@ export function NewsroomSidebarNav() {
                   <Link
                     href={n.href}
                     aria-current={active ? "page" : undefined}
-                    className={`group relative flex items-center gap-3.5 rounded-lg px-3.5 py-2.5 transition-[background-color,color,box-shadow,transform] duration-200 ease-out ${FOCUS} ${
-                      active
-                        ? FOIL
-                        : "text-[#e9e3ff] hover:bg-[#e0bc62]/[0.12] hover:text-[#fff6d8] hover:shadow-[inset_0_0_0_1px_rgba(224,188,98,0.4)] motion-safe:hover:translate-x-0.5"
+                    className={`group flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-colors duration-200 ${FOCUS} ${
+                      active ? ACTIVE : "text-text-secondary hover:bg-accent-violet/[0.08] hover:text-text-primary"
                     }`}
                   >
                     <Icon
                       aria-hidden="true"
-                      strokeWidth={1.6}
-                      className={`h-[18px] w-[18px] shrink-0 transition-colors duration-200 ${active ? "text-[#150e52]" : "text-[#e0bc62]"}`}
+                      strokeWidth={1.75}
+                      className={`h-4 w-4 shrink-0 transition-colors duration-200 ${active ? GOLD : "text-text-muted group-hover:text-accent-violet"}`}
                     />
-                    <span className={`${SERIF} flex-1 text-[19px] font-semibold leading-none tracking-wide`}>{n.label}</span>
+                    <span className="flex-1">{n.label}</span>
                     {active && (
-                      <svg aria-hidden="true" viewBox="0 0 10 10" className="h-2 w-2 shrink-0 text-[#150e52]">
+                      <svg aria-hidden="true" viewBox="0 0 10 10" className={`h-1.5 w-1.5 shrink-0 ${GOLD}`}>
                         <path d="M5 0 10 5 5 10 0 5z" fill="currentColor" />
                       </svg>
                     )}
@@ -117,12 +110,12 @@ export function NewsroomTabsNav() {
               <Link
                 href={n.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2 transition-colors duration-200 ${FOCUS} ${
-                  active ? FOIL : "text-[#e9e3ff] shadow-[inset_0_0_0_1px_rgba(224,188,98,0.35)] hover:bg-[#e0bc62]/[0.14]"
+                className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[12.5px] font-medium transition-colors duration-200 ${FOCUS} ${
+                  active ? ACTIVE : "border border-surface-border/10 text-text-secondary hover:bg-accent-violet/[0.08] hover:text-text-primary"
                 }`}
               >
-                <Icon aria-hidden="true" strokeWidth={1.6} className={`h-3.5 w-3.5 ${active ? "text-[#150e52]" : "text-[#e0bc62]"}`} />
-                <span className={`${SERIF} text-[16px] font-semibold leading-none tracking-wide`}>{n.label}</span>
+                <Icon aria-hidden="true" strokeWidth={1.75} className={`h-3.5 w-3.5 ${active ? GOLD : "text-text-muted"}`} />
+                {n.label}
               </Link>
             </li>
           );
