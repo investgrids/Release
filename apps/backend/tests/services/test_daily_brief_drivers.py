@@ -320,7 +320,7 @@ def test_other_angles_on_the_same_development_share_one_slot():
         ev("a", "Rupee opens over 1% higher at 95.73 on RBI measures to curb dollar demand", origin="Business Standard", tier="Critical"),
         ev("b", "RBI measures, intervention spark rupee's sharpest rally in six months", origin="Economic Times", tier="Critical"),
         ev("c", "India benchmark bond posts worst day in six months on RBI measures", origin="Economic Times", tier="Critical"),
-        ev("d", "Goodluck India shares surge 17% as merger expands", origin="Economic Times", tier="High"),
+        ev("d", "FII outflows weigh on markets as selloff resumes", origin="Business Standard", tier="High"),
     ]
     out = build(events)
     assert len(out["items"]) == 2
@@ -329,7 +329,7 @@ def test_other_angles_on_the_same_development_share_one_slot():
 
 
 def test_unrelated_stories_that_share_one_word_are_not_merged():
-    events = [ev("a", "RBI penalises two cooperative banks for norm violations", tier="High"),
+    events = [ev("a", "RBI penalises two cooperative banks for norm violations", tier="Critical"),
               ev("b", "RBI keeps repo rate unchanged at 5.5%", tier="Critical", origin="RBI", source="policy")]
     assert len(build(events)["items"]) == 2
     far = [ev("a", "RBI measures curb dollar demand rupee rally", hours_ago=1), ev("b", "RBI measures curb dollar demand rupee rally again", hours_ago=20)]
@@ -340,3 +340,15 @@ def test_potential_contributor_cites_the_verified_variable_the_headline_names():
     e = ev("r2", "Rupee opens higher at 95.73 as dollar demand eases", origin="Business Standard", tier="Critical")
     it = build([e])["items"][0]
     assert it["evidence_label"] == "potential_contributor" and any("USD/INR lower" in r and "Timing alone" in r for r in it["relevance"])
+
+
+def test_single_company_results_and_notices_are_not_offered_as_market_drivers():
+    events = [
+        ev("r1", "ICICI Prudential AMC Q2 results: profit rises 6% YoY to Rs 889 crore", tier="High", tickers=["ICICIPRULI"]),
+        ev("r2", "Goodluck India shares surge 17% as merger expands", tier="High", tickers=["GOODLUCK"]),
+        ev("n1", "Sebi notifies common ad code, allows celebrity endorsements for brands", tier="High"),
+    ]
+    assert build(events)["items"] == []
+    # the same kind of company item IS shown when a verified sector move gives it something to coincide with
+    with_sector = build([ev("r3", "Infosys Q2 results beat estimates", tier="High", tickers=["INFY"], sectors=["IT"])])
+    assert with_sector["items"] and with_sector["items"][0]["evidence_label"] == "potential_contributor"

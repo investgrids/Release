@@ -129,3 +129,91 @@ describe("daily brief page", () => {
     expect(faq.mainEntity.map((q: { acceptedAnswer: { text: string } }) => q.acceptedAnswer.text)).toEqual(newShape.questions.map(q => q.answer));
   });
 });
+
+// ── Part A sections ─────────────────────────────────────────────────────────────────────────────────────────────
+
+const driver = (over: Record<string, unknown> = {}) => ({
+  id: "e1", headline: "RBI measures spark rupee rally", source: "Economic Times", published_at: "2026-10-12T14:35:00+00:00",
+  evidence_label: "potential_contributor", relevance: ["Coincided with Banking -0.80% in the same session. Timing alone does not show that this caused the move."],
+  sectors: [{ name: "Banking", verified_move_pct: -0.8 }], companies: [{ symbol: "HDFCBANK", relation: "mentioned" }], articles_merged: 3,
+  links: { event: "/events/rbi-measures-spark-rupee-rally", article: "/newsroom/article/rbi-rupee-analysis" }, ...over,
+});
+const withSections = (items: ReturnType<typeof driver>[], extra: Record<string, unknown> = {}) => {
+  const groups: Record<string, ReturnType<typeof driver>[]> = { confirmed_driver: [], potential_contributor: [], commentary: [] };
+  items.forEach(i => groups[i.evidence_label as string].push(i));
+  return {
+    ...newShape,
+    market_drivers: { items, groups, note: items.length ? null : "No development met the evidence threshold for this session.", method: "m" },
+    investor_implications: { items: [{ sector: "Banking", verified_move_pct: -0.8, why: "Named in 1 development above. Its sector index moved -0.80% in the session.", developments: [{ id: "e1", headline: "RBI measures spark rupee rally", evidence_label: "potential_contributor" }],
+      companies_mentioned: ["HDFCBANK"], companies_label: "Mentioned in these developments (not an assessment of impact)" }], note: null },
+    scenarios: { available: true, target: "Tue 13 Oct 2026", generated_at: "t", gift_nifty_status: "live",
+      scenarios: [{ key: "bullish", title: "Bullish scenario", condition: "If GIFT Nifty indicates a higher open.", watch: ["GIFT Nifty turning positive"] },
+                  { key: "neutral", title: "Neutral scenario", condition: "If signals stay mixed.", watch: ["FII Flow staying negative"] },
+                  { key: "bearish", title: "Bearish scenario", condition: "If US futures point lower.", watch: ["S&P 500 Fut. turning negative"] }],
+      current_signals: [{ label: "GIFT Nifty", reading: "+0.23%", direction: "positive", detail: null }], catalysts: ["CPI inflation data (Oct 14, 2026)"] },
+    takeaway: { development: { headline: "RBI measures spark rupee rally", evidence_label: "potential_contributor", text: "It coincided with the session; the data does not show that it caused the move.", id: "e1" },
+      uncertainty: "No development is confirmed as the cause of the move.", monitor: ["Whether the Banking move holds in the next session"] },
+    ...extra,
+  };
+};
+
+describe("daily brief V2 sections", () => {
+  it("renders drivers with evidence labels, verified sector moves, 'mentioned' companies and internal links only", async () => {
+    mockApi(withSections([driver(), driver({ id: "e2", headline: "RBI holds repo rate", evidence_label: "confirmed_driver", relevance: ["The source itself ties this development to the move."], sectors: [], companies: [], links: { event: "/events/e2", article: null } })]));
+    const { container, getByText, getAllByText } = await renderPage();
+    expect(getByText("What moved the market today?")).toBeInTheDocument();
+    expect(getAllByText("Confirmed").length).toBeGreaterThan(0);
+    expect(getAllByText("Potential contributor").length).toBeGreaterThan(0);
+    expect(container.textContent).toContain("Banking");
+    expect(container.textContent).toContain("-0.80%");
+    expect(container.textContent).toContain("mentioned");
+    expect(container.textContent).toContain("Timing alone does not show that this caused the move");
+    const hrefs = Array.from(container.querySelectorAll("a[href]")).map(a => a.getAttribute("href")!);
+    expect(hrefs.every(h => h.startsWith("/"))).toBe(true);
+    expect(hrefs).toContain("/newsroom/article/rbi-rupee-analysis");
+    expect(container.textContent ?? "").not.toMatch(/impact score|bullish impact|bearish impact/i);
+  });
+
+  it("sparse data: fewer than five items, an honest note, no filler cards", async () => {
+    mockApi(withSections([]));
+    const { container } = await renderPage();
+    expect(container.textContent).toContain("No development met the evidence threshold for this session.");
+    expect(container.querySelectorAll("#drivers-title ~ div li, #drivers-title ~ ul li").length).toBe(0);
+  });
+
+  it("scenarios are conditional and carry no probability, target or range; the live session hides them", async () => {
+    mockApi(withSections([driver()]));
+    const first = await renderPage();
+    expect(first.container.textContent).toContain("Next session: Tue 13 Oct 2026");
+    expect(first.container.textContent).toContain("Conditional scenarios");
+    expect(first.container.textContent ?? "").not.toMatch(/probability|price target|support level|resistance|expected range/i);
+    first.unmount();
+    mockApi(withSections([driver()], { scenarios: { available: false, reason: "The session is live. Scenarios for the next session return after the close.", target: "Tue 13 Oct 2026", generated_at: "t" } }));
+    const live = await renderPage();
+    expect(live.container.textContent).toContain("The session is live.");
+  });
+
+  it("investor takeaway shows the development, the uncertainty and what to monitor", async () => {
+    mockApi(withSections([driver()]));
+    const { container } = await renderPage();
+    expect(container.textContent).toContain("Investor takeaway");
+    expect(container.textContent).toContain("No development is confirmed as the cause of the move.");
+    expect(container.textContent).toContain("Whether the Banking move holds in the next session");
+  });
+
+  it("old API shape (no new sections) falls back to the events list instead of failing", async () => {
+    mockApi({ ...newShape, events: { ...emptyBlocks.events, top: [{ id: "x", headline: "Old events list item", one_liner: "Old events list item", priority_tier: "High", priority_score: 1, sectors: [], tickers: [], sentiment: null, source: null }] } });
+    const { container } = await renderPage();
+    expect(container.textContent).toContain("Market-moving events");
+    expect(container.textContent).toContain("Old events list item");
+  });
+
+  it("removed duplicates stay removed: no sector grid, no 'why today matters', no duplicate driver tiles", async () => {
+    mockApi(withSections([driver()]));
+    const { container } = await renderPage();
+    for (const gone of ["Sector Intelligence", "Why Today Matters", "Strongest supportive signal", "Biggest risk signal", "What to Watch Next", "Companies named in high-priority events"]) {
+      expect(container.textContent).not.toContain(gone);
+    }
+    expect(container.textContent).toContain("After Market");
+  });
+});

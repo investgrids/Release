@@ -27,7 +27,7 @@ MAX_COMMENTARY = 1
 
 _COMMENTARY_MARKERS = (
     "analysis", "opinion", "explained", "outlook", "what to expect", "what to watch", "stocks to watch", "stocks to buy", "top picks",
-    "target price", "brokerage", "should you", "can ", "could ", "may ", "might ", "likely to", "expected to", "view:", "preview",
+    "target price", "brokerage", "should you", "can ", "could ", "may ", "might ", "likely to", "expected to", "view:", "preview", "decoded", "explainer",
 )
 _MOVE_UP = ("rise", "rises", "rose", "gain", "gains", "gained", "surge", "surges", "surged", "jump", "jumps", "jumped", "higher", "rally", "rallies",
             "strengthen", "strengthens", "firm", "firms", "climb", "climbs", "advance", "advances")
@@ -288,10 +288,12 @@ def build_market_drivers(events: list[dict], *, snapshot: dict, facts: list[dict
         elif _authoritative(lead) and _CAUSAL.search(lead["headline"]) and consistent:
             label = CONFIRMED
             reasons.append(f"The source itself ties this development to the move, and the verified data agrees: {match[1]} {'higher' if match[2] > 0 else 'lower'}.")
-        elif lead.get("priority_tier") in ("Critical", "High") or _market_wide(lead):
+        elif _market_wide(lead) or lead.get("priority_tier") == "Critical" or any(m is not None and abs(m) >= FLAT_PCT for _, m in hits):
+            # A potential contributor is broad (market-wide), top priority, or tied to a sector whose verified index moved. A single-company
+            # result or notice (for example one company's quarterly profit) is not offered as a reason the market moved.
             label = POTENTIAL
         else:
-            continue                                    # not important or broad enough to be a market development
+            continue                                    # not broad or significant enough to be a market development
 
         if label == POTENTIAL:
             moved = [(n, m) for n, m in hits if m is not None and abs(m) >= FLAT_PCT]
