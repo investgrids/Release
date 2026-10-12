@@ -4,8 +4,8 @@
 
 | | |
 |---|---|
-| Release commit | `972f234425b6da9292be9e6a2b2ab61036a60cbc` on `feature/daily-brief-v2` |
-| Production baseline (verified on the server) | `579cae884023ca804eed447e2fdcefa27284f04f`, an ancestor of the release (4 commits ahead) |
+| Release commit | the merge commit of the PR into `main` (record the SHA here when merged); feature branch head before merge: see PR |
+| Production baseline (verified on the server) | `579cae884023ca804eed447e2fdcefa27284f04f`, an ancestor of the feature branch |
 | Schema change | none (one row delete on the existing `facts` table when a forecast is withheld) |
 | Backend downtime | about 1 minute (container recreate) |
 | Frontend | Vercel build of the same commits, merged into `main` through a reviewed PR (`main` merges cleanly; it keeps the AdSense meta tag) |
@@ -21,7 +21,7 @@
 ## Preconditions
 
 ```bash
-git rev-parse HEAD                                              # 972f234425b6da9292be9e6a2b2ab61036a60cbc
+git rev-parse HEAD                                              # the merge commit on main
 git merge-base --is-ancestor 579cae884023ca804eed447e2fdcefa27284f04f HEAD && echo ancestry ok
 ssh -i ~/.ssh/marketripple_hostinger root@157.173.218.197 'cd /opt/marketripple/src && git rev-parse HEAD; docker inspect -f "{{.Config.Image}} {{.State.Health.Status}}" marketripple-backend-1'
 #   expect 579cae884023... and "marketripple-backend:579cae884023 healthy"
@@ -51,6 +51,19 @@ curl -s $B/api/facts/today | python -c "import sys,json; print([f['entity_type']
 curl -s -o /dev/null -w "%{http_code}\n" $B/api/market/opening-prediction   # 200
 ssh -i ~/.ssh/marketripple_hostinger root@157.173.218.197 'docker logs --since 10m marketripple-backend-1 2>&1 | grep -c "Traceback"'   # no new tracebacks
 # Frontend: https://www.marketripple.in/newsroom/daily-brief renders; view source: one FAQPage JSON-LD whose questions match the page
+```
+
+## New sections to verify (Part A)
+
+```bash
+curl -s $B/api/daily-brief/intelligence | python -c "
+import sys,json; d=json.load(sys.stdin)
+print([ (i['evidence_label'], i['headline'][:50], i['articles_merged']) for i in d['market_drivers']['items']], d['market_drivers']['note'])
+print(d['scenarios']['available'], d['scenarios'].get('target'), [s['key'] for s in d['scenarios'].get('scenarios', [])])
+print(d['takeaway']['uncertainty']); print(d['investor_implications']['note'])"
+# drivers: at most 5, every link starts with '/', labels only confirmed_driver / potential_contributor / commentary, no score or direction fields
+# scenarios: unavailable while the session is live; no probability, target or range anywhere
+# page: https://www.marketripple.in/newsroom/daily-brief shows "What moved the market today?", "Investor implications", "Next session", "Investor takeaway"
 ```
 
 ## Known, deliberately not changed here
