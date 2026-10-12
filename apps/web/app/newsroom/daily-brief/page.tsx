@@ -12,9 +12,17 @@ import { RefreshButton } from "./RefreshButton";
 
 interface IndexQuote { name: string; value: string; change: string; pct: number; positive: boolean }
 interface Verdict {
+  // realized = what the market did in the reference session; forecast = opening outlook (pre-open only)
+  kind: "realized" | "forecast" | "unavailable";
+  headline: string;
   direction: string | null; confidence: number | null;
   primary_drivers: string[]; risks: string[];
   reasoning: string | null; ai_generated: boolean; unavailable?: boolean;
+  session_state: string; session_date: string | null; target_date: string | null;
+}
+interface SessionInfo {
+  state: "pre_open" | "open" | "after_close" | "weekend" | "holiday";
+  label: string; subtitle: string; reference_label: string;
 }
 interface Snapshot {
   nifty: IndexQuote | null; banknifty: IndexQuote | null; sensex: IndexQuote | null; vix: IndexQuote | null;
@@ -36,6 +44,7 @@ interface Evidence { claim: string; source: string; timestamp: string | null; co
 interface WatchNextItem { date: string | null; category: string | null; title: string | null; description: string | null }
 
 interface DailyBriefData {
+  session: SessionInfo;
   market_verdict: Verdict;
   market_snapshot: Snapshot;
   events: EventsBlock;
@@ -58,6 +67,16 @@ async function getData(): Promise<DailyBriefData | null> {
     return res.json();
   } catch {
     return null;
+  }
+}
+
+function fmtDay(isoDate: string): string {
+  try {
+    return new Date(`${isoDate}T00:00:00+05:30`).toLocaleDateString("en-IN", {
+      timeZone: "Asia/Kolkata", weekday: "short", day: "numeric", month: "short", year: "numeric",
+    });
+  } catch {
+    return isoDate;
   }
 }
 
@@ -86,13 +105,15 @@ const TIER_COLOR: Record<string, string> = {
 export async function generateMetadata(): Promise<Metadata> {
   const data = await getData();
   const dateStr = data?.market_snapshot.market_status?.date;
-  const direction = data?.market_verdict.direction;
+  const verdictNow = data?.market_verdict;
   const title = dateStr
     ? `Indian Stock Market Today (${dateStr}): Nifty, Bank Nifty & Market Outlook | MarketRipple`
     : "Indian Stock Market Today: Nifty, Bank Nifty & Market Outlook | MarketRipple";
-  const description = direction
-    ? `Indian stock market today: ${direction.toLowerCase()} outlook, Nifty 50 and Bank Nifty levels, stocks to watch, sector performance, key events and risks for Indian investors.`
-    : "Indian stock market today: Nifty 50, Bank Nifty, market outlook, stocks to watch, sector performance, key events and risks for Indian investors.";
+  const description = verdictNow?.kind === "realized" && verdictNow.reasoning
+    ? `${verdictNow.reasoning} Sector performance, key events and risks for Indian investors.`
+    : verdictNow?.kind === "forecast" && verdictNow.direction
+      ? `Indian stock market opening outlook: Nifty 50 and Bank Nifty levels, stocks to watch, sector performance, key events and risks for Indian investors.`
+      : "Indian stock market today: Nifty 50, Bank Nifty, stocks to watch, sector performance, key events and risks for Indian investors.";
 
   return {
     title,
@@ -118,10 +139,14 @@ export default async function DailyBriefPage() {
     );
   }
 
-  const { market_verdict: verdict, market_snapshot: snap, events, why_today_matters, stocks_to_watch,
+  const { session, market_verdict: verdict, market_snapshot: snap, events, why_today_matters, stocks_to_watch,
     sector_intelligence, historical_context: historical, catalysts, risks, what_to_watch_next, questions, evidence } = data;
 
-  const dirMeta = DIRECTION_META[verdict.direction ?? ""] ?? DIRECTION_META.Neutral;
+  const isForecast = verdict.kind === "forecast";
+  const baseMeta = DIRECTION_META[verdict.direction ?? ""] ?? DIRECTION_META.Neutral;
+  // A realized session is named by what happened (Lower close), a forecast keeps the Bullish/Bearish wording.
+  const dirMeta = isForecast ? baseMeta : { ...baseMeta, label: verdict.headline || baseMeta.label };
+  const targetLabel = verdict.target_date ? fmtDay(verdict.target_date) : null;
   const topDriver = catalysts[0] || events.top[0]?.one_liner || events.top[0]?.headline;
   const topRisk = risks[0];
 
@@ -162,12 +187,14 @@ export default async function DailyBriefPage() {
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-accent-violet">Market Intelligence</p>
-          <h1 className="mt-2 text-[26px] font-black leading-tight text-text-primary md:text-[32px]">
+          <h1 className="text-[26px] font-black leading-tight text-text-primary md:text-[32px]">
             Indian Stock Market Today
           </h1>
-          <p className="mt-1.5 text-[13px] text-text-muted">
-            {snap.market_status?.date} · {snap.market_status?.status === "pre_market" ? "Pre-Market Outlook" : snap.market_status?.status === "live" ? "Live Session" : "Market Wrap"} · Updated {fmtIST(data.generated_at)}
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-text-muted">
+            <span className="rounded-md border border-surface-border/15 bg-text-primary/[0.04] px-2 py-0.5 text-[11.5px] font-semibold text-text-secondary">{session.label}</span>
+            <span>{session.subtitle}</span>
+            <span aria-hidden="true">·</span>
+            <span>Updated {fmtIST(data.generated_at)}</span>
           </p>
         </div>
         <RefreshButton />
@@ -178,9 +205,14 @@ export default async function DailyBriefPage() {
         {/* LEFT: Verdict + Snapshot + Driver/Risk */}
         <div className="space-y-4">
           <div className={`rounded-2xl border p-5 ${dirMeta.color}`}>
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-bold uppercase tracking-wide opacity-80">Market Verdict</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-bold uppercase tracking-wide opacity-80">
+                {isForecast ? `Opening outlook${targetLabel ? ` for ${targetLabel}` : ""}` : `Session result · ${session.reference_label}`}
+              </p>
               {verdict.unavailable && <span className="text-[10px] opacity-70">Data unavailable</span>}
+              {isForecast && !verdict.unavailable && (
+                <span className="rounded-full border border-current/30 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wide opacity-80">Forecast</span>
+              )}
             </div>
             <div className="mt-2 flex items-center gap-2">
               {dirMeta.icon}
@@ -195,8 +227,11 @@ export default async function DailyBriefPage() {
               )}
             </div>
             {verdict.reasoning && <p className="mt-2 text-[12.5px] leading-relaxed opacity-90">{verdict.reasoning}</p>}
-            {!verdict.ai_generated && !verdict.unavailable && (
+            {isForecast && !verdict.ai_generated && !verdict.unavailable && (
               <p className="mt-2 text-[10.5px] italic opacity-60">Deterministic signal-only estimate — AI reasoning layer unavailable this cycle.</p>
+            )}
+            {!isForecast && !verdict.unavailable && (
+              <p className="mt-2 text-[10.5px] opacity-60">Reported from index levels and market breadth. This is what happened, not a forecast.</p>
             )}
           </div>
 
