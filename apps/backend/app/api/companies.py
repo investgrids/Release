@@ -854,41 +854,81 @@ async def _fetch_prices(symbols: list[str]) -> dict[str, dict]:
 # (tests/services/test_company_tiers.py) and ready to run as a periodic
 # background job that persists Tier B results, once that job exists --
 # not silently faked here in the meantime.
-_QUALIFIED_MASTER_CACHE: dict = {"data": None, "at": 0.0}
+_QUALIFIED_MASTER_CACHE: dict = {"data": None, "at": 0.0, "failed_at": None}
 _QUALIFIED_MASTER_TTL_S = 600.0
+# After a failed refresh nothing retries for this long: the previous entries (or [] when there are none) keep being served instead of every request re-running the
+# expensive classification against a database that just failed. A failure is never cached for the full TTL.
+_QUALIFIED_MASTER_FAILURE_BACKOFF_S = 30.0
+# Single-flight: one refill per worker process at a time. The lock belongs to the running event loop (a new loop gets a new lock), so it is never shared across loops.
+_QUALIFIED_MASTER_LOCK: dict = {"loop": None, "lock": None}
+
+
+def _qualified_master_lock() -> asyncio.Lock:
+    loop = asyncio.get_running_loop()
+    if _QUALIFIED_MASTER_LOCK["loop"] is not loop:
+        _QUALIFIED_MASTER_LOCK["loop"] = loop
+        _QUALIFIED_MASTER_LOCK["lock"] = asyncio.Lock()
+    return _QUALIFIED_MASTER_LOCK["lock"]
+
+
+def _qualified_master_cached(now: float) -> Optional[list[dict]]:
+    """The entries to serve right now without computing, or None when a refill is due: fresh data inside the TTL, or (right after a failed refill) the previous data / []
+    for the failure backoff window."""
+    data = _QUALIFIED_MASTER_CACHE["data"]
+    if data is not None and now - _QUALIFIED_MASTER_CACHE["at"] < _QUALIFIED_MASTER_TTL_S:
+        return data
+    failed_at = _QUALIFIED_MASTER_CACHE["failed_at"]
+    if failed_at is not None and now - failed_at < _QUALIFIED_MASTER_FAILURE_BACKOFF_S:
+        return data if data is not None else []
+    return None
 
 
 async def _get_qualified_master_entries(db: AsyncSession) -> list[dict]:
-    now = time.monotonic()
-    if _QUALIFIED_MASTER_CACHE["data"] is not None and now - _QUALIFIED_MASTER_CACHE["at"] < _QUALIFIED_MASTER_TTL_S:
-        return _QUALIFIED_MASTER_CACHE["data"]
+    """Cached for _QUALIFIED_MASTER_TTL_S. Concurrent callers on a cold or expired cache share ONE classification (2026-10-13: 26 simultaneous cold-cache requests each ran
+    their own ~4.3 s classify_all_entities after a restart, exhausted the connection pool and timed out at the proxy). Callers waiting for the lock have not used their
+    own database session (it only opens a connection on first use), so waiting holds no connection or transaction; freshness is re-checked once the lock is acquired. If
+    the caller that holds the lock is cancelled or fails, the lock is released by the `async with`, and the next waiter re-checks and, if still needed, refills."""
+    cached = _qualified_master_cached(time.monotonic())
+    if cached is not None:
+        return cached
 
-    try:
-        from app.services.company_identity.tiers import classify_all_entities, CoverageTier
-        results = await classify_all_entities(db, check_live_data=False)
-        tier_a = [r for r in results if r.tier == CoverageTier.A_INTELLIGENCE_RICH]
-    except Exception:
-        tier_a = []
+    async with _qualified_master_lock():
+        now = time.monotonic()
+        cached = _qualified_master_cached(now)         # another caller may have refilled while this one waited
+        if cached is not None:
+            return cached
 
-    # Sector/industry from real, source-attributed labels (NSE's own
-    # index-constituent classification first, Yahoo Finance otherwise —
-    # see services/company_identity/sector_mapping.py). Left blank when no
-    # source has a label or the label has no clear site-sector precedent.
-    from app.services.company_identity.sector_mapping import site_sector_for, source_industry_for
+        try:
+            from app.services.company_identity.tiers import classify_all_entities, CoverageTier
+            results = await classify_all_entities(db, check_live_data=False)
+            tier_a = [r for r in results if r.tier == CoverageTier.A_INTELLIGENCE_RICH]
+        except Exception as exc:                       # CancelledError is a BaseException: it propagates and releases the lock
+            import structlog
+            structlog.get_logger(__name__).warning("companies.qualified_master_refresh_failed", error=str(exc)[:200])
+            _QUALIFIED_MASTER_CACHE["failed_at"] = now
+            stale = _QUALIFIED_MASTER_CACHE["data"]
+            return stale if stale is not None else []
 
-    static_symbols = {co["symbol"] for co in _NSE_UNIVERSE}
-    entries = [
-        {
-            "symbol": r.symbol, "name": r.company_name,
-            "sector": site_sector_for(r.symbol) or "", "industry": source_industry_for(r.symbol) or "",
-            "cap": "",
-            "aliases": [], "_sym_l": r.symbol.lower(), "_name_l": r.company_name.lower(), "_alias_l": [],
-        }
-        for r in tier_a if r.symbol not in static_symbols
-    ]
-    _QUALIFIED_MASTER_CACHE["data"] = entries
-    _QUALIFIED_MASTER_CACHE["at"] = now
-    return entries
+        # Sector/industry from real, source-attributed labels (NSE's own
+        # index-constituent classification first, Yahoo Finance otherwise —
+        # see services/company_identity/sector_mapping.py). Left blank when no
+        # source has a label or the label has no clear site-sector precedent.
+        from app.services.company_identity.sector_mapping import site_sector_for, source_industry_for
+
+        static_symbols = {co["symbol"] for co in _NSE_UNIVERSE}
+        entries = [
+            {
+                "symbol": r.symbol, "name": r.company_name,
+                "sector": site_sector_for(r.symbol) or "", "industry": source_industry_for(r.symbol) or "",
+                "cap": "",
+                "aliases": [], "_sym_l": r.symbol.lower(), "_name_l": r.company_name.lower(), "_alias_l": [],
+            }
+            for r in tier_a if r.symbol not in static_symbols
+        ]
+        _QUALIFIED_MASTER_CACHE["data"] = entries
+        _QUALIFIED_MASTER_CACHE["at"] = now
+        _QUALIFIED_MASTER_CACHE["failed_at"] = None
+        return entries
 
 
 _SUPERSEDED_SYMBOLS_CACHE: dict = {"data": None, "at": 0.0}
