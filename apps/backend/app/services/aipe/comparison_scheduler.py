@@ -46,7 +46,11 @@ from app.services.aipe.comparison_publisher import publish_comparison_article, _
 
 log = structlog.get_logger(__name__)
 
-_MAX_PER_CYCLE = 5
+_MAX_PER_CYCLE = 5                 # successful publications per run
+# Attempts are bounded separately. _MAX_PER_CYCLE only counts successes, so when providers were exhausted every candidate failed, nothing counted
+# towards the cap, and one run walked the whole pool (474 internal AI Search runs per run, twice a day, measured 2026-10-12).
+_MAX_ATTEMPTS_PER_CYCLE = 8        # candidate pairs tried per run, whatever the outcome
+_MAX_CONSECUTIVE_FAILURES = 3      # this many failures in a row end the run; the next scheduled run tries again
 _STALE_AFTER_DAYS = 14
 _MIN_EVENT_URGENCY = 6
 
@@ -215,51 +219,89 @@ async def run_comparison_cycle() -> None:
     function only decides which pairs are due and never force-publishes a
     degraded result (publish_comparison_article already returns None on
     failure, in which case the existing published article — if any — is
-    left exactly as it was)."""
+    left exactly as it was).
+
+    Bounds on one run: at most _MAX_PER_CYCLE publications, at most
+    _MAX_ATTEMPTS_PER_CYCLE candidate pairs tried whatever the outcome, an
+    early stop after _MAX_CONSECUTIVE_FAILURES failures in a row, and no
+    work at all (not even loading the pool) when every configured model is
+    cooling down. A pair skipped because its page is still fresh is not an
+    attempt."""
+    from app.services import ai_usage
+    from app.services.ai_service import any_provider_available
+
     _cycle_start = time.monotonic()
     published_this_cycle = 0
+    attempted = 0
+    consecutive_failures = 0
+    stop_reason = "pool_exhausted"
+
+    if not any_provider_available():
+        ai_usage.note_skipped_work("comparison_cycle", "no_capacity")
+        log.info("comparison_cycle.skipped_no_capacity")
+        return
+
     try:
-        async with AsyncSessionLocal() as db:
-            existing = (await db.execute(
-                select(IntelligenceArticle)
-                .where(IntelligenceArticle.article_type == "comparison_intelligence")
-            )).scalars().all()
-            existing_by_slug = {a.slug: a for a in existing}
+        # Tagging the run "comparison_cycle" keeps internal comparison activity apart from public AI Search in the usage report: the AI Search wrapper keeps an
+        # outer tag for internal (non-API) callers.
+        with ai_usage.operation("comparison_cycle", track=True):
+            async with AsyncSessionLocal() as db:
+                existing = (await db.execute(
+                    select(IntelligenceArticle)
+                    .where(IntelligenceArticle.article_type == "comparison_intelligence")
+                )).scalars().all()
+                existing_by_slug = {a.slug: a for a in existing}
 
-            sector_priority = await _sector_engagement_scores(db)
-            if sector_priority:
-                top5 = sorted(sector_priority.items(), key=lambda x: -x[1])[:5]
-                log.info("comparison_cycle.sector_priority", top_sectors=top5)
-            candidates = _CURATED_PAIRS + _sector_derived_pairs(sector_priority)
-            now = datetime.now(timezone.utc)
+                sector_priority = await _sector_engagement_scores(db)
+                if sector_priority:
+                    top5 = sorted(sector_priority.items(), key=lambda x: -x[1])[:5]
+                    log.info("comparison_cycle.sector_priority", top_sectors=top5)
+                candidates = _CURATED_PAIRS + _sector_derived_pairs(sector_priority)
+                now = datetime.now(timezone.utc)
 
-            for sym_a, sym_b in candidates:
-                if published_this_cycle >= _MAX_PER_CYCLE:
-                    break
-                slug = f"{_slugify(sym_a)}-vs-{_slugify(sym_b)}"
-                article = existing_by_slug.get(slug)
+                for sym_a, sym_b in candidates:
+                    if published_this_cycle >= _MAX_PER_CYCLE:
+                        stop_reason = "publish_limit"
+                        break
+                    if attempted >= _MAX_ATTEMPTS_PER_CYCLE:
+                        stop_reason = "attempt_limit"
+                        break
+                    if consecutive_failures >= _MAX_CONSECUTIVE_FAILURES:
+                        stop_reason = "consecutive_failures"
+                        break
+                    slug = f"{_slugify(sym_a)}-vs-{_slugify(sym_b)}"
+                    article = existing_by_slug.get(slug)
 
-                if article:
-                    anchor = _aware(article.last_updated) or _aware(article.published_at) or now
-                    age = now - anchor
-                    if age < timedelta(days=_STALE_AFTER_DAYS):
-                        continue
-                    fresh = await _has_fresh_event_since(db, sym_a, anchor) \
-                        or await _has_fresh_event_since(db, sym_b, anchor)
-                    if not fresh:
-                        continue  # old enough to refresh, but nothing new to say
+                    if article:
+                        anchor = _aware(article.last_updated) or _aware(article.published_at) or now
+                        age = now - anchor
+                        if age < timedelta(days=_STALE_AFTER_DAYS):
+                            continue
+                        fresh = await _has_fresh_event_since(db, sym_a, anchor) \
+                            or await _has_fresh_event_since(db, sym_b, anchor)
+                        if not fresh:
+                            continue  # old enough to refresh, but nothing new to say
 
-                sector = _sector_for(sym_a) or _sector_for(sym_b)
-                result = await publish_comparison_article(
-                    db, sym_a, sym_b, _name_for(sym_a), _name_for(sym_b), sector=sector,
-                )
-                if result:
-                    published_this_cycle += 1
-                    log.info("comparison_cycle.published", slug=result["slug"], is_refresh=bool(article))
-                else:
-                    log.info("comparison_cycle.quality_gate_skip", pair=f"{sym_a}-{sym_b}")
+                    if not any_provider_available():
+                        # Capacity ran out during this run: stop instead of walking the rest of the pool.
+                        ai_usage.note_skipped_work("comparison_cycle", "no_capacity")
+                        stop_reason = "no_capacity"
+                        break
 
-        log.info("comparison_cycle.done", published=published_this_cycle,
+                    sector = _sector_for(sym_a) or _sector_for(sym_b)
+                    attempted += 1
+                    result = await publish_comparison_article(
+                        db, sym_a, sym_b, _name_for(sym_a), _name_for(sym_b), sector=sector,
+                    )
+                    if result:
+                        published_this_cycle += 1
+                        consecutive_failures = 0
+                        log.info("comparison_cycle.published", slug=result["slug"], is_refresh=bool(article))
+                    else:
+                        consecutive_failures += 1
+                        log.info("comparison_cycle.quality_gate_skip", pair=f"{sym_a}-{sym_b}")
+
+        log.info("comparison_cycle.done", published=published_this_cycle, attempted=attempted, stop_reason=stop_reason,
                   duration_s=round(time.monotonic() - _cycle_start, 1))
     except Exception as exc:
         log.error("comparison_cycle.failed", exc=str(exc)[:300])
