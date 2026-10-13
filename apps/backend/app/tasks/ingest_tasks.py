@@ -418,10 +418,14 @@ async def job_enrich_events() -> None:
     log.info("job.enrich_events.start", count=len(pending))
     enriched = 0
     failed   = 0
+    deferred = 0   # provider-capacity deferrals (retry budget not consumed); counted inside `failed` too, reported separately
+
+    from app.pipeline.event_pipeline import last_outcome
 
     for event in pending:
         async with AsyncSessionLocal() as db:
             try:
+                last_outcome.set(None)
                 ok = await run_event_pipeline(event, db)
                 if ok:
                     enriched += 1
@@ -430,6 +434,8 @@ async def job_enrich_events() -> None:
                     await delete(f"event:{event.id}")
                 else:
                     failed += 1
+                    if last_outcome.get() == "deferred_capacity":
+                        deferred += 1
             except Exception as exc:
                 log.error("job.enrich_events.error", event_id=event.id, error=str(exc))
                 failed += 1
@@ -443,5 +449,5 @@ async def job_enrich_events() -> None:
     elapsed = round((time.perf_counter() - t0) * 1000)
     log.info(
         "job.enrich_events.done",
-        enriched=enriched, failed=failed, elapsed_ms=elapsed,
+        enriched=enriched, failed=failed, deferred=deferred, elapsed_ms=elapsed,
     )
