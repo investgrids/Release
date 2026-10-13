@@ -84,6 +84,40 @@ class EventRepository:
     _FRESH_WINDOW_HOURS = 24
     _BACKLOG_GUARANTEE_EVERY_N_BUCKETS = 4
 
+    def _lane_orderings(self, eligible_at, now, bucket: int, cutoff):
+        """(fresh_order, backlog_order) for get_pending_enrichment. With settings.event_enrichment_priority_enabled off, both are the plain
+        COALESCE(next_retry_at, created_at) FIFO, i.e. exactly the previous behaviour.
+
+        With it on (Phase 2, 2026-10-13) only the ORDER inside each lane changes; eligibility, the lane split, the guaranteed backlog slot and retry/backoff are untouched:
+          fresh lane   : urgent (EventTriage.urgency >= threshold) first, then normal events that have waited longer than the aging window, then newly arrived normal events;
+                         FIFO inside each group. A normal event that waits past the aging window outranks new normal arrivals, and after 24h it moves to the backlog lane
+                         and its guaranteed slot.
+          backlog lane : the guaranteed slots alternate (by wall-clock bucket, restart-safe) between "urgent first, then oldest" and "oldest first", so urgent overdue events
+                         are drained quickly and ordinary overdue events can never be starved by them.
+        Urgency is the highest urgency of the event's triage rows; an event with no triage row counts as normal."""
+        from datetime import timedelta
+        from sqlalchemy import case, func
+        from app.core.config import settings
+        from app.db.models.intelligence import EventTriage
+
+        if not settings.event_enrichment_priority_enabled:
+            return (eligible_at.asc(),), (eligible_at.asc(),)
+
+        urgency = func.coalesce(
+            select(func.max(EventTriage.urgency)).where(EventTriage.event_id == Event.id).correlate(Event).scalar_subquery(), 0,
+        )
+        urgent = urgency >= settings.event_enrichment_urgent_threshold
+        aged_before = now - timedelta(hours=settings.event_enrichment_aging_hours)
+        fresh_rank = case((urgent, 0), (Event.created_at < aged_before, 1), else_=2)
+        fresh_order = (fresh_rank.asc(), eligible_at.asc())
+
+        urgent_first_turn = ((bucket // self._BACKLOG_GUARANTEE_EVERY_N_BUCKETS) % 2) == 0
+        if urgent_first_turn:
+            backlog_order = (case((urgent, 0), else_=1).asc(), eligible_at.asc())
+        else:
+            backlog_order = (eligible_at.asc(),)
+        return fresh_order, backlog_order
+
     async def get_pending_enrichment(self, limit: int = 10, *, now: "datetime | None" = None) -> list[Event]:
         """Free-tier data track, Stage 2 (2026-08-06): now also picks up
         'failed' events and 'processing' events stuck past a stale timeout —
@@ -163,10 +197,12 @@ class EventRepository:
         bucket = int(now.timestamp() // interval_sec)
         force_backlog = (bucket % self._BACKLOG_GUARANTEE_EVERY_N_BUCKETS) == 0
 
+        fresh_order, backlog_order = self._lane_orderings(eligible_at, now, bucket, cutoff)
+
         fresh_result = await self._db.execute(
             select(Event)
             .where(eligibility, Event.created_at >= cutoff)
-            .order_by(eligible_at.asc())
+            .order_by(*fresh_order)
             .limit(limit)
         )
         fresh_rows = list(fresh_result.scalars().all())
@@ -174,7 +210,7 @@ class EventRepository:
         backlog_result = await self._db.execute(
             select(Event)
             .where(eligibility, Event.created_at < cutoff)
-            .order_by(eligible_at.asc())
+            .order_by(*backlog_order)
             .limit(limit)
         )
         backlog_rows = list(backlog_result.scalars().all())

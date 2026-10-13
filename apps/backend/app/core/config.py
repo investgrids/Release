@@ -215,6 +215,13 @@ class Settings(BaseSettings):
     opportunity_worker_interval_sec: int = 86400
     event_enrichment_interval_sec: int = 300
 
+    # Event enrichment priority + diagnostics (2026-10-13, Phase 2). Priority scheduling only changes WHICH eligible events are picked first; eligibility, retry/backoff
+    # and the eight-stage pipeline are untouched. Off by default: with it off, selection is exactly the previous two-lane FIFO.
+    event_enrichment_priority_enabled: bool = False
+    event_enrichment_urgent_threshold: int = 7          # EventTriage.urgency >= this counts as urgent
+    event_enrichment_aging_hours: int = 6               # a normal fresh event waiting longer than this outranks newly arrived normal events
+    event_enrichment_stage_diagnostics_enabled: bool = True   # log-only per-stage failure attribution
+
     # ── Fact Grounding (AI Article Pipeline fix, 2026-08-10) ─────────────────
     # Shadow/log-only by default: validate_fact_grounding() always RUNS and
     # logs every violation (see publisher.py), but only actually blocks

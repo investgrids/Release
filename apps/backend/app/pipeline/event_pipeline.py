@@ -12,6 +12,7 @@ Never called from API routes.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import structlog
 import re
 from datetime import datetime, timedelta, timezone
@@ -132,6 +133,25 @@ async def _make_unique_slug(repo: "EventRepository", title: str, exclude_id: str
         n += 1
 
 
+# Outcome of the most recent run_event_pipeline call in this task: "done", "deferred_capacity" (every provider was cooling down, retry budget not consumed), "failed" or
+# "failed_permanent". Lets the scheduler tell a capacity deferral from a genuine failure without changing run_event_pipeline's bool return.
+last_outcome: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("event_enrichment_last_outcome", default=None)
+
+
+def _record_outcome(eid: str, outcome: str, reason: Optional[str], stage: str, stages_done: list[str], retry_before: int, retry_after: int) -> None:
+    """Diagnostics only (log + ContextVar): never touches event state, so enrichment behaviour and retry accounting are unchanged. Disabled by
+    settings.event_enrichment_stage_diagnostics_enabled."""
+    last_outcome.set(outcome)
+    from app.core.config import settings
+    if not settings.event_enrichment_stage_diagnostics_enabled:
+        return
+    logger.info(
+        "event_enrichment.attempt", event_id=eid, outcome=outcome, reason=reason,
+        failed_stage=None if outcome == "done" else stage, stages_completed=len(stages_done), stages_done=stages_done,
+        retry_before=retry_before, retry_after=retry_after,
+    )
+
+
 async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
     """Instrumented entry point (2026-10-11): tags every LLM attempt made while enriching this event as "event_enrichment" (ai_usage); the pipeline itself is _run_event_pipeline_impl, unchanged."""
     from app.services import ai_usage
@@ -157,24 +177,33 @@ async def _run_event_pipeline_impl(event: Event, db: AsyncSession) -> bool:
 
     logger.info("[Pipeline] Starting event %s | %s", eid, title[:80])
 
+    retry_before = event.retry_count or 0   # captured now: the ORM object is refreshed by later commits
+    stage = "mark_processing"          # diagnostics only: the stage being run when a failure happens
+    stages_done: list[str] = []
+
     try:
         # Stage 1 — Mark as processing so the worker doesn't re-pick it
         await repo.mark_status(eid, "processing")
 
         # Stage 2 — Classify
+        stage = "classify"
         logger.debug("[Pipeline:%s] classify", eid)
         classification = await ai.classify_event(full_text)
         if classification.get("integrity_status") == IntegrityStatus.FALLBACK.value:
             raise _AIUnavailable("classify_event returned its fallback — AI provider unavailable")
         event_type = str(classification.get("category", "macro"))
+        stages_done.append(stage)
 
         # Stage 3 — Summarize
         await asyncio.sleep(_STAGE_DELAY)
+        stage = "summarize"
         logger.debug("[Pipeline:%s] summarize", eid)
         ai_summary = await ai.summarize_event(title, full_text, source)
+        stages_done.append(stage)
 
         # Stage 4 — Extract companies (run concurrently with stage 5)
         await asyncio.sleep(_STAGE_DELAY)
+        stage = "extract_companies_sectors"
         logger.debug("[Pipeline:%s] extract companies + sectors", eid)
         (companies_raw, companies_status), (sectors_raw, sectors_status) = await asyncio.gather(
             ai.extract_companies(title, full_text),
@@ -195,16 +224,20 @@ async def _run_event_pipeline_impl(event: Event, db: AsyncSession) -> bool:
             raise _AIUnavailable(
                 "extract_companies/extract_sectors returned its fallback -- AI provider unavailable"
             )
+        stages_done.append(stage)
 
         # Stage 5 — Impact analysis (AI's structured read: market_reaction, analysis,
         # and per-entity impact_type/reason text — used for narrative, NOT for the
         # published impact_score/confidence numbers anymore; those come from the
         # Scoring Engine at stage 5b so they're never an LLM's self-rated guess).
         await asyncio.sleep(_STAGE_DELAY)
+        stage = "impact_analysis"
         logger.debug("[Pipeline:%s] impact analysis", eid)
         impact = await ai.generate_impact_analysis(title, full_text, companies_raw, sectors_raw)
+        stages_done.append(stage)
 
         # Stage 5b — Feature extraction + centralized scoring (real signals only)
+        stage = "scoring"
         logger.debug("[Pipeline:%s] feature extraction + scoring", eid)
         sector_names = [s.get("sector", "") for s in sectors_raw if s.get("sector")]
         published_at = event.event_date or event.published_at
@@ -227,11 +260,14 @@ async def _run_event_pipeline_impl(event: Event, db: AsyncSession) -> bool:
 
         # Stage 6 — Timeline
         await asyncio.sleep(_STAGE_DELAY)
+        stage = "timeline"
         logger.debug("[Pipeline:%s] timeline", eid)
         timeline_raw = await ai.generate_timeline(title, full_text, event_type)
+        stages_done.append(stage)
 
         # Stage 7 — Similar events (DB lookup → AI ranking)
         await asyncio.sleep(_STAGE_DELAY)
+        stage = "similar_events"
         logger.debug("[Pipeline:%s] similar events", eid)
         candidates = await repo.get_similar_by_sectors(sector_names, exclude_id=eid)
         candidate_dicts = [
@@ -239,11 +275,14 @@ async def _run_event_pipeline_impl(event: Event, db: AsyncSession) -> bool:
             for e in candidates
         ]
         similar_raw = await ai.find_similar_events(title, sector_names, candidate_dicts)
+        stages_done.append(stage)
 
         # Stage 8 — Network graph
         await asyncio.sleep(_STAGE_DELAY)
+        stage = "graph"
         logger.debug("[Pipeline:%s] graph", eid)
         graph_raw = await ai.generate_graph(title, companies_raw, sectors_raw)
+        stages_done.append(stage)
 
         # Stage 9 — Government policies (keyword search in DB)
         logger.debug("[Pipeline:%s] policies", eid)
@@ -251,6 +290,7 @@ async def _run_event_pipeline_impl(event: Event, db: AsyncSession) -> bool:
         policies = await policy_repo.search_by_keywords(keywords[:6], limit=5)
 
         # ── Stage 10: Persist everything atomically ──────────────────────────
+        stage = "persist"
         logger.debug("[Pipeline:%s] persist", eid)
 
         slug = await _make_unique_slug(repo, title, exclude_id=eid)
@@ -376,6 +416,7 @@ async def _run_event_pipeline_impl(event: Event, db: AsyncSession) -> bool:
 
         # Final status (separate commit so it's not rolled back with data)
         await repo.mark_status(eid, "done")
+        _record_outcome(eid, "done", None, stage, stages_done, retry_before, retry_before)
 
         logger.info(
             "[Pipeline] Enrichment complete: event %s | score=%s", eid, event_score.score,
@@ -429,6 +470,9 @@ async def _run_event_pipeline_impl(event: Event, db: AsyncSession) -> bool:
             await repo.mark_enrichment_failed(
                 eid, retry_count=new_retry_count, reason=reason, next_retry_at=next_retry_at,
             )
+            outcome = ("deferred_capacity" if reason == "provider_cooldown"
+                       else "failed_permanent" if next_retry_at is None else "failed")
+            _record_outcome(eid, outcome, reason, stage, stages_done, retry_before, new_retry_count)
         except Exception as inner:
             logger.error("[Pipeline] Could not mark failure for %s: %s", eid, inner)
         return False
