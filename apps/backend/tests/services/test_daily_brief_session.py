@@ -218,3 +218,8 @@ def _no_live_inputs(monkeypatch):
 
     monkeypatch.setattr(brief, "_get_driver_inputs", driver_inputs)
     monkeypatch.setattr(brief, "_get_scenario_inputs", scenario_inputs)
+
+    async def company_sectors(symbols):
+        return {}
+
+    monkeypatch.setattr(brief, "_get_company_sectors", company_sectors)

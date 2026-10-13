@@ -187,13 +187,50 @@ def scen(rows=ROWS, status="live"):
 def test_scenarios_are_conditional_with_no_probability_target_or_range():
     out = scen()
     assert out["available"] and [s["key"] for s in out["scenarios"]] == ["bullish", "neutral", "bearish"]
-    assert out["scenarios"][0]["condition"].startswith("If ") and "GIFT Nifty indicates a higher open" in out["scenarios"][0]["condition"]
+    bull = out["scenarios"][0]
+    assert bull["condition"].startswith("If GIFT Nifty (now -0.4%) turns positive") and "watch whether" in bull["condition"]   # specific to the observed reading
     assert "CPI inflation data (Oct 14, 2026)" in out["catalysts"]
-    text = " ".join([s["condition"] + " " + " ".join(s["watch"]) for s in out["scenarios"]]).lower()      # what a reader is told in each scenario
-    for forbidden in ("probab", "chance", "target", "support", "resistance", "range", "expected move", "likely", "%"):
+    text = " ".join([s["condition"] + " " + s["confirmation"] + " " + " ".join(s["watch"]) for s in out["scenarios"]]).lower()
+    for forbidden in ("probab", "chance", "price target", "support level", "resistance", "expected range", "likely", "will rise", "will fall"):
         assert forbidden not in text
-    assert set(out["scenarios"][0]) == {"key", "title", "condition", "watch"}                            # no probability/target/range fields at all
+    assert set(out["scenarios"][0]) == {"key", "title", "condition", "confirmation", "watch"}                     # no probability/target/range fields at all
     assert not any(s.get("expected") or s.get("probability") for s in out["scenarios"])
+
+
+def test_scenario_titles_follow_the_completed_session_and_setup_describes_the_alignment():
+    assert [s["title"] for s in d.build_scenarios(ROWS, CATALYSTS, target_label="t", generated_at="g", gift_status="live", result_direction="Negative")["scenarios"]] == [
+        "Recovery scenario", "Mixed / range-bound scenario", "Selling-pressure scenario"]
+    assert [s["title"] for s in d.build_scenarios(ROWS, CATALYSTS, target_label="t", generated_at="g", gift_status="live", result_direction="Positive")["scenarios"]] == [
+        "Continuation scenario", "Mixed / range-bound scenario", "Pullback scenario"]
+    mixed = d.build_scenarios(ROWS, CATALYSTS, target_label="t", generated_at="g", gift_status="live")["setup"]
+    assert mixed["title"] == "Flat overnight setup" or mixed["title"] == "Negative overnight setup"            # ROWS: GIFT/FII/futures negative, breadth neutral
+    aligned = d.build_scenarios([dict(r, direction="positive" if r["direction"] == "negative" else r["direction"]) for r in ROWS], CATALYSTS, target_label="t", generated_at="g", gift_status="live")["setup"]
+    assert aligned["title"] == "Positive overnight setup" and "point the same way" in aligned["text"]
+
+
+def test_october_12_mock_setup_is_a_mixed_description_with_no_lean():
+    rows = [
+        {"label": "GIFT Nifty", "value": "+0.21%", "direction": "positive"}, {"label": "Global Breadth", "value": "5/10 positive", "direction": "neutral"},
+        {"label": "FII Flow", "value": "-1,708 Cr", "direction": "negative"}, {"label": "S&P 500 Fut.", "value": "-0.26%", "direction": "negative"},
+        {"label": "India VIX", "value": "15.25", "direction": "contextual", "interpretation": "Elevated volatility"},
+    ]
+    setup = d.build_scenarios(rows, [], target_label="t", generated_at="g", gift_status="live")["setup"]
+    assert setup["title"] == "Mixed overnight setup"
+    assert setup["text"].startswith("GIFT Nifty indicates a mildly positive start, but US futures are lower and global participation is mixed.")
+    assert "net selling in the previous session" in setup["text"] and "India VIX remains elevated" in setup["text"] and setup["text"].endswith("no clear alignment across the available signals.")
+
+
+def test_signal_rows_carry_source_and_time_basis_without_inventing_times():
+    from datetime import datetime, timezone
+    rows = brief._enrich_signal_rows(
+        [{"label": "GIFT Nifty", "direction": "positive"}, {"label": "FII Flow", "direction": "negative"}, {"label": "S&P 500 Fut.", "direction": "negative"}, {"label": "India VIX", "direction": "contextual"}],
+        {"fii": {"date": "12-Oct-2026"}, "india_vix": {"level": "ELEVATED"}}, datetime(2026, 10, 13, 1, 12, tzinfo=timezone.utc), datetime(2026, 10, 13, 1, 15, tzinfo=timezone.utc))
+    by = {r["label"]: r for r in rows}
+    assert by["GIFT Nifty"]["time_basis"] == "quote time" and by["GIFT Nifty"]["observed_at"].startswith("2026-10-13T01:12")
+    assert by["FII Flow"]["time_basis"] == "session date" and by["FII Flow"]["observed_at"] == "12-Oct-2026" and by["FII Flow"]["interpretation"] == "Net selling (prior session)"
+    assert by["S&P 500 Fut."]["time_basis"] == "retrieved" and by["India VIX"]["interpretation"] == "Elevated volatility"
+    no_ts = brief._enrich_signal_rows([{"label": "GIFT Nifty", "direction": "positive"}], {}, None, datetime(2026, 10, 13, 1, 15, tzinfo=timezone.utc))
+    assert no_ts[0]["time_basis"] == "retrieved"                                                                  # no provider time: never presented as a quote time
 
 
 def test_scenarios_unavailable_without_signals_and_stale_gift_is_reported():
@@ -259,6 +296,10 @@ def _endpoint_stubs(monkeypatch, when, events=None):
     async def no_llm(*a, **k):
         raise AssertionError("LLM call")
 
+    async def company_sectors(symbols):
+        return {}
+
+    monkeypatch.setattr(brief, "_get_company_sectors", company_sectors)
     for name, fn in (("_get_snapshot", snapshot), ("_read_raw_events", none_list), ("_get_facts", facts), ("_get_historical_context", hist),
                      ("_get_watch_next", lambda: _watch()), ("_get_driver_inputs", drv), ("_get_scenario_inputs", scn), ("_get_forecast_verdict", forecast)):
         monkeypatch.setattr(brief, name, fn)
@@ -352,3 +393,44 @@ def test_single_company_results_and_notices_are_not_offered_as_market_drivers():
     # the same kind of company item IS shown when a verified sector move gives it something to coincide with
     with_sector = build([ev("r3", "Infosys Q2 results beat estimates", tier="High", tickers=["INFY"], sectors=["IT"])])
     assert with_sector["items"] and with_sector["items"][0]["evidence_label"] == "potential_contributor"
+
+
+@pytest.mark.asyncio
+async def test_no_sentence_is_repeated_across_the_page(monkeypatch):
+    """The 30-second answer, verdict, signal tiles, takeaway, FAQs and evidence each say something different; evidence lists market
+    facts only (each development shows its own source under 'What moved the market')."""
+    _endpoint_stubs(monkeypatch, datetime(2026, 10, 12, 17, 0, tzinfo=IST),
+                    events=[RUPEE, ev("t1", "TCS wins large deal from European bank", sectors=["IT"], tickers=["TCS"])])
+    out = await brief.get_daily_brief_intelligence()
+
+    surfaces: dict[str, list[str]] = {
+        "verdict": content.sentences_of(out["market_verdict"]["reasoning"] or ""),
+        "summary": content.sentences_of(out["summary"]),
+        "tiles": [s for t in out["catalyst_details"] + out["risk_details"] for s in content.sentences_of(t["explanation"])],
+        "takeaway": content.sentences_of(out["takeaway"]["uncertainty"]) + content.sentences_of((out["takeaway"]["development"] or {}).get("text", "")),
+        "faq": [s for q in out["questions"] for s in content.sentences_of(q["answer"])],
+        "evidence": [s for e in out["evidence"] for s in content.sentences_of(e["claim"])],
+    }
+    owner: dict[str, str] = {}
+    for name, sentences in surfaces.items():
+        for s in sentences:
+            key = content.normalise(s)
+            assert key not in owner or owner[key] == name, f"'{s}' appears in both {owner[key]} and {name}"
+            owner.setdefault(key, name)
+    assert all(e.get("as_of_session") is not None or "event" not in repr(e).lower() for e in out["evidence"])
+
+
+@pytest.mark.asyncio
+async def test_evidence_lists_market_facts_never_event_headlines(monkeypatch):
+    _endpoint_stubs(monkeypatch, datetime(2026, 10, 12, 17, 0, tzinfo=IST), events=[RUPEE])
+
+    async def facts(session):
+        base = dict(value="1", source="s", evidence={}, affected_sectors=[], affected_companies=[], observed_at=None, confidence=None)
+        return [dict(base, entity_type="event", entity_key="e1", fact_key="event:e1", name="E", claim=RUPEE["headline"]),
+                dict(base, entity_type="market_index", entity_key="NIFTY_50", fact_key="market:NIFTY_50:x", name="NIFTY 50",
+                     claim="NIFTY 50 closed at 22,363.35 (-0.70%) in the Mon 12 Oct 2026 session.", direction="down", change_pct=-0.7)]
+
+    monkeypatch.setattr(brief, "_get_facts", facts)
+    out = await brief.get_daily_brief_intelligence()
+    claims = [e["claim"] for e in out["evidence"]]
+    assert claims == ["NIFTY 50 closed at 22,363.35 (-0.70%) in the Mon 12 Oct 2026 session."]

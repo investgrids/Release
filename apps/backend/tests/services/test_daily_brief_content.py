@@ -35,7 +35,7 @@ def test_rising_vix_is_a_risk_with_an_explanation_and_falling_vix_a_catalyst():
     assert up["risks"] == ["INDIA VIX"] and up["catalysts"] == []
     assert "rose to 15.8 (+4.20%)" in up["risk_details"][0]["explanation"] and "volatility is higher" in up["risk_details"][0]["explanation"]
     down = content.catalysts_and_risks([fact("INDIA_VIX", "INDIA VIX", direction="down", pct=-3.0, value="13.1")])
-    assert down["catalysts"] == ["INDIA VIX"] and down["risks"] == [] and "eased" in down["catalyst_details"][0]["explanation"]
+    assert down["catalysts"] == ["INDIA VIX"] and down["risks"] == [] and "implied volatility is lower" in down["catalyst_details"][0]["explanation"]
 
 
 def test_crude_and_rupee_rising_are_risks_falling_are_catalysts():
@@ -187,7 +187,7 @@ def test_faqs_are_distinct_session_aware_and_do_not_repeat_the_verdict(payload):
 
 def test_summary_adds_driver_and_risk_without_repeating_the_verdict_card(payload):
     assert payload["summary"].startswith("Lower close on Mon 12 Oct 2026.")
-    assert "Main risk:" in payload["summary"]
+    assert "flagged below" in payload["summary"]
     assert "30 declined" not in payload["summary"] and "0.70% lower" not in payload["summary"]
 
 
@@ -251,3 +251,8 @@ def _no_live_inputs(monkeypatch):
 
     monkeypatch.setattr(brief, "_get_driver_inputs", driver_inputs)
     monkeypatch.setattr(brief, "_get_scenario_inputs", scenario_inputs)
+
+    async def company_sectors(symbols):
+        return {}
+
+    monkeypatch.setattr(brief, "_get_company_sectors", company_sectors)
