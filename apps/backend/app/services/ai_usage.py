@@ -261,7 +261,10 @@ def search_request(query_len: int):
     rid = uuid.uuid4().hex[:16]
     acc = new_search_accumulator()
     t_acc = _search_acc.set(acc)
-    t_op = _operation.set("ai_search")
+    outer = _operation.get()
+    # A user-facing request is always "ai_search". An internal caller that already tagged its own operation (for example the scheduled comparison cycle) keeps that tag, so its
+    # LLM attempts are not counted as public AI Search usage.
+    t_op = _operation.set(outer if (outer and _origin.get() != "api") else "ai_search")
     t_rid = _request_id.set(rid)
     t0 = time.monotonic()
     state: dict[str, Any] = {"done": False}
