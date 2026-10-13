@@ -10,7 +10,7 @@ from sqlalchemy import delete, select
 
 import app.services.ai_service as ai
 import app.services.ai_usage as U
-from app.core.config import settings
+import app.core.config as _config_module
 from app.db.models.event import Event
 from app.db.models.intelligence import EventTriage
 from app.db.session import AsyncSessionLocal
@@ -20,6 +20,12 @@ from tests.services.test_event_pipeline_r1_integrity import _FakeAIProvider, _cl
 
 _INTERVAL = 300
 PREFIX = "pytest-prio-"
+
+
+def _settings():
+    """The CURRENT settings object. test_config_dotenv_disabled_on_railway reloads app.core.config, which replaces `settings`; a reference captured at import time would then be a stale
+    instance that the code under test no longer reads, so the flags must be resolved when each test runs."""
+    return _config_module.settings
 
 
 def _now(force_backlog: bool, urgent_first: bool | None = None) -> datetime:
@@ -38,9 +44,9 @@ def _now(force_backlog: bool, urgent_first: bool | None = None) -> datetime:
 
 @pytest.fixture
 def prio(monkeypatch):
-    monkeypatch.setattr(settings, "event_enrichment_priority_enabled", True, raising=False)
-    monkeypatch.setattr(settings, "event_enrichment_urgent_threshold", 7, raising=False)
-    monkeypatch.setattr(settings, "event_enrichment_aging_hours", 6, raising=False)
+    monkeypatch.setattr(_settings(), "event_enrichment_priority_enabled", True, raising=False)
+    monkeypatch.setattr(_settings(), "event_enrichment_urgent_threshold", 7, raising=False)
+    monkeypatch.setattr(_settings(), "event_enrichment_aging_hours", 6, raising=False)
 
 
 async def mk(made: list[str], name: str, *, age_h: float, now: datetime, urgency: int | None = None, status="pending", retry_count=0, next_retry_at=None) -> str:
@@ -73,7 +79,7 @@ async def purge(made: list[str]) -> None:
 
 @pytest.mark.asyncio
 async def test_flag_off_keeps_plain_fifo_and_ignores_urgency(monkeypatch):
-    monkeypatch.setattr(settings, "event_enrichment_priority_enabled", False, raising=False)
+    monkeypatch.setattr(_settings(), "event_enrichment_priority_enabled", False, raising=False)
     made: list[str] = []
     now = _now(False)
     try:
@@ -297,7 +303,7 @@ async def test_success_is_logged_with_every_completed_stage_and_diagnostics_can_
     finally:
         await _cleanup_events([eid])
     events.clear()
-    monkeypatch.setattr(settings, "event_enrichment_stage_diagnostics_enabled", False, raising=False)
+    monkeypatch.setattr(_settings(), "event_enrichment_stage_diagnostics_enabled", False, raising=False)
     eid = await _seed_event()
     try:
         assert await _run_with_fake_provider(eid, _FakeAIProvider(), monkeypatch) is True
