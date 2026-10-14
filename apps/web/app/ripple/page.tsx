@@ -4,9 +4,16 @@ import { RippleHubClient } from "./_components/RippleHubClient";
 import { RippleChainTab } from "./_components/RippleChainTab";
 import { InvestmentThesisTab } from "./_components/InvestmentThesisTab";
 
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
+
 export const metadata: Metadata = {
   title: "Ripple Intelligence — Market Dependency Graph",
   description: "See how one event creates opportunities — trace cascading effects across sectors and companies, validated against real historical precedent.",
+  // SEO fix (2026-10-14): added here, not in layout.tsx — this page-level metadata object
+  // already overrides layout.tsx's (title/description differ between the two files; the
+  // live site renders THIS one), so a canonical added only to the layout would be silently
+  // discarded. See app/news/layout.tsx for the equivalent fix on a route without this split.
+  alternates: { canonical: `${SITE}/ripple` },
 };
 export const dynamic = "force-dynamic";
 
