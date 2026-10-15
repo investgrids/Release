@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
+
 export const metadata: Metadata = {
   title: "Market Events — Event-Driven Intelligence",
   description: "Explore Indian market events with AI-powered ripple analysis. See which companies and sectors are affected, with confidence scores and investment implications.",
@@ -14,6 +16,8 @@ export const metadata: Metadata = {
     title: "Market Events — MarketRipple",
     description: "Event-driven market intelligence for Indian equity markets.",
   },
+  // SEO fix (2026-10-14): see app/news/layout.tsx's identical comment.
+  alternates: { canonical: `${SITE}/events` },
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {

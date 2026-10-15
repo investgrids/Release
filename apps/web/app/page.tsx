@@ -22,6 +22,7 @@ import { compareScoresDesc, impactToStyle } from "@/lib/scoring";
 import { cleanText, truncateForQuery } from "@/lib/text";
 import { calendarCategoryLabel } from "@/lib/economicCalendarCategory";
 import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
+import { deriveHomepageFreshness, type MieStoryLike } from "@/lib/homepageFreshness";
 
 export const dynamic = "force-dynamic";
 
@@ -400,21 +401,14 @@ function expandAcronyms(text: string): string {
  * neutral — exists per company, never a numeric confidence), and a
  * "best time horizon" line (not a field on the morning brief).
  */
-// Session-aware hero title (2026-08 homepage redesign, Part A1) — replaces
-// a title hardcoded to "{Weekday}'s Market Outlook" whenever the brief
-// wasn't from today, which could show "Monday's Market Outlook" on a
-// Tuesday evening with no sense of WHICH kind of session this actually
-// is. Composes the real session enum (market.py::market_session(), the
-// same source the header/tabs already trust) with the real day-label
-// already derived below — never derived from brief.published_at's
-// weekday alone.
-const _SESSION_NOUN: Record<string, string> = {
-  pre_market: "Pre-Market Intelligence",
-  pre_open:   "Pre-Market Intelligence",
-  open:       "Market Intelligence",
-  after_market: "Market Wrap",
-  weekend:    "Weekend → Monday Setup",
-};
+// Session-aware hero title (2026-08 homepage redesign, Part A1; 2026-10-15
+// freshness fix) — replaces a title hardcoded to "{Weekday}'s Market
+// Outlook" whenever the brief wasn't from today, which could show "Monday's
+// Market Outlook" on a Tuesday evening with no sense of WHICH kind of
+// session this actually is. Composes the real session enum
+// (market.py::market_session(), the same source the header/tabs already
+// trust) with the real day-label — see lib/homepageFreshness.ts, which now
+// owns the SESSION_NOUN map and the "is this genuinely today's" decision.
 
 async function HomepageIntelligenceHero() {
   const [brief, extras, premarket, radar, activeForWatch, mie, session, developments, indices, calendar] = await Promise.all([
@@ -603,72 +597,35 @@ async function HomepageIntelligenceHero() {
   // isn't backed by a real negative sector.
   const highestRiskDisplay = highestRisk ?? "No major verified market risk detected today";
 
-  // Weekend Intelligence Phase 0 (see audit doc): whether the morning brief
-  // is actually from today's IST calendar date, and — when it isn't — what
-  // to honestly call the day it's from. Kept only as the fallback source
-  // when MIE has no story at all — the primary signal is now the backend
-  // freshness contract below.
-  const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const briefSession = (() => {
-    if (!brief.published_at) return { isCurrent: true, weekday: null as string | null };
-    const nowIst = new Date(Date.now() + 5.5 * 3600_000);
-    const dIst = new Date(new Date(brief.published_at).getTime() + 5.5 * 3600_000);
-    const sameDay = nowIst.getUTCFullYear() === dIst.getUTCFullYear()
-      && nowIst.getUTCMonth() === dIst.getUTCMonth()
-      && nowIst.getUTCDate() === dIst.getUTCDate();
-    return { isCurrent: sameDay, weekday: WEEKDAY_NAMES[dIst.getUTCDay()] };
-  })();
+  // Homepage hero freshness/session-label decision (2026-10-15 fix) —
+  // extracted to lib/homepageFreshness.ts so it's unit-testable (the bug this
+  // fixes — "Tuesday's Pre-Market Intelligence" shown on a Wednesday morning
+  // — had zero test coverage). See that file's module docstring for the full
+  // root cause and the fix: MIE's intraday story is structurally stale
+  // outside trading hours by design, so "today" now means EITHER MIE or the
+  // Daily Brief is genuinely today's, never MIE alone.
+  const sessionEnum = (session as any)?.session as string | undefined;
+  const {
+    freshnessState, heroDayLabel, briefWeekday, sessionNoun, heroTitle,
+    mieIsToday, briefIsToday, mieVerdictFreshness, mieVerdictDayLabel,
+  } = deriveHomepageFreshness({
+    mieStory: mieStory as MieStoryLike | null | undefined,
+    briefPublishedAt: brief.published_at ?? null,
+    sessionEnum,
+  });
 
-  // Freshness contract (2026-08 homepage redesign, root-caused live:
-  // StoryEngineWorker itself is correct — 477 real historical rows,
-  // properly market-hours-gated — the "Monday's Market Outlook" bug was
-  // the backend process not running during Tuesday's market hours, an
-  // environment fact that can recur, in dev or production). mieStory now
-  // carries state/is_stale/story_date/story_session/age_minutes/
-  // freshness_label directly from engine.py::compute_freshness — this is
-  // the ONE place that decides fresh vs stale vs unavailable; the
-  // frontend no longer recomputes its own staleness heuristic. Falls back
-  // to the brief's own publish-timestamp check only when MIE has no story
-  // at all.
-  const freshnessState: "fresh" | "stale" | "unavailable" =
-    mieStory?.state ?? (briefSession.isCurrent ? "fresh" : "stale");
-  const storyDate = (mieStory?.story_date as string | null) ?? null;
-  const todayIstDate = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
-  // Distinct from freshnessState: a Monday close shown Tuesday PRE-market
-  // is "fresh" (nothing newer could exist yet) but still isn't genuinely
-  // TODAY's data — the title/summary wording need to know which.
-  const isGenuinelyToday = storyDate ? storyDate === todayIstDate : briefSession.isCurrent;
-  const heroIsCurrent = isGenuinelyToday;
-  const heroDayLabel = !isGenuinelyToday
-    ? (storyDate ? WEEKDAY_NAMES[new Date(`${storyDate}T00:00:00Z`).getUTCDay()] : briefSession.weekday)
-    : null;
-
+  // This caption describes the BRIEF's own "last updated" time, so it must be gated on briefIsToday specifically
+  // (2026-10-15 source-alignment fix) -- not the combined heroIsCurrent, which can be true from MIE alone while the
+  // brief itself is stale, which would have wrongly claimed "Updated today" using a stale brief.published_at.
   const heroFreshnessLabel = mieStory?.freshness_label ?? (() => {
     if (!brief.published_at) return null;
-    if (heroIsCurrent) {
+    if (briefIsToday) {
       const dIst = new Date(new Date(brief.published_at).getTime() + 5.5 * 3600_000);
       const h = dIst.getUTCHours(), h12 = h % 12 === 0 ? 12 : h % 12, m = dIst.getUTCMinutes().toString().padStart(2, "0");
       return `Updated today at ${h12}:${m} ${h >= 12 ? "PM" : "AM"} IST`;
     }
-    return `${heroDayLabel ?? briefSession.weekday}'s Close — ${timeAgo(brief.published_at)}`;
+    return `${briefWeekday ?? "Previous session"}'s Close — ${timeAgo(brief.published_at)}`;
   })();
-
-  const sessionEnum = (session as any)?.session as string | undefined;
-  const sessionNoun = _SESSION_NOUN[sessionEnum ?? ""] ?? "Market Intelligence";
-  // Stale/unavailable gets its own honest title ("Latest Market
-  // Intelligence") instead of a session-aware title that would otherwise
-  // read as if this WERE the intended current-session wrap — the user's
-  // explicit concern: "Monday's Market Wrap" is truthful but still looks
-  // like the intended Tuesday homepage. Fresh-but-not-today (legitimate
-  // carry-forward — before today's market open, or a weekend) keeps the
-  // day-prefixed session title, since that's expected, not degraded.
-  const heroTitle = freshnessState !== "fresh"
-    ? "Latest Market Intelligence"
-    : sessionEnum === "weekend"
-      ? _SESSION_NOUN.weekend
-      : isGenuinelyToday
-        ? `Today's ${sessionNoun}`
-        : `${heroDayLabel}'s ${sessionNoun}`;
 
   // Today's Summary — a template composed entirely from real fields
   // already derived above (outlook, focusSector/macroTheme, the same
@@ -689,15 +646,22 @@ async function HomepageIntelligenceHero() {
   // backend Python f-string template, not even LLM prose, which made it
   // structurally invisible to both recommendation_language.py and
   // historical_forecast_guard.py.
+  //
+  // Source-alignment fix (2026-10-15): the verdict clause (outlook/
+  // marketConfPct, MIE-sourced) and the sector/risk clauses (focusSector/
+  // macroTheme/highestRisk, Brief-sourced) are gated on mieIsToday and
+  // briefIsToday RESPECTIVELY, not on the combined heroIsCurrent -- a
+  // stale MIE verdict must read in past tense even while the Brief (and
+  // therefore the heading) is genuinely today's, and vice versa.
   const todaysSummary = (() => {
-    const parts: string[] = heroIsCurrent
+    const parts: string[] = mieIsToday
       ? [`Markets look ${outlook.label.toLowerCase()} today${marketConfPct != null ? ` with a ${marketConfPct}% model self-rating` : ""}.`]
-      : [`As of ${heroDayLabel}'s close, markets looked ${outlook.label.toLowerCase()}${marketConfPct != null ? ` with a ${marketConfPct}% model self-rating` : ""}.`];
-    if (focusSector) parts.push(heroIsCurrent ? `${focusSector} stands out as the biggest opportunity.` : `${focusSector} stood out as the biggest opportunity.`);
-    else if (macroTheme) parts.push(heroIsCurrent ? `${macroTheme} is the dominant macro theme today.` : `${macroTheme} was the dominant macro theme.`);
+      : [`As of ${mieVerdictDayLabel ?? heroDayLabel ?? "the previous session"}'s close, markets looked ${outlook.label.toLowerCase()}${marketConfPct != null ? ` with a ${marketConfPct}% model self-rating` : ""}.`];
+    if (focusSector) parts.push(briefIsToday ? `${focusSector} stands out as the biggest opportunity.` : `${focusSector} stood out as the biggest opportunity.`);
+    else if (macroTheme) parts.push(briefIsToday ? `${macroTheme} is the dominant macro theme today.` : `${macroTheme} was the dominant macro theme.`);
     parts.push(highestRisk
       ? `Watch ${highestRisk} as the key risk area.`
-      : (heroIsCurrent ? `No major verified risk stands out today.` : `No major verified risk stood out.`));
+      : (briefIsToday ? `No major verified risk stands out today.` : `No major verified risk stood out.`));
     const words = parts.join(" ").split(/\s+/);
     return words.length > 50 ? words.slice(0, 50).join(" ") + "…" : words.join(" ");
   })();
@@ -776,6 +740,23 @@ async function HomepageIntelligenceHero() {
         </div>
         <div className="text-right">
           <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-text-muted">Market Conviction</p>
+          {/* Source-alignment fix (2026-10-15): the verdict below is sourced
+              from mieStory, unchanged -- see this file's top-level comment
+              on marketConfPct. When MIE itself is not from today, that must
+              be said explicitly here, right next to the number, regardless
+              of whether the heading above reads "Today's" because the Brief
+              is current. Fresh intelligence must never make stale
+              intelligence appear fresh. Silent (no badge) when there's no
+              verdict at all (mieVerdictFreshness === "unavailable") -- that
+              case already renders no MIE-specific claim to qualify. */}
+          {mieVerdictFreshness === "previous_session" && (
+            <p
+              className="text-[8.5px] font-semibold uppercase tracking-wide text-amber-500"
+              title={`Based on ${mieVerdictDayLabel ?? "the previous session"}'s MIE assessment — not a current forecast.`}
+            >
+              Previous session{mieVerdictDayLabel ? ` (${mieVerdictDayLabel})` : ""}
+            </p>
+          )}
           <span className={`mt-1 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[13px] font-bold ${outlook.cls}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${outlook.dot}`} /> {outlook.label}
           </span>
@@ -796,6 +777,9 @@ async function HomepageIntelligenceHero() {
             <p className="mt-0.5 text-[8px] text-text-muted" title="The model's own self-reported certainty in its market narrative -- not a verified score">
               {MEASUREMENT_LABEL.self_reported_certainty}
             </p>
+          )}
+          {mieVerdictFreshness === "previous_session" && (
+            <p className="mt-0.5 text-[8px] font-medium text-amber-500">Not a current forecast.</p>
           )}
           <p className="mt-1 text-[10px] text-text-muted">{positiveSectors.length} positive · {negativeSectors.length} negative signals</p>
         </div>

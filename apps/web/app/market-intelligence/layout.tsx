@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
+
 export const metadata: Metadata = {
   title: "Market Intelligence — Live Sentiment, Sectors & Commodities",
   description: "Track NIFTY sentiment, sector rotation, commodities, and the economic calendar in one live market intelligence hub for Indian equities.",
@@ -14,6 +16,8 @@ export const metadata: Metadata = {
     title: "Market Intelligence — MarketRipple",
     description: "Live NIFTY sentiment, sector rotation, commodities, and economic calendar for Indian markets.",
   },
+  // SEO fix (2026-10-14): see app/news/layout.tsx's identical comment.
+  alternates: { canonical: `${SITE}/market-intelligence` },
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
