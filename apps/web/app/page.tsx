@@ -1433,9 +1433,14 @@ async function ThemeStrengthCard() {
             // SEO P1-P2, 2026-08-24 — was /newsroom/themes/${t.slug}, the
             // confirmed duplicate-content surface (noindex, canonical ->
             // the real Opportunity Radar page). Links to the real
-            // canonical destination directly instead, same shape-detected
-            // id-vs-slug pattern already used on the sitemap/radar hub.
-            const href = `/opportunity-radar/${typeof t.id === "number" ? t.id : t.slug}`;
+            // canonical destination directly instead.
+            // SEO fix (2026-10-17): the old id-vs-slug type check meant a
+            // numeric V1 id always won even when a real slug existed --
+            // backward, since the backend route can now resolve a V1
+            // slug too (radar.py's slug fallback). Slug preferred for
+            // both V1 and V2 now; falls back to id only when no slug
+            // is present at all.
+            const href = `/opportunity-radar/${t.slug || t.id}`;
             return (
               <Link key={t.id} href={href as any} className="group block">
                 <div className="mb-1 flex items-center justify-between">

@@ -8,7 +8,6 @@ import dynamic from "next/dynamic";
 import { TrackPageVisit } from "@/components/TrackPageVisit";
 import { Target, Building2, BarChart2, Sparkles, MailX, ArrowRight } from "lucide-react";
 import { MarketContextStrip } from "@/components/MarketContextStrip";
-import { NextSteps } from "@/components/NextSteps";
 import { useBreadcrumbOverride } from "@/components/Breadcrumbs";
 import { isRealSymbol, truncateForQuery } from "@/lib/text";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
@@ -1483,69 +1482,6 @@ function VerdictCard({ data }: { data: EventDetail }) {
     </div>
   );
 }
-
-// ── WhatNextSection ───────────────────────────────────────────────────────────
-// P0-CD1E (2026-09-01): the primary CTA and the "Monitor" group used to be
-// driven by `impact_type` (beneficiary/loser classification) — the exact
-// field P0-CD1.5 found is a single ungrounded LLM guess, never corrected
-// by the real evidence pass. Two of the three CTA "why" strings also
-// asserted specific, un-evidenced causal/timing claims ("this event
-// directly improves their order book and revenue outlook", "...signals a
-// potential entry") that don't originate anywhere in the intelligence
-// pipeline — they were authored directly in this component. The "Monitor"
-// group existed only to hang that second claim on a loser-classified
-// company, so it's removed rather than reworded; there's no
-// classification-independent version of "watch this company for an
-// entry point." Primary now treats every real, identified company the
-// same way — connected to the event, not benefit/risk-classified.
-function WhatNextSection({ data }: { data: EventDetail }) {
-  const q         = (s: string) => encodeURIComponent(s);
-  const topCompany = data.companies.find(c => isRealSymbol(c.symbol));
-  const topSec    = data.affectedSectors[0]?.sector;
-  const title     = truncateForQuery(data.event.title);
-
-  return (
-    <NextSteps config={{
-      // No takeaway here (2026-08 audit — user-reported two "Key
-      // Takeaway" blocks on this page): the Event Intelligence tab above
-      // already surfaces one via IntelligenceBlock. Repeating a second,
-      // differently-derived one at the bottom of every tab was the
-      // duplicate, not this section's actual recommendations below.
-      primary: topCompany ? {
-        label: `Research ${topCompany.name || topCompany.symbol}`,
-        why:   `Because they're a company this event is connected to — see how it plays out for them specifically.`,
-        href:  `/companies/${topCompany.symbol}`,
-      } : {
-        label: `Ask AI: Which companies are connected to this event?`,
-        why:   `Because identifying the specific companies involved is the first step toward understanding this event's reach.`,
-        href:  `/ai-search?q=${q(`Which companies are connected to "${title}"?`)}`,
-      },
-      groups: [
-        {
-          label: "Understand More",
-          actions: [
-            {
-              label: `Ask AI: How long will this impact last?`,
-              why:   `Because how long an event's effects persist changes how much weight it deserves in your own research.`,
-              href:  `/ai-search?q=${q(`How long will the market impact of "${title}" last?`)}`,
-            },
-            topSec ? {
-              label: `Trace the ripple across ${topSec}`,
-              why:   `Because indirect effects in adjacent sectors are often missed by a headline-only read.`,
-              href:  `/ripple/${data.event.slug || data.event.id}`,
-            } : {
-              label: "Trace the full ripple chain",
-              why:   "Because second-order effects compound — following the chain shows more than the headline alone.",
-              href:  `/ripple/${data.event.slug || data.event.id}`,
-            },
-          ],
-        },
-      ],
-      path: [data.event.event_type || "Event", topSec || "Sector", topCompany?.name || topCompany?.symbol || "Company", "Research"].filter(Boolean) as string[],
-    }} />
-  );
-}
-
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 function Skeleton() {
   return (
@@ -1838,8 +1774,6 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
           {activeTab === "Related News"  && <NewsTab       data={data}/>}
           {activeTab === "Event Intelligence" && <EventIntelligenceTab data={data} intelligence={intelligence} intelligenceLoading={intelligenceLoading}/>}
           {activeTab === "Graph"         && <GraphTab      data={data}/>}
-
-          <WhatNextSection data={data} />
         </div>
 
         <aside className="lg:sticky lg:top-[84px]">

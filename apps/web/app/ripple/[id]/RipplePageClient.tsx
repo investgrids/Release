@@ -13,7 +13,6 @@ import { useIntelligence } from "@/hooks/useIntelligence";
 import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { SmartCTA } from "@/components/SmartCTA";
 import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
-import { NextSteps } from "@/components/NextSteps";
 import { useBreadcrumbOverride } from "@/components/Breadcrumbs";
 import { fixMojibake } from "@/lib/text";
 import { API_BASE_URL as API } from "@/lib/api";
@@ -939,34 +938,6 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
           </div>
         )}
       </div>
-
-      {/* ── Continue Research ────────────────────────────────────────────── */}
-      <NextSteps config={{
-        takeaway: `${eventTitle} is a traced ripple chain — validate it against real historical precedent before treating it as a thesis.`,
-        primary: {
-          label: "Browse historical patterns",
-          why:   "Because a causal chain is only as credible as its precedent — see verified winners and losers from similar past events.",
-          href:  "/historical",
-        },
-        groups: [
-          {
-            label: "Continue Research",
-            actions: [
-              {
-                label: "Read the full event analysis",
-                why:   "Because the origin event determines how you should read every downstream effect in this chain.",
-                href:  `/events/${data?.event_slug || id}`,
-              },
-              {
-                label: "See resulting opportunities",
-                why:   "Because a ripple chain's real value is what it points to next — the ranked opportunities it produced.",
-                href:  "/opportunity-radar",
-              },
-            ],
-          },
-        ],
-        path: [insights?.impacted_sectors?.[0]?.name ?? "Sector", "Ripple Chain", "Historical Validation", "Investment Decision"].filter(Boolean),
-      }} />
 
       {/* ── Back link ────────────────────────────────────────────────────── */}
       <div className="pt-4 flex items-center justify-between">

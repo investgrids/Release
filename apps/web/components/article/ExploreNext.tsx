@@ -14,9 +14,9 @@ import { truncateForQuery } from "@/lib/text";
 // ripple_effect, historical_events) — no new AI generation call, no
 // fabricated comparisons or history.
 //
-// NextSteps.tsx itself is untouched — it's still used by /companies,
-// /historical, /ripple, /opportunity-radar, /newsroom/daily-brief, and
-// /intelligence, none of which this task is scoped to touch.
+// NextSteps.tsx itself was removed site-wide (2026-10-17) — it previously
+// appeared on /events, /historical, /news, /opportunity-radar, /ripple, and
+// the policy-events calendar widget.
 
 // impact is optional (Article V2-F2, 2026-09-14) -- never actually read
 // by this component's own logic, and V2's companies_affected is

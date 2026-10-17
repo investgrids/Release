@@ -4,7 +4,6 @@ import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { MarketContextStrip } from "@/components/MarketContextStrip";
-import { NextSteps } from "@/components/NextSteps";
 import { API_BASE_URL as API } from "@/lib/api";
 import { compareScoresDesc } from "@/lib/scoring";
 import { truncateForQuery } from "@/lib/text";
@@ -306,64 +305,6 @@ export default function NewsPage() {
           </div>
         </aside>
 
-      </div>
-
-      {/* Intelligent guidance — derived from top article */}
-      <div className="mt-6">
-      {(() => {
-        const top     = popular[0];
-        if (!top) return null;
-        const topComp = top?.companies?.[0];
-        const topSym  = topComp ? COMPANY_TO_SYMBOL[topComp] : null;
-        const q       = (s: string) => encodeURIComponent(s);
-        const whyLine = top.summary?.split(/(?<=[.!?])\s+/)[0] || top.headline;
-        return (
-          <NextSteps config={{
-            takeaway: whyLine.length > 130 ? whyLine.slice(0, 127) + "…" : whyLine,
-            primary: topSym && topComp ? {
-              label: `Research ${topComp}`,
-              why:   `Because they're the most mentioned company in today's top stories — this news changes the near-term investment narrative around them.`,
-              href:  `/companies/${topSym}`,
-            } : {
-              label: `Ask AI: What do today's top stories mean for investors?`,
-              why:   `Because news alone doesn't tell you if the market has already priced this in — AI can contextualize the real impact.`,
-              href:  `/ai-search?q=${q(`What do today's top market news stories mean for Indian equity investors? Which sectors and companies are most affected?`)}`,
-            },
-            groups: [
-              {
-                label: "Understand More",
-                actions: [
-                  topComp ? {
-                    label: `Ask AI: Does this news change ${topComp}'s investment outlook?`,
-                    why:   `Because market reactions to news are often temporary — you need to know if the fundamentals actually changed.`,
-                    href:  `/ai-search?q=${q(`Does "${truncateForQuery(top.headline)}" change the investment thesis for ${topComp}? Is the market reaction justified or an overreaction?`)}`,
-                  } : {
-                    label: "Ask AI: Is the market reaction to this news justified?",
-                    why:   "Because news creates noise — AI helps separate genuine signal from short-term overreaction.",
-                    href:  `/ai-search?q=${q(`Is the market reaction to "${truncateForQuery(top.headline)}" justified or is it an overreaction?`)}`,
-                  },
-                  {
-                    label: "View the related market event",
-                    why:   "Because news is often a symptom of a deeper market event — the event page shows the full timeline and affected companies.",
-                    href:  `/events`,
-                  },
-                ],
-              },
-              {
-                label: "Explore Further",
-                actions: [
-                  {
-                    label: "Trace how this story ripples through the market",
-                    why:   "Because a news story that moves one company often triggers second-order effects across suppliers, competitors, and the sector.",
-                    href:  `/ripple`,
-                  },
-                ],
-              },
-            ],
-            path: ["News", topComp || "Market", "Events", "Investment Impact"],
-          }} />
-        );
-      })()}
       </div>
     </main>
   );

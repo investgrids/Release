@@ -93,6 +93,17 @@ class OpportunityService:
             for o in opps
         ]
 
+    async def get_opportunity_details_by_slug(
+        self, slug: str
+    ) -> Optional[OpportunityDetailResponse]:
+        """SEO fix (2026-10-17): resolves a V1 slug to its id, then reuses
+        get_opportunity_details's own caching/detail-building unchanged --
+        no duplicate logic, no separate cache key scheme for the same row."""
+        opp = await self._repo.get_by_slug(slug)
+        if opp is None:
+            return None
+        return await self.get_opportunity_details(opp.id)
+
     async def get_opportunity_details(
         self, opportunity_id: int
     ) -> Optional[OpportunityDetailResponse]:

@@ -230,8 +230,12 @@ export function WeekendPrimaryMetrics({ snapshot, previousConfidence, previousCh
                   ))}
                 </div>
               )}
+              {/* SEO fix (2026-10-17): slug propagated from the backend
+                  (weekend_intelligence.py) and preferred here -- falls
+                  back to the numeric id for any cached response from
+                  before this field existed. */}
               <Link
-                href={`/opportunity-radar/${topOpportunity.id}`}
+                href={`/opportunity-radar/${topOpportunity.slug || topOpportunity.id}`}
                 className="group/link mt-auto flex items-center gap-1 pt-2 text-[11px] font-semibold text-violet-400 transition duration-200 hover:text-violet-300"
               >
                 View opportunity <ArrowRight className="h-3 w-3 transition-transform duration-200 group-hover/link:translate-x-0.5" aria-hidden="true" />

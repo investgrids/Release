@@ -80,7 +80,11 @@ async def _resolve_opportunities(db, opportunity_refs: list[str]) -> list[dict]:
         ai_summary = r.ai_summary or {}
         top_companies = sorted(r.companies, key=lambda c: c.impact_score, reverse=True)[:3]
         result.append({
-            "id": r.id, "title": r.title, "sectors": r.sectors, "risk_level": r.risk_level,
+            # slug (SEO fix, 2026-10-17): already a real column on this
+            # same row, just never selected into this dict -- propagated
+            # so the frontend can link to the canonical slug URL instead
+            # of the bare numeric id (radar.py now resolves both).
+            "id": r.id, "slug": r.slug, "title": r.title, "sectors": r.sectors, "risk_level": r.risk_level,
             "opportunity_score": r.opportunity_score, "confidence": r.confidence,
             "reason": ai_summary.get("matters") or None,
             # 2026-08-22 — each company's own real trend ("up"/"down"/

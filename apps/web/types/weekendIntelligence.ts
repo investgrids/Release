@@ -86,6 +86,11 @@ export interface WeekendEvidenceSummary {
 
 export interface WeekendOpportunity {
   id: number;
+  // SEO fix (2026-10-17): propagated from the real Opportunity.slug
+  // column (app/api/weekend_intelligence.py's _resolve_opportunities) --
+  // optional so this type still matches any already-cached/older
+  // response that predates the field.
+  slug?: string;
   title: string;
   sectors: string[];
   risk_level: string;

@@ -2,13 +2,11 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Flame, Landmark, Building2, Repeat2, Telescope, Zap, Link2, BarChart2 } from "lucide-react";
 import { MarketContextStrip } from "@/components/MarketContextStrip";
-import { NextSteps } from "@/components/NextSteps";
 import { API_BASE_URL as API } from "@/lib/api";
 
 // Recovered/reused verbatim from the former standalone app/ripple/page.tsx
-// (now the hub shell) — same fetch, same cards, same NextSteps guidance.
-// metadata/dynamic exports removed (only valid on the actual route file,
-// now app/ripple/page.tsx).
+// (now the hub shell) — same fetch, same cards. metadata/dynamic exports
+// removed (only valid on the actual route file, now app/ripple/page.tsx).
 
 const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
   geopolitical: { label: "Global Event",       cls: "border-rose-500/30 bg-rose-500/10 text-rose-400" },
@@ -190,45 +188,6 @@ export async function RippleChainTab() {
         </div>
       </div>
 
-      {/* Intelligent guidance — derived from top ripple event */}
-      {(() => {
-        const top = displayEvents[0];
-        if (!top) return null;
-        const q    = (s: string) => encodeURIComponent(s);
-        const cats = (top.categories ?? []).slice(0, 2).join(" and ");
-        const shortTitle = top.title.length > 85 ? top.title.slice(0, 82) + "…" : top.title;
-        return (
-          <NextSteps config={{
-            takeaway: `${shortTitle} is creating ripple effects${cats ? ` across ${cats}` : ""} — map the full chain to find where the real opportunity lies.`,
-            primary: {
-              label: "Read the full event analysis",
-              why:   "Because understanding the origin of the ripple changes how you interpret downstream effects — start with the cause, not the symptoms.",
-              href:  `/events/${top.id}`,
-            },
-            groups: [
-              {
-                label: "Understand More",
-                actions: [
-                  {
-                    label: "Ask AI: What are the second-order effects?",
-                    why:   "Because ripple effects compound — the real opportunity is often in companies two steps removed from the headline event.",
-                    href:  `/ai-search?q=${q(`What are the second-order market effects of "${shortTitle}"? Which companies benefit indirectly?`)}`,
-                  },
-                ],
-              },
-              ...(cats ? [{
-                label: "Monitor",
-                actions: [{
-                  label: `Track ${cats} sector news`,
-                  why:   `Because monitoring sector news flow tells you when the ripple has peaked and when the opportunity window is closing.`,
-                  href:  `/events?category=${top.event_type ?? ""}`,
-                }],
-              }] : []),
-            ],
-            path: ([top.event_type ?? "Event", ...(top.categories ?? []).slice(0, 2), "Investment Chain"] as string[]).filter(Boolean),
-          }} />
-        );
-      })()}
 
     </div>
   );

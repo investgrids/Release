@@ -2,6 +2,12 @@ import Link from "next/link";
 
 interface OpportunityItem {
   id: string;
+  // SEO fix (2026-10-17): no live caller of this component exists in the
+  // codebase today (confirmed via a repo-wide search) to trace a real
+  // slug source from -- optional so any future caller can supply the
+  // real Opportunity.slug the backend already returns, without this
+  // component inventing or reconstructing one on its own.
+  slug?: string;
   score: number;
   theme: string;
   reason: string;
@@ -38,7 +44,7 @@ export function OpportunityRadar({ items }: OpportunityRadarProps) {
         {items.map((item) => (
           <Link
             key={item.id}
-            href={`/opportunity-radar/${item.id}`}
+            href={`/opportunity-radar/${item.slug || item.id}`}
             className="flex items-center gap-3 rounded-[16px] border border-surface-border/5 bg-bg/60 p-3 hover:border-surface-border/10 hover:bg-text-primary/[0.03] transition"
           >
             <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-gradient-to-br text-lg font-bold ${scoreBg(item.score)}`}>
