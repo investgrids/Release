@@ -177,6 +177,7 @@ _COOLDOWN_S = {
     "auth_error": 6 * 3600.0,
     "not_found": 24 * 3600.0,
     "server_error": 30.0,
+    "schema_error": 30.0,
 }
 # Safety ceiling on a provider-supplied reset value. OpenRouter's real daily
 # free-tier quota reset can be observed ~11h out — a 1h cap (the original
@@ -196,6 +197,24 @@ _HTTP_CONNECT_TIMEOUT_S = 5.0
 _HTTP_READ_TIMEOUT_S = 30.0
 _HTTP_TIMEOUT = httpx.Timeout(
     connect=_HTTP_CONNECT_TIMEOUT_S, read=_HTTP_READ_TIMEOUT_S, write=10.0, pool=5.0,
+)
+
+# AI Search Reliability Fix 1 (2026-10-17): Requesty specifically — not any
+# other provider — observed taking up to ~10.6s to fail (real timeouts, not
+# the KeyError schema bug below) under the shared 30s read timeout. That's
+# large enough on its own to starve the remaining request-deadline budget
+# (24s total) before later tiers (openrouter-small) are ever reached,
+# confirmed via ai.deadline_stop/ai.deadline_cancel log evidence. A tight,
+# Requesty-specific bound (same pattern as _NVIDIA_TIMEOUT_S below) keeps a
+# slow/degraded Requesty from disproportionately eating budget other tiers
+# need, without changing the shared _HTTP_TIMEOUT every other provider
+# still relies on, and without touching request_deadline.py's own
+# cancellation semantics -- this just makes the provider's own ceiling
+# tighter, so the existing asyncio.wait_for(budget) in _attempt() rarely
+# needs to fire for Requesty at all.
+_REQUESTY_TIMEOUT_S = 4.0
+_REQUESTY_TIMEOUT = httpx.Timeout(
+    connect=_REQUESTY_TIMEOUT_S, read=_REQUESTY_TIMEOUT_S, write=_REQUESTY_TIMEOUT_S, pool=_REQUESTY_TIMEOUT_S,
 )
 
 _EXHAUSTED: dict[tuple[str, str], _ExhaustionEntry] = {}   # (provider, model) -> entry
@@ -533,6 +552,14 @@ def get_ai_usage_stats() -> dict:
         # tier/Cerebras free tier) are free-tier — real spend is $0, not an
         # estimate to fabricate.
         "cost_usd":         0.0,
+        # AI Search Reliability Fix 1 (2026-10-17): deadline-stopped/
+        # deadline-cancelled tiers never create an ai_usage_attempt row (the
+        # check happens before begin_attempt()), so without these two
+        # counters they're invisible to any DB-based audit. Both already
+        # existed as dynamic _AI_USAGE keys; surfaced here so they're
+        # actually observable rather than silently tracked and unread.
+        "deadline_stops":   int(_AI_USAGE.get("deadline_stops", 0)),
+        "deadline_cancels": int(_AI_USAGE.get("deadline_cancels", 0)),
     }
 
 
@@ -952,8 +979,9 @@ async def _call_provider_inner(
     _AI_USAGE["calls_total"] += 1
     _AI_USAGE["last_call_at"] = datetime.now(timezone.utc).isoformat()
     _t0 = time.monotonic()
+    _timeout = _REQUESTY_TIMEOUT if base_url == _REQUESTY_URL else _HTTP_TIMEOUT
     try:
-        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
+        async with httpx.AsyncClient(timeout=_timeout) as client:
             r = await client.post(base_url, json=payload, headers=headers)
             if r.status_code == 429:
                 retry_after = _parse_retry_after(r.headers)
@@ -1011,7 +1039,31 @@ async def _call_provider_inner(
                 if failure_log is not None:
                     failure_log.append({"model": model, "provider": provider_name, "reason": "api_error"})
                 return ""
-            content = data["choices"][0]["message"]["content"]
+            # AI Search Reliability Fix 1 (2026-10-17): a 200 response whose
+            # body doesn't match the expected OpenAI-compatible shape (seen
+            # live from Requesty as a bare KeyError('content') escaping to
+            # the generic except-block below, charged the same 30s cooldown
+            # as a real timeout/connection failure -- imprecise, since this
+            # is a provider-side response-format problem, not a network
+            # outage). Validated explicitly here instead, as its own fast-
+            # failing "schema_error" reason, still fine to retry soon (the
+            # malformed response may be a one-off), but distinguishable in
+            # logs/metrics from an actual timeout. Never logs `data` itself
+            # -- only which expected key was missing/mistyped, never the
+            # response content.
+            choices = data.get("choices") if isinstance(data, dict) else None
+            message = choices[0].get("message") if isinstance(choices, list) and choices and isinstance(choices[0], dict) else None
+            if not isinstance(message, dict) or "content" not in message:
+                _mark_exhausted(provider_name, model, "schema_error")
+                log.warning("ai.schema_error", model=model, provider=provider_name, status=r.status_code,
+                            reason="schema_error", cooldown_s=_COOLDOWN_S["schema_error"],
+                            has_choices=choices is not None, has_message=message is not None)
+                _AI_USAGE["calls_failed"] += 1
+                ai_usage.set_outcome(_att, "schema_error", r.status_code) if _att else None
+                if failure_log is not None:
+                    failure_log.append({"model": model, "provider": provider_name, "reason": "schema_error"})
+                return ""
+            content = message["content"]
             _AI_USAGE["latency_ms_total"] += (time.monotonic() - _t0) * 1000
             _AI_USAGE["calls_success"] += 1
             if _att:
@@ -1159,6 +1211,15 @@ def _deadline_stops_chain(failure_log: list[dict] | None, tier: str, model: str 
     if usable is None or usable >= request_deadline.min_attempt():
         return False
     request_deadline.mark_expired()
+    # AI Search Reliability Fix 1 (2026-10-17): lightweight, in-memory-only
+    # telemetry (same dynamic-key pattern already used for deadline_cancels
+    # below) -- no DB row, no schema change. A deadline-stopped tier was
+    # previously invisible to any DB-based call-volume audit (confirmed:
+    # _call_provider's begin_attempt()/finish_attempt() never runs for a
+    # tier stopped here, since this check happens before any attempt
+    # starts), so a visible counter, even this simple, closes a real
+    # observability gap without needing new infrastructure.
+    _AI_USAGE["deadline_stops"] = _AI_USAGE.get("deadline_stops", 0) + 1
     log.info("ai.deadline_stop", tier=tier, usable_s=round(usable, 2))
     if failure_log is not None:
         failure_log.append({"model": model, "provider": tier, "reason": "deadline"})
