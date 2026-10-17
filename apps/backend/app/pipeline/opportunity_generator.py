@@ -19,10 +19,8 @@ import re
 from datetime import datetime, timezone
 from typing import Any
 
-import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.db.models.opportunity import Opportunity
 from app.pipeline.classifier import classify_text, classify_with_ai
 from app.repositories.opportunity_repository import OpportunityRepository
@@ -169,25 +167,32 @@ def _build_heuristic_summary(title: str, sectors: list[str], companies: list[str
 
 
 async def _call_ai(prompt: str, max_tokens: int = 600) -> str | None:
-    if not settings.deepseek_api_key:
-        return None
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(
-                f"{settings.deepseek_base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {settings.deepseek_api_key}"},
-                json={
-                    "model": settings.deepseek_model,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.3,
-                    "max_tokens": max_tokens,
-                },
-            )
-            resp.raise_for_status()
-            return resp.json()["choices"][0]["message"]["content"]
-    except Exception as exc:
-        logger.warning("AI call failed: %s", exc)
-        return None
+    """Shared provider chain (2026-10-17): was DeepSeek-only (a single raw
+    httpx call, no retry, no fallback), and DEEPSEEK_API_KEY is unconfigured
+    in this deployment -- confirmed via a read-only audit this call has
+    never once succeeded in production, meaning every V1 opportunity has
+    gone through the heuristic fallback below unconditionally. Rewired onto
+    app.services.ai_service._call_with_fallback, the same Groq/OpenRouter/
+    Gemini/Requesty cascade event enrichment already uses for the identical
+    single-provider failure (see fallback_chain_provider.py's own docstring
+    -- this is that exact precedent, not a new pattern).
+
+    priority="background": this is a scheduled job with no user waiting in
+    real time (job_daily_opportunities, once daily) -- it must never
+    compete with interactive AI Search traffic for the same tier slots.
+
+    Contract preserved exactly: _call_with_fallback never raises and
+    returns "" on any failure (exhaustion, timeout, rate limit, malformed
+    response); `text or None` keeps this function's own documented
+    None-on-failure return, so every caller below (the `if ai_text:` check
+    and everything downstream of it) is unchanged by this swap."""
+    from app.services.ai_service import _call_with_fallback
+    text = await _call_with_fallback(
+        prompt,
+        max_tokens=max_tokens,
+        priority="background",
+    )
+    return text or None
 
 
 def _parse_json_block(text: str) -> dict | None:
