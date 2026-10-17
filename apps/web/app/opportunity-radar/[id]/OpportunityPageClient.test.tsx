@@ -78,3 +78,61 @@ describe("LegacyOpportunityDetail — score-history fabrication removal (2026-09
     expect(screen.queryByText(/No score history available yet/i)).not.toBeInTheDocument();
   });
 });
+
+describe("LegacyOpportunityDetail — honest-classification fix (2026-10-17)", () => {
+  it("renders Unclassified for Trend, Risk Level, and Time Horizon when classification_status is unclassified, never the stored fallback values", () => {
+    render(
+      <LegacyOpportunityDetail
+        detail={baseV1Detail({
+          trend: "Neutral", risk_level: "Medium", time_horizon: "3 – 5 Years",
+          classification_status: "unclassified",
+        })}
+        id="real-opportunity-406"
+        hasInitialDetail={true}
+        initialRelated={null}
+      />
+    );
+
+    // The honest "Unclassified" label must appear exactly for the three
+    // classification-derived stats -- and the misleading stored values
+    // (which still exist in the fixture, same as a real unclassified
+    // record would have) must never render as if they were real.
+    expect(screen.getAllByText("Unclassified")).toHaveLength(3);
+    expect(screen.queryByText("Neutral")).not.toBeInTheDocument();
+    expect(screen.queryByText("Medium")).not.toBeInTheDocument();
+    expect(screen.queryByText("3 – 5 Years")).not.toBeInTheDocument();
+  });
+
+  it("still renders the real trend/risk/time_horizon values when classification_status is classified (or absent, the pre-fix default)", () => {
+    render(
+      <LegacyOpportunityDetail
+        detail={baseV1Detail({
+          trend: "positive", risk_level: "Medium", time_horizon: "3-6 months",
+          classification_status: "classified",
+        })}
+        id="real-opportunity-406"
+        hasInitialDetail={true}
+        initialRelated={null}
+      />
+    );
+
+    expect(screen.queryByText("Unclassified")).not.toBeInTheDocument();
+    expect(screen.getByText("positive")).toBeInTheDocument();
+    expect(screen.getByText("Medium")).toBeInTheDocument();
+    expect(screen.getByText("3-6 months")).toBeInTheDocument();
+  });
+
+  it("defaults to the classified rendering when classification_status is absent entirely (backward compatibility with pre-fix API responses)", () => {
+    const { classification_status, ...withoutStatus } = baseV1Detail();
+    render(
+      <LegacyOpportunityDetail
+        detail={withoutStatus as any}
+        id="real-opportunity-406"
+        hasInitialDetail={true}
+        initialRelated={null}
+      />
+    );
+
+    expect(screen.queryByText("Unclassified")).not.toBeInTheDocument();
+  });
+});

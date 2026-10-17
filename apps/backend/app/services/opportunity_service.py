@@ -7,7 +7,7 @@ from __future__ import annotations
 import asyncio
 import json
 import structlog
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,6 +33,28 @@ logger = structlog.get_logger(__name__)
 
 _CACHE_KEY = "opportunity:detail:{id}"
 _LIST_CACHE_KEY = "opportunity:list:p{page}:s{size}"
+
+
+def _classification_status(ai_summary_raw: Any) -> str:
+    """Honest-classification fix (2026-10-17). Read-only audit confirmed
+    every sampled production opportunity had, in fact, gone through
+    opportunity_generator.py's heuristic fallback (the exact template
+    text appeared verbatim), yet trend/risk_level/confidence rendered
+    identically to a real AI classification. ai_summary["integrity_status"]
+    (opportunity_generator.py, same vocabulary as measurement_semantics.py)
+    is the one place this is recorded; missing on any record persisted
+    before this fix -- those must resolve to "unclassified" too, not
+    "classified" by default, matching measurement_semantics.py's own
+    documented rule that legacy/unknown data is never inferred into a
+    stronger claim than the code can actually prove."""
+    if isinstance(ai_summary_raw, str):
+        try:
+            ai_summary_raw = json.loads(ai_summary_raw)
+        except Exception:
+            ai_summary_raw = {}
+    if not isinstance(ai_summary_raw, dict):
+        return "unclassified"
+    return "classified" if ai_summary_raw.get("integrity_status") == "valid" else "unclassified"
 
 
 class OpportunityService:
@@ -70,6 +92,17 @@ class OpportunityService:
             }
             for o in opps
         ]
+
+    async def get_opportunity_details_by_slug(
+        self, slug: str
+    ) -> Optional[OpportunityDetailResponse]:
+        """SEO fix (2026-10-17): resolves a V1 slug to its id, then reuses
+        get_opportunity_details's own caching/detail-building unchanged --
+        no duplicate logic, no separate cache key scheme for the same row."""
+        opp = await self._repo.get_by_slug(slug)
+        if opp is None:
+            return None
+        return await self.get_opportunity_details(opp.id)
 
     async def get_opportunity_details(
         self, opportunity_id: int
@@ -111,16 +144,24 @@ class OpportunityService:
             except Exception:
                 ai_raw = {}
 
+        classification_status = _classification_status(ai_raw)
+        is_classified = classification_status == "classified"
+
         response = OpportunityDetailResponse(
             id=opp.id,
             slug=opp.slug,
             title=opp.title,
             summary=opp.summary,
             opportunity_score=opp.opportunity_score,
-            confidence=opp.confidence,
-            trend=opp.trend,
-            risk_level=opp.risk_level,
-            time_horizon=opp.time_horizon,
+            # Honest-classification fix (2026-10-17): an unclassified
+            # record's stored confidence/trend/risk_level/time_horizon are
+            # the heuristic-fallback defaults, not a real AI verdict --
+            # never serialize them as if they were.
+            confidence=opp.confidence if is_classified else None,
+            trend=opp.trend if is_classified else None,
+            risk_level=opp.risk_level if is_classified else None,
+            time_horizon=opp.time_horizon if is_classified else None,
+            classification_status=classification_status,
             sectors=opp.sectors or [],
             ai_summary=AISummarySchema(
                 matters=ai_raw.get("matters", ""),
@@ -245,24 +286,29 @@ class OpportunityService:
 
         pages = max(1, (total + page_size - 1) // page_size)
 
+        def _list_item(o) -> OpportunityListItem:
+            status = _classification_status(o.ai_summary)
+            classified = status == "classified"
+            return OpportunityListItem(
+                id=o.id,
+                slug=o.slug,
+                title=o.title,
+                summary=o.summary,
+                opportunity_score=o.opportunity_score,
+                # Honest-classification fix (2026-10-17) -- see
+                # get_opportunity_details for the identical rationale.
+                confidence=o.confidence if classified else None,
+                trend=o.trend if classified else None,
+                risk_level=o.risk_level if classified else None,
+                time_horizon=o.time_horizon if classified else None,
+                classification_status=status,
+                sectors=o.sectors or [],
+                company_count=company_counts.get(o.id, 0),
+                event_count=event_counts.get(o.id, 0),
+            )
+
         result = PaginatedOpportunities(
-            items=[
-                OpportunityListItem(
-                    id=o.id,
-                    slug=o.slug,
-                    title=o.title,
-                    summary=o.summary,
-                    opportunity_score=o.opportunity_score,
-                    confidence=o.confidence,
-                    trend=o.trend,
-                    risk_level=o.risk_level,
-                    time_horizon=o.time_horizon,
-                    sectors=o.sectors or [],
-                    company_count=company_counts.get(o.id, 0),
-                    event_count=event_counts.get(o.id, 0),
-                )
-                for o in items
-            ],
+            items=[_list_item(o) for o in items],
             total=total,
             page=page,
             page_size=page_size,

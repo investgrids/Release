@@ -16,10 +16,13 @@ const NEWSROOM_PAGE = path.resolve(__dirname, "page.tsx");
 const HOMEPAGE = path.resolve(__dirname, "..", "page.tsx");
 
 describe("internal links never pass through the legacy /newsroom/themes/{slug} redirect", () => {
-  it("app/newsroom/page.tsx's 'Themes to Watch' table links directly to /opportunity-radar/{id}", () => {
+  it("app/newsroom/page.tsx's 'Themes to Watch' table links directly to /opportunity-radar/{slug-or-id}", () => {
     const src = fs.readFileSync(NEWSROOM_PAGE, "utf-8");
     expect(src).not.toMatch(/newsroom\/themes\/\$\{/);
-    expect(src).toMatch(/opportunity-radar\/\$\{t\.id\}/);
+    // SEO fix (2026-10-17): the real slug is preferred now (radar.py can
+    // resolve it), falling back to the numeric id -- still never the
+    // legacy /newsroom/themes/{slug} redirect this gate exists to catch.
+    expect(src).toMatch(/opportunity-radar\/\$\{t\.slug \|\| t\.id\}/);
   });
 
   it("the homepage does not link to the legacy per-slug theme-detail path either", () => {

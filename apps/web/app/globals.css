@@ -444,3 +444,115 @@ select {
     --sidebar-ring: rgb(var(--accent-violet) / 0.5);
   }
 }
+
+/* ── Opportunity Radar: glass surface system ─────────────────────────────────
+   Scoped to .radar-aurora and its descendants only — the rest of the app
+   keeps the Restrained accent-as-state-only rule (see the Accent token
+   comment above). This one surface earns Committed: a dashboard whose job
+   is literally ranking opportunities by conviction gets to let color carry
+   that signal, not just decorate it.
+
+   Glassmorphism only reads as an effect, not a costume, when there is real
+   color/depth behind the blur — a blurred flat background is indistin-
+   guishable from a plain translucent panel. .radar-aurora supplies that
+   depth (a fixed, compositor-cheap multi-stop radial mesh using the
+   existing four accent tokens); .glass-card/.glass-panel are what sit on
+   top of it and actually blur it. */
+
+.radar-aurora {
+  position: relative;
+  isolation: isolate;
+}
+.radar-aurora::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  will-change: transform;
+  /* Light theme: a pale base dilutes saturated color fast — low alpha
+     here (the original attempt) just reads as a faint gray smudge, the
+     exact "washed out" failure a real screenshot caught. Needs MORE
+     pigment, not less, to read as color at all against white/near-white. */
+  background:
+    radial-gradient(circle at 15% 8%,  rgb(var(--accent-violet)  / 0.30) 0%, transparent 45%),
+    radial-gradient(circle at 85% 18%, rgb(var(--accent-sky)     / 0.26) 0%, transparent 42%),
+    radial-gradient(circle at 25% 85%, rgb(var(--accent-emerald) / 0.24) 0%, transparent 48%),
+    radial-gradient(circle at 92% 92%, rgb(var(--accent-rose)    / 0.20) 0%, transparent 42%);
+}
+:root[data-theme="dark"] .radar-aurora::before {
+  background:
+    radial-gradient(circle at 15% 8%,  rgb(var(--accent-violet)  / 0.24) 0%, transparent 45%),
+    radial-gradient(circle at 85% 18%, rgb(var(--accent-sky)     / 0.22) 0%, transparent 42%),
+    radial-gradient(circle at 25% 85%, rgb(var(--accent-emerald) / 0.18) 0%, transparent 48%),
+    radial-gradient(circle at 92% 92%, rgb(var(--accent-rose)    / 0.16) 0%, transparent 42%);
+}
+
+/* The glass card itself. --glass-accent defaults to a neutral tint (set
+   per-card inline from the opportunity's own score tier / classification
+   state — never a fixed hue for every card, that would just be a tinted
+   box, not a signal). */
+.glass-card {
+  --glass-accent: var(--text-primary);
+  position: relative;
+  border-radius: 20px;
+  /* Lower alpha than the first pass -- the aurora behind this needs to
+     actually show through for the blur to read as glass rather than a
+     plain translucent panel. */
+  background: rgb(var(--surface-card) / 0.42);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1.5px solid rgb(var(--glass-accent) / 0.28);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 2px 8px rgb(var(--text-primary) / 0.06),
+    0 20px 48px -14px rgb(var(--glass-accent) / 0.35);
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1), border-color 200ms ease;
+}
+.glass-card:hover {
+  transform: translateY(-3px);
+  border-color: rgb(var(--glass-accent) / 0.5);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.6),
+    0 2px 8px rgb(var(--text-primary) / 0.06),
+    0 28px 64px -14px rgb(var(--glass-accent) / 0.45);
+}
+:root[data-theme="dark"] .glass-card {
+  background: rgb(var(--surface-card) / 0.42);
+  border-color: rgb(var(--glass-accent) / 0.3);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    0 2px 8px rgb(0 0 0 / 0.2),
+    0 20px 48px -14px rgb(var(--glass-accent) / 0.4);
+}
+:root[data-theme="dark"] .glass-card:hover {
+  border-color: rgb(var(--glass-accent) / 0.55);
+}
+/* Unclassified records (Opportunity Radar honest-classification fix) get a
+   deliberately desaturated glass treatment -- visually honest, not just
+   textually labeled: there is no real signal to tint the glass with. */
+.glass-card.glass-card--unclassified {
+  --glass-accent: var(--text-muted);
+  filter: saturate(0.7);
+}
+
+/* Lighter-weight glass for chrome (filter bar, sidebar panel) that doesn't
+   need the accent-tinted shadow treatment. */
+.glass-panel {
+  border-radius: 20px;
+  background: rgb(var(--surface-card) / 0.4);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1.5px solid rgb(var(--surface-border) / 0.22);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.4), 0 4px 16px rgb(var(--text-primary) / 0.05);
+}
+:root[data-theme="dark"] .glass-panel {
+  border-color: rgb(var(--surface-border) / 0.16);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), 0 4px 16px rgb(0 0 0 / 0.2);
+}
+
+.glass-pill {
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}

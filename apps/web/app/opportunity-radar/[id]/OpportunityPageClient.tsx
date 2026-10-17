@@ -3,13 +3,12 @@
 import { useState, useEffect, use, useRef } from "react";
 import type { ReactNode } from "react";
 import dynamic from "next/dynamic";
-import { fixMojibake, truncateForQuery } from "@/lib/text";
+import { fixMojibake } from "@/lib/text";
 import { TrackPageVisit } from "@/components/TrackPageVisit";
 import { RelatedContent } from "@/components/RelatedContent";
-import { NextSteps } from "@/components/NextSteps";
 import { ImpactMap } from "@/components/ImpactMap";
 import Link from "next/link";
-import { Lightbulb, Building2, AlertTriangle, Ban, Check, Zap, CalendarClock, History, Gauge } from "lucide-react";
+import { Lightbulb, Building2, AlertTriangle, Ban, Check, Zap, CalendarClock, History, Gauge, HelpCircle } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
 import {
@@ -62,19 +61,35 @@ const CHIP_COLORS = [
   "bg-rose-500/20 text-rose-700 dark:text-rose-200 border-rose-500/25",
 ];
 
-function StatCard({ label, value, sub, valueClass = "text-text-primary", title }: { label: string; value: string; sub?: string; valueClass?: string; title?: string }) {
+function StatCard({ label, value, sub, valueClass = "text-text-primary", title, unclassified = false, unclassifiedLabel = "Unclassified" }: { label: string; value: string; sub?: string; valueClass?: string; title?: string; unclassified?: boolean; unclassifiedLabel?: string }) {
+  // Honest-classification fix, UX pass (2026-10-17): a bare "—" with a
+  // tiny "Unclassified" pill underneath read as a broken/empty field in
+  // review, not a deliberate state. An icon + the word itself, as the
+  // card's own primary content, reads as "we're telling you something,"
+  // not "something failed to load."
+  if (unclassified) {
+    return (
+      <div className="glass-panel flex flex-col items-center justify-center gap-1.5 p-4 text-center opacity-80 transition hover:border-surface-border/24" title={title}>
+        <p className="text-[10px] uppercase tracking-widest text-text-muted">{label}</p>
+        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-surface-border/30 text-text-muted">
+          <HelpCircle className="h-4 w-4" strokeWidth={1.75}/>
+        </div>
+        <p className="text-[11px] font-semibold italic text-text-muted">{unclassifiedLabel}</p>
+      </div>
+    );
+  }
   return (
-    <div className="rounded-[16px] border border-surface-border/10 bg-text-primary/[0.03] p-4 text-center" title={title}>
+    <div className="glass-panel p-4 text-center transition hover:border-surface-border/24" title={title}>
       <p className="mb-1 text-[10px] uppercase tracking-widest text-text-muted">{label}</p>
       <p className={`text-xl font-bold ${valueClass}`}>{value}</p>
-      {sub && <span className="mt-1 inline-block rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-2 py-0.5 text-[10px] text-text-secondary">{sub}</span>}
+      {sub && <span className="glass-pill mt-1 inline-block border border-surface-border/14 bg-text-primary/[0.04] px-2 py-0.5 text-[10px] text-text-secondary">{sub}</span>}
     </div>
   );
 }
 
-function SectionCard({ title, children, className = "" }: { title?: string; children: React.ReactNode; className?: string }) {
+function SectionCard({ title, children, className = "" }: { title?: string; children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-[20px] border border-surface-border/10 bg-text-primary/[0.03] p-5 ${className}`}>
+    <div className={`glass-panel p-5 ${className}`}>
       {title && <h3 className="mb-4 text-[13px] font-semibold text-text-primary">{title}</h3>}
       {children}
     </div>
@@ -168,13 +183,15 @@ export function LegacyOpportunityDetail({ detail, id, hasInitialDetail, initialR
   const bullets = ai?.why_bullets?.length ? ai.why_bullets : [];
 
   return (
-    <div className="min-w-0 pb-12">
-      {/* Batch E consumer migration, 2026-08-24 -- was d.slug ?? d.id: V1's
-          OWN slug column isn't a valid lookup path (radar.py's dual lookup
-          only checks V2's slugs for a non-numeric segment) -- same bug
-          class already found and fixed on CompanyIntelligenceSection.tsx.
-          d.id resolves through the existing, unchanged V1 numeric branch. */}
-      <TrackPageVisit type="story" id={String(d.id)} title={d.title} subtitle={score !== null ? `Score ${score}` : "Unscored"} href={`/opportunity-radar/${d.id}`} />
+    <div className="radar-aurora min-w-0 pb-12">
+      {/* SEO fix (2026-10-17): d.id was used here because V1's own slug
+          column had no working lookup route (radar.py's dual lookup only
+          checked V2's slugs for a non-numeric segment) -- that's now fixed
+          (see radar.py / OpportunityService.get_opportunity_details_by_slug),
+          so the human-readable slug is preferred again, same as the list
+          page and the V2 branch below. d.id stays a valid, permanent
+          fallback URL -- never redirected away from. */}
+      <TrackPageVisit type="story" id={String(d.id)} title={d.title} subtitle={score !== null ? `Score ${score}` : "Unscored"} href={`/opportunity-radar/${d.slug ?? d.id}`} />
       {/* Breadcrumb */}
       <div className="mb-5 flex items-center gap-2 text-[12px] text-text-muted">
         <Link href="/opportunity-radar" className="hover:text-text-secondary transition">Opportunity Radar</Link>
@@ -192,17 +209,25 @@ export function LegacyOpportunityDetail({ detail, id, hasInitialDetail, initialR
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex min-w-0 items-start gap-4">
                 <div className="shrink-0 text-center">
-                  {score !== null ? (
-                    <>
-                      <div className="flex h-20 w-20 flex-col items-center justify-center rounded-full bg-gradient-to-br from-emerald-500/30 to-teal-500/10 border border-emerald-500/30">
-                        <span className="text-3xl font-black text-emerald-400">{score}</span>
-                        <span className="text-[9px] text-text-muted">/100</span>
-                      </div>
-                      <p className="mt-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-semibold text-emerald-400">
-                        {score >= 90 ? "Excellent" : score >= 80 ? "Strong" : "Good"} Opportunity
-                      </p>
-                    </>
-                  ) : (
+                  {score !== null ? (() => {
+                    const tier = score >= 90 ? { grad: "from-emerald-400 to-teal-400", text: "text-emerald-400", border: "border-emerald-500/30", bg: "bg-emerald-500/10", shadow: "rgba(52,211,153,0.35)", label: "Excellent" }
+                              : score >= 80 ? { grad: "from-sky-400 to-blue-400",       text: "text-sky-400",    border: "border-sky-500/30",    bg: "bg-sky-500/10",    shadow: "rgba(56,189,248,0.35)", label: "Strong" }
+                              :               { grad: "from-amber-400 to-orange-400",  text: "text-amber-400",  border: "border-amber-500/30",  bg: "bg-amber-500/10",  shadow: "rgba(251,191,36,0.35)", label: "Good" };
+                    return (
+                      <>
+                        <div className="relative flex h-20 w-20 items-center justify-center">
+                          <div className={`absolute inset-0 rounded-full bg-gradient-to-br ${tier.grad} opacity-30 blur-lg`} aria-hidden style={{ boxShadow: `0 0 30px ${tier.shadow}` }}/>
+                          <div className={`relative flex h-20 w-20 flex-col items-center justify-center rounded-full bg-gradient-to-br ${tier.grad} opacity-90 border ${tier.border} ring-1 ring-white/10`}>
+                            <span className={`text-3xl font-black ${tier.text}`}>{score}</span>
+                            <span className="text-[9px] text-text-muted">/100</span>
+                          </div>
+                        </div>
+                        <p className={`mt-1.5 rounded-full border ${tier.border} ${tier.bg} px-2 py-0.5 text-[9px] font-semibold ${tier.text}`}>
+                          {tier.label} Opportunity
+                        </p>
+                      </>
+                    );
+                  })() : (
                     <>
                       <div className="flex h-20 w-20 flex-col items-center justify-center rounded-full border border-surface-border/10 bg-text-primary/[0.07]">
                         <span className="text-[11px] font-medium text-text-muted">N/A</span>
@@ -247,10 +272,30 @@ export function LegacyOpportunityDetail({ detail, id, hasInitialDetail, initialR
                   `min(0.95, score / 110)` -- a DERIVED_TRANSFORM of the opportunity
                   score, not an independent measurement (also feeds the Investment
                   Verdict below, so kept rather than removed). Disclosed via tooltip. */}
-              <StatCard label="Confidence Score" value={confidence !== null ? `${confidence}%` : "—"} sub={confidence !== null ? "Confidence" : "Unscored"} valueClass="text-sky-400" title="Derived from the opportunity score, not an independently measured confidence"/>
-              <StatCard label="Time Horizon"     value={fixMojibake(d.time_horizon)}/>
-              <StatCard label="Risk Level"       value={d.risk_level}   valueClass={riskColor(d.risk_level)}/>
-              <StatCard label="Trend"            value={d.trend}        valueClass={trendColor(d.trend)}/>
+              {confidence !== null ? (
+                <StatCard label="Confidence Score" value={`${confidence}%`} sub="Confidence" valueClass="text-sky-400" title="Derived from the opportunity score, not an independently measured confidence"/>
+              ) : (
+                <StatCard label="Confidence Score" value="" unclassified unclassifiedLabel="Unscored" title="No real AI classification exists for this opportunity, so there is nothing to derive a confidence figure from."/>
+              )}
+              {/* Honest-classification fix (2026-10-17): d.classification_status
+                  is "unclassified" when the AI call that would have produced a
+                  real trend/risk/time_horizon verdict failed or returned
+                  unparseable output -- the stored values are heuristic-fallback
+                  defaults, not a real classification, and must never render as
+                  a confident-looking verdict. */}
+              {d.classification_status === "unclassified" ? (
+                <>
+                  <StatCard label="Time Horizon" value="" unclassified title="This opportunity's AI classification failed or was unavailable when it was generated — no real time-horizon verdict exists for it."/>
+                  <StatCard label="Risk Level"   value="" unclassified title="This opportunity's AI classification failed or was unavailable when it was generated — no real risk verdict exists for it."/>
+                  <StatCard label="Trend"        value="" unclassified title="This opportunity's AI classification failed or was unavailable when it was generated — no real trend verdict exists for it."/>
+                </>
+              ) : (
+                <>
+                  <StatCard label="Time Horizon" value={fixMojibake(d.time_horizon ?? "")}/>
+                  <StatCard label="Risk Level"   value={d.risk_level ?? ""}   valueClass={riskColor(d.risk_level ?? "")}/>
+                  <StatCard label="Trend"        value={d.trend ?? ""}        valueClass={trendColor(d.trend ?? "")}/>
+                </>
+              )}
             </div>
           </SectionCard>
 
@@ -474,7 +519,7 @@ export function LegacyOpportunityDetail({ detail, id, hasInitialDetail, initialR
 
           {/* Financial Impact */}
           {metrics && (
-            <SectionCard title={`Financial Impact (Next ${fixMojibake(d.time_horizon)})`}>
+            <SectionCard title={d.classification_status === "unclassified" ? "Financial Impact" : `Financial Impact (Next ${fixMojibake(d.time_horizon ?? "")})`}>
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { label: "Revenue Potential",    value: metrics.revenue_potential  },
@@ -510,54 +555,6 @@ export function LegacyOpportunityDetail({ detail, id, hasInitialDetail, initialR
               <p className="mt-1.5 text-[12px] text-text-secondary">{d.investment_verdict.reasoning}</p>
             </div>
           )}
-
-          {/* Continue Research — cross-links this opportunity into the rest
-              of the platform (Platform Integration Sprint) instead of
-              dead-ending here. */}
-          <NextSteps config={{
-            takeaway: `${d.title} scores ${score ?? "—"}/100 across ${(d.sectors || []).join(", ") || "the affected sectors"}, with ${d.companies.length} companies identified as beneficiaries.`,
-            primary: {
-              label: `Ask AI about ${d.title}`,
-              why: "Get a full investment analysis, not just the opportunity summary — risks, valuation, and timing.",
-              href: `/ai-search?q=${encodeURIComponent(`Tell me about this opportunity: ${truncateForQuery(d.title)}. Which companies benefit most and what are the risks?`)}`,
-            },
-            groups: [
-              ...(d.companies.length >= 2 ? [{
-                label: "Compare",
-                actions: [{
-                  label: `Compare ${d.companies[0].symbol} vs ${d.companies[1].symbol}`,
-                  why: "See the two leading beneficiaries side by side before deciding.",
-                  href: `/compare?a=${d.companies[0].symbol}&b=${d.companies[1].symbol}`,
-                }],
-              }] : []),
-              {
-                label: "Continue Research",
-                actions: [
-                  ...(d.companies[0] ? [{
-                    label: `Open ${d.companies[0].symbol} company page`,
-                    why: "See the full research terminal for the top beneficiary.",
-                    href: `/companies/${d.companies[0].symbol}`,
-                  }] : []),
-                  {
-                    label: "Explore Ripple Graph",
-                    why: "See how this opportunity propagates across sectors and companies.",
-                    // Scoped to the real triggering event when one exists —
-                    // /ripple/[id] renders the same Event record /events/[id]
-                    // does, just as ripple-chain analysis, so this is a real
-                    // deep link, not a guess. Falls back to the hub only when
-                    // there's no primary_event to scope to.
-                    href: d.primary_event ? `/ripple/${d.primary_event.event_id}` : "/ripple",
-                  },
-                  {
-                    label: "View related events",
-                    why: "Understand what triggered this opportunity in the first place.",
-                    href: d.primary_event ? `/events/${d.primary_event.event_id}` : "/events",
-                  },
-                ],
-              },
-            ],
-            path: [(d.sectors || [])[0] ?? "Sector", d.title, "Opportunity", "Investment Decision"],
-          }} />
         </div>
 
         {/* ── RIGHT SIDEBAR ─────────────────────────────────────────────────── */}
@@ -660,7 +657,6 @@ function V2OpportunityDetail({ detail, id, hasInitialDetail, initialRelated }: {
   const strength = d.current_strength !== null && d.current_strength !== undefined ? Math.round(d.current_strength) : null;
   const dir = directionMeta(d.direction);
   const narrativeBanner = narrativeStatusLabel(d.narrative_status);
-  const topCompanies = d.companies_connected.slice(0, 2);
 
   // Real production bug (2026-09-20, found live during the Adani V2
   // canary review): this page had its own local breadcrumb div AND was
@@ -862,49 +858,6 @@ function V2OpportunityDetail({ detail, id, hasInitialDetail, initialRelated }: {
               </ul>
             </SectionCard>
           )}
-
-          {/* 2026-09-20 canary review fix: `takeaway` and `path` removed.
-              This page already shows its own real title (H1 above), its
-              own real narrative ("Why this opportunity exists"), and its
-              own real breadcrumb (top of page) -- GuidanceConfig's own
-              interface comment already documents the correct pattern here
-              ("omit it when the page already shows its own Key Takeaway
-              elsewhere"). Keeping both would silently re-render the title
-              a second time (path's own steps included it) and a paraphrased
-              second summary, which is exactly the duplicate-title/
-              duplicate-summary/second-breadcrumb defect the review found. */}
-          <NextSteps config={{
-            primary: {
-              label: `Ask AI about ${d.title}`,
-              why: "Get a full investment analysis grounded in the real linked evidence.",
-              href: `/ai-search?q=${encodeURIComponent(`Tell me about this opportunity: ${truncateForQuery(d.title)}. Which companies are connected and what evidence supports it?`)}`,
-            },
-            groups: [
-              ...(topCompanies.length >= 2 ? [{
-                label: "Compare",
-                actions: [{
-                  label: `Compare ${topCompanies[0].symbol} vs ${topCompanies[1].symbol}`,
-                  why: "See the two leading connected companies side by side.",
-                  href: `/compare?a=${topCompanies[0].symbol}&b=${topCompanies[1].symbol}`,
-                }],
-              }] : []),
-              {
-                label: "Continue Research",
-                actions: [
-                  ...(topCompanies[0] ? [{
-                    label: `Open ${topCompanies[0].symbol} company page`,
-                    why: "See the full research terminal for a top connected company.",
-                    href: `/companies/${topCompanies[0].symbol}`,
-                  }] : []),
-                  {
-                    label: "Explore Ripple Graph",
-                    why: "See how this opportunity propagates across sectors and companies.",
-                    href: "/ripple",
-                  },
-                ],
-              },
-            ],
-          }} />
         </div>
 
         {/* ── RIGHT SIDEBAR ────────────────────────────────────────────── */}

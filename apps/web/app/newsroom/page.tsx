@@ -279,8 +279,12 @@ export default async function NewsroomHomePage() {
                         <td className="px-4 py-2.5">
                           {/* Batch G, 2026-09-20 -- links straight to the real
                               V1 canonical instead of /newsroom/themes/{slug},
-                              which now just 308-redirects here anyway. */}
-                          <Link href={`/opportunity-radar/${t.id}`} className="font-semibold text-text-primary hover:text-sky-600 dark:text-sky-300">
+                              which now just 308-redirects here anyway.
+                              SEO fix (2026-10-17): t.slug was always
+                              present on this response (OpportunityCard
+                              already typed it), just unused here -- the
+                              backend route can now actually resolve it. */}
+                          <Link href={`/opportunity-radar/${t.slug || t.id}`} className="font-semibold text-text-primary hover:text-sky-600 dark:text-sky-300">
                             {cleanText(t.title)}
                           </Link>
                         </td>

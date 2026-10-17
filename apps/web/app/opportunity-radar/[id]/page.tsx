@@ -81,11 +81,17 @@ function withPeriod(text: string) {
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const url = `${SITE}/opportunity-radar/${id}`;
   const d = await fetchOpportunity(id);
   if (!d) {
-    return { title: "Opportunity — AI Analysis", alternates: { canonical: url } };
+    return { title: "Opportunity — AI Analysis", alternates: { canonical: `${SITE}/opportunity-radar/${id}` } };
   }
+  // SEO fix (2026-10-17): canonical must point to the one preferred URL
+  // regardless of which path segment was actually requested -- a numeric
+  // V1 id and its real slug are now both valid, working routes (radar.py's
+  // slug fallback), but two indexable URLs for the same content is exactly
+  // the duplicate-content problem canonical tags exist to prevent. The
+  // slug is always preferred when the opportunity actually has one.
+  const url = `${SITE}/opportunity-radar/${d.slug || id}`;
   const title = titleOf(d);
   const desc = descriptionOf(d).slice(0, 160);
 
@@ -118,7 +124,10 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
   // nonexistent id rendered a near-empty page at HTTP 200. Same fix as
   // /events/[id] and /ripple/[id].
   if (!detail) notFound();
-  const url = `${SITE}/opportunity-radar/${id}`;
+  // SEO fix (2026-10-17): same canonical-URL preference as generateMetadata
+  // above -- the structured-data Article.url must match the page's own
+  // canonical tag, never the raw requested path segment.
+  const url = `${SITE}/opportunity-radar/${detail.slug || id}`;
   const title = titleOf(detail);
   const description = withPeriod(descriptionOf(detail));
   const related = await fetchRelated(id, sectorsOf(detail)[0]);

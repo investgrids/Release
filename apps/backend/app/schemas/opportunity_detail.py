@@ -91,10 +91,16 @@ class OpportunityDetailResponse(BaseModel):
     title: str
     summary: str = ""
     opportunity_score: float = 0.0
-    confidence: float = 0.0
-    trend: str = ""
-    risk_level: str = ""
-    time_horizon: str = ""
+    # Honest-classification fix (2026-10-17): these four become None when
+    # classification_status is "unclassified" -- a failed/unparseable AI
+    # call must never be serialized looking like a successful "Positive"/
+    # "Medium" verdict. See opportunity_service.py for where this is
+    # decided (reads Opportunity.ai_summary["integrity_status"]).
+    confidence: Optional[float] = None
+    trend: Optional[str] = None
+    risk_level: Optional[str] = None
+    time_horizon: Optional[str] = None
+    classification_status: str = "classified"
     sectors: List[str] = []
     ai_summary: Optional[AISummarySchema] = None
 
@@ -125,10 +131,13 @@ class OpportunityListItem(BaseModel):
     title: str
     summary: str = ""
     opportunity_score: float = 0.0
-    confidence: float = 0.0
-    trend: str = ""
-    risk_level: str = ""
-    time_horizon: str = ""
+    # See OpportunityDetailResponse's identical fields for why these are
+    # Optional -- the honest-classification fix (2026-10-17).
+    confidence: Optional[float] = None
+    trend: Optional[str] = None
+    risk_level: Optional[str] = None
+    time_horizon: Optional[str] = None
+    classification_status: str = "classified"
     sectors: List[str] = []
     company_count: int = 0
     event_count: int = 0

@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { NextSteps } from "@/components/NextSteps";
-import { compareScoresDesc } from "@/lib/scoring";
 import { truncateForQuery } from "@/lib/text";
 
 interface PolicyEvent {
@@ -127,59 +125,6 @@ export function RecentPolicyEvents({ events: allEvents }: { events: PolicyEvent[
           <p className="text-text-muted">{allEvents.length === 0 ? "No recent policy events." : "No events match this filter."}</p>
         </div>
       )}
-
-      {filtered.length > 0 && (() => {
-        const top       = [...filtered].sort((a, b) => compareScoresDesc(a.impact_score, b.impact_score))[0];
-        const q         = (s: string) => encodeURIComponent(s);
-        const firstCo   = top?.companies?.[0];
-        const topSector = top?.sectors?.[0];
-        const catLabel  = CATEGORY_PLAIN[top.category] ?? top.category;
-        const shortTitle = top.title.length > 85 ? top.title.slice(0, 82) + "…" : top.title;
-        return (
-          <NextSteps config={{
-            takeaway: `${shortTitle} — a ${catLabel} decision with ${top.sectors?.length || 0} sectors exposed.`,
-            primary: firstCo ? {
-              label: `Research ${firstCo.name}`,
-              why:   `Because they face a direct ${firstCo.impact.toLowerCase()} impact — this policy changes their regulatory environment and growth trajectory.`,
-              href:  `/companies/${firstCo.symbol}`,
-            } : topSector ? {
-              label: `Find companies most exposed to this policy`,
-              why:   `Because understanding specific exposure in ${topSector} helps you separate the stocks that benefit from those that face headwinds.`,
-              href:  `/ai-search?q=${q(`Which companies in ${topSector} are most affected by "${shortTitle}"?`)}`,
-            } : {
-              label: `Ask AI: What does this policy mean for investors?`,
-              why:   `Because policy changes create structural shifts that persist long after the initial market reaction.`,
-              href:  `/ai-search?q=${q(`What does "${shortTitle}" mean for Indian equity investors?`)}`,
-            },
-            groups: [
-              {
-                label: "Understand More",
-                actions: [
-                  {
-                    label: `Ask AI: What does this policy mean for investors?`,
-                    why:   `Because policy-driven themes can last years — understanding the structural shift helps you position ahead of the curve.`,
-                    href:  `/ai-search?q=${q(`What does "${shortTitle}" mean for Indian equity investors? Which sectors and companies benefit or are at risk?`)}`,
-                  },
-                  {
-                    label: "Trace the ripple across sectors",
-                    why:   "Because policy changes propagate through supply chains, competitors, and adjacent sectors before reaching full market impact.",
-                    href:  `/ripple`,
-                  },
-                ],
-              },
-              ...(topSector ? [{
-                label: "Explore Further",
-                actions: [{
-                  label: `Long-term outlook for ${topSector}`,
-                  why:   `Because sector-level policy impacts compound over 12–24 months — understanding the direction early creates a real edge.`,
-                  href:  `/ai-search?q=${q(`What is the long-term impact of "${shortTitle}" on the ${topSector} sector over the next 12-24 months?`)}`,
-                }],
-              }] : []),
-            ],
-            path: [catLabel, topSector ?? "Sectors", firstCo?.name ?? "Companies", "Investment Thesis"].filter(Boolean) as string[],
-          }} />
-        );
-      })()}
     </div>
   );
 }

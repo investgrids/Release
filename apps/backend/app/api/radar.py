@@ -54,9 +54,20 @@ async def get_opportunity_detail(
 ):
     if not opportunity_id.isdigit():
         detail_v2 = await get_opportunity_v2_detail(db, opportunity_id)
-        if detail_v2 is None:
-            raise HTTPException(status_code=404, detail=f"Opportunity '{opportunity_id}' not found")
-        return detail_v2
+        if detail_v2 is not None:
+            return detail_v2
+        # V1 slug fallback (SEO fix, 2026-10-17): Opportunity.slug has
+        # always been populated with real, human-readable values
+        # (opportunity_generator.py's own _slug() call) but nothing could
+        # resolve one -- every non-numeric segment went straight to the V2
+        # lookup above and 404'd for any real V1 slug, which is why the
+        # frontend was still linking to bare numeric V1 ids. V1 numeric
+        # URLs are completely unchanged by this; this only adds a second,
+        # already-stored way in.
+        detail_v1 = await service.get_opportunity_details_by_slug(opportunity_id)
+        if detail_v1 is not None:
+            return detail_v1
+        raise HTTPException(status_code=404, detail=f"Opportunity '{opportunity_id}' not found")
 
     detail = await service.get_opportunity_details(int(opportunity_id))
     if detail is None:
@@ -67,12 +78,23 @@ async def get_opportunity_detail(
     # page (each already degrades gracefully to None/[] on its own).
     from app.services import opportunity_intelligence as oi
 
-    try:
-        detail.investment_verdict = oi.compute_investment_verdict(
-            detail.opportunity_score, detail.confidence, detail.risk_level, detail.trend,
-        )
-    except Exception as exc:
-        logger.warning("radar.verdict_fail", exc=str(exc)[:160])
+    # Honest-classification fix (2026-10-17, found during final review):
+    # compute_investment_verdict does `confidence * 100 if confidence <= 1
+    # else confidence` -- a guaranteed TypeError now that confidence is
+    # None for an unclassified record, caught by the except below (no
+    # crash, no fabrication -- investment_verdict just stays at its
+    # Optional[...] = None default), but it logged a warning on every
+    # single detail fetch for every one of the 20 currently-unclassified
+    # production records. There is no honest verdict to compute from a
+    # classification that never happened; skip the call entirely instead
+    # of relying on an exception to arrive at the same no-verdict result.
+    if detail.classification_status != "unclassified":
+        try:
+            detail.investment_verdict = oi.compute_investment_verdict(
+                detail.opportunity_score, detail.confidence, detail.risk_level, detail.trend,
+            )
+        except Exception as exc:
+            logger.warning("radar.verdict_fail", exc=str(exc)[:160])
 
     try:
         detail.primary_event = await oi.select_primary_event(db, detail.events)

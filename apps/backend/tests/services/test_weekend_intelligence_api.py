@@ -207,6 +207,33 @@ async def test_resolved_opportunity_without_ai_summary_has_no_fabricated_reason(
 
 
 @pytest.mark.asyncio
+async def test_resolved_opportunity_includes_its_real_slug():
+    """SEO fix (2026-10-17): slug is a real, always-populated column on
+    this same row (Opportunity.slug is non-nullable) -- propagated here
+    so the frontend (WeekendPrimaryMetrics) can link to the canonical
+    slug URL instead of the bare numeric id, matching the same field the
+    main Opportunity Radar list/detail pages already return."""
+    from app.db.models.opportunity import Opportunity
+
+    async with AsyncSessionLocal() as db:
+        real_slug = f"test-opp-{uuid.uuid4().hex[:8]}"
+        opp = Opportunity(
+            slug=real_slug, title="A slugged opportunity",
+            sectors=["Energy"], risk_level="Medium", opportunity_score=70.0, confidence=0.6,
+        )
+        db.add(opp)
+        await db.commit()
+        opp_id = opp.id
+        try:
+            resolved = await api._resolve_opportunities(db, [str(opp_id)])
+            assert resolved[0]["slug"] == real_slug
+            assert resolved[0]["id"] == opp_id
+        finally:
+            await db.delete(opp)
+            await db.commit()
+
+
+@pytest.mark.asyncio
 async def test_company_ranking_only_contains_valid_tradable_symbols_end_to_end():
     """Structural check reusing Phase 1B's own canonical-symbol test
     fixtures — the API never re-introduces a pseudo-symbol since it only

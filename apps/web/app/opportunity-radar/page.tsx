@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { Grid3x3, Target, Sparkles, Calendar, Rocket } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
@@ -31,44 +31,48 @@ const CHIP_COLORS = [
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function confidenceColor(c: number | null | undefined) {
-  if (c === null || c === undefined) return { ring: "ring-surface-border/9", text: "text-text-muted", fill: "stroke-slate-600" };
-  if (c >= 0.9) return { ring: "ring-emerald-500/40", text: "text-emerald-400", fill: "stroke-emerald-500" };
-  if (c >= 0.8) return { ring: "ring-sky-500/40",     text: "text-sky-400",     fill: "stroke-sky-500"     };
-  return               { ring: "ring-amber-500/40",   text: "text-amber-400",   fill: "stroke-amber-500"   };
+// Tier drives both the score badge's gradient AND the card's own
+// --glass-accent (set inline on the card root) -- one signal, read twice,
+// rather than two uncoordinated color choices on the same card.
+function scoreTier(score: number | null | undefined): { grad: string; rgb: string; text: string; fill: string } {
+  if (score === null || score === undefined) return { grad: "from-slate-600 to-slate-500", rgb: "148 163 184", text: "text-text-muted", fill: "stroke-slate-500" };
+  if (score >= 90) return { grad: "from-emerald-400 to-teal-400", rgb: "52 211 153",  text: "text-emerald-400", fill: "stroke-emerald-400" };
+  if (score >= 80) return { grad: "from-sky-400 to-blue-400",     rgb: "56 189 248",  text: "text-sky-400",    fill: "stroke-sky-400"    };
+  return               { grad: "from-amber-400 to-orange-400",    rgb: "251 191 36",  text: "text-amber-400",  fill: "stroke-amber-400"  };
 }
 
-function ConfidenceCircle({ value, size = 64 }: { value: number | null | undefined; size?: number }) {
+function ConfidenceCircle({ value, size = 64, tierText }: { value: number | null | undefined; size?: number; tierText: string }) {
   const unscored = value === null || value === undefined;
   const pct = unscored ? 0 : Math.round(value * 100);
   const r   = (size - 8) / 2;
   const circ = 2 * Math.PI * r;
   const dash = (pct / 100) * circ;
-  const cc   = confidenceColor(value);
   return (
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={size/2} cy={size/2} r={r} stroke="rgb(var(--text-primary) / 0.06)" strokeWidth={4} fill="none"/>
+        <circle cx={size/2} cy={size/2} r={r} stroke="rgb(var(--text-primary) / 0.07)" strokeWidth={4} fill="none"/>
         {!unscored && (
-          <circle cx={size/2} cy={size/2} r={r} stroke="currentColor" className={cc.fill} strokeWidth={4} fill="none" strokeLinecap="round" strokeDasharray={`${dash} ${circ}`}/>
+          <circle cx={size/2} cy={size/2} r={r} stroke="currentColor" className={tierText.replace("text-", "stroke-")} strokeWidth={4} fill="none" strokeLinecap="round" strokeDasharray={`${dash} ${circ}`}
+            style={{ filter: `drop-shadow(0 0 6px currentColor)`, opacity: 0.95 }}/>
         )}
       </svg>
       <div className="absolute text-center">
-        <div className={`text-[11px] font-bold ${cc.text}`}>{unscored ? "N/A" : `${pct}%`}</div>
+        <div className={`text-[11px] font-bold ${unscored ? "text-text-muted" : tierText}`}>{unscored ? "N/A" : `${pct}%`}</div>
       </div>
     </div>
   );
 }
 
-function ScoreBadge({ score }: { score: number | null | undefined }) {
+function ScoreBadge({ score, tier }: { score: number | null | undefined; tier: ReturnType<typeof scoreTier> }) {
   const unscored = score === null || score === undefined;
-  const bg = unscored ? "from-slate-700 to-slate-600"
-           : score >= 90 ? "from-emerald-500 to-teal-400"
-           : score >= 80 ? "from-sky-500 to-blue-400"
-           : "from-amber-500 to-yellow-400";
   return (
-    <div className={`flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br ${bg} shadow-lg`}>
-      <span className={`font-black text-text-primary ${unscored ? "text-[9px]" : "text-xl"}`}>{unscored ? "N/A" : score}</span>
+    <div className="relative flex h-14 w-14 shrink-0 items-center justify-center">
+      {!unscored && (
+        <div className={`absolute inset-0 rounded-full bg-gradient-to-br ${tier.grad} opacity-40 blur-md`} aria-hidden />
+      )}
+      <div className={`relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br ${tier.grad} shadow-lg ring-1 ring-white/20`}>
+        <span className={`font-black text-white drop-shadow-sm ${unscored ? "text-[9px]" : "text-xl"}`}>{unscored ? "N/A" : score}</span>
+      </div>
     </div>
   );
 }
@@ -76,28 +80,39 @@ function ScoreBadge({ score }: { score: number | null | undefined }) {
 function OpportunityCardGrid({ displayed }: { displayed: RadarItem[] }) {
   if (displayed.length === 0) {
     return (
-      <div className="col-span-full flex flex-col items-center justify-center rounded-[20px] border border-surface-border/10 bg-text-primary/[0.03] py-20 text-center">
+      <div className="glass-panel col-span-full flex flex-col items-center justify-center py-20 text-center">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-8 w-8 text-text-muted"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <p className="mt-3 text-sm font-semibold text-text-primary">No opportunities match right now</p>
       </div>
     );
   }
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
       {displayed.map((item) => {
         const conf = item.confidence;
         const unscoredConf = conf === null || conf === undefined;
-        const cc   = confidenceColor(conf);
+        const unclassified = item.classification_status === "unclassified";
+        const tier = scoreTier(item.score);
         const beneficiaries = Array.isArray(item.beneficiaries) ? item.beneficiaries : [];
         const sectors = Array.isArray(item.sectors) ? item.sectors : [];
         return (
-          <div key={item.id} className="flex flex-col rounded-[20px] border border-surface-border/10 bg-text-primary/[0.03] p-4 hover:border-surface-border/20 hover:-translate-y-0.5 transition">
+          <div
+            key={item.id}
+            className={`glass-card group flex flex-col p-4 ${unclassified ? "glass-card--unclassified" : ""}`}
+            style={{ "--glass-accent": tier.rgb } as CSSProperties}
+          >
             <div className="mb-3 flex items-start justify-between gap-3">
-              <ScoreBadge score={item.score}/>
+              <ScoreBadge score={item.score} tier={tier}/>
               <div className="min-w-0 flex-1">
                 <h3 className="text-[13px] font-bold leading-snug text-text-primary">{item.theme}</h3>
                 {sectors.length > 0 && <p className="mt-0.5 text-[11px] text-text-muted">{sectors.join(" • ")}</p>}
               </div>
+              {unclassified && (
+                <span className="glass-pill shrink-0 border border-surface-border/20 bg-text-primary/[0.06] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-text-muted"
+                  title="This opportunity's AI classification failed or was unavailable when it was generated — no real verdict exists for it yet.">
+                  Unclassified
+                </span>
+              )}
             </div>
             {/* CD3-C: this "Confidence" is opportunity_generator.py's
                 `min(0.95, score / 110)` -- a DERIVED_TRANSFORM function of
@@ -106,15 +121,15 @@ function OpportunityCardGrid({ displayed }: { displayed: RadarItem[] }) {
                 homepage/newsroom table columns) since it's structurally
                 load-bearing for this page's own High Conviction filter. */}
             <div className="mb-3 flex items-center gap-3" title="Derived from the opportunity score, not an independently measured confidence">
-              <ConfidenceCircle value={conf} size={52}/>
+              <ConfidenceCircle value={conf} size={52} tierText={tier.text}/>
               <div className="min-w-0">
                 <p className="text-[10px] text-text-muted">Confidence</p>
-                <p className={`text-base font-bold ${cc.text}`}>{unscoredConf ? "Unscored" : `${Math.round(conf * 100)}%`}</p>
+                <p className={`text-base font-bold ${unscoredConf ? "text-text-muted" : tier.text}`}>{unscoredConf ? "Unscored" : `${Math.round(conf * 100)}%`}</p>
               </div>
               <div className="flex-1">
                 <div className="h-1.5 overflow-hidden rounded-full bg-text-primary/[0.06]">
                   {!unscoredConf && (
-                    <div className={`h-full rounded-full ${cc.ring.replace("ring-","bg-").replace("/40","")}`} style={{ width: `${Math.round(conf * 100)}%` }}/>
+                    <div className="h-full rounded-full bg-gradient-to-r" style={{ width: `${Math.round(conf * 100)}%`, backgroundImage: `linear-gradient(90deg, rgb(${tier.rgb} / 0.5), rgb(${tier.rgb}))` }}/>
                   )}
                 </div>
               </div>
@@ -126,17 +141,24 @@ function OpportunityCardGrid({ displayed }: { displayed: RadarItem[] }) {
                 <div className="flex items-center gap-1">
                   {beneficiaries.slice(0, 5).map((b, bi) => (
                     <Link key={bi} href={`/companies/${b.replace(/[&\s]/g, "")}`} title={b}
-                      className={`flex h-7 w-7 items-center justify-center rounded-full border border-surface-border/10 text-[9px] font-bold hover:scale-110 transition ${CHIP_COLORS[bi % CHIP_COLORS.length]}`}>
+                      className={`glass-pill flex h-7 w-7 items-center justify-center border border-surface-border/10 text-[9px] font-bold transition hover:scale-110 ${CHIP_COLORS[bi % CHIP_COLORS.length]}`}>
                       {b.slice(0, 2).toUpperCase()}
                     </Link>
                   ))}
                 </div>
               </div>
             )}
-            <div className="mt-auto pt-2 border-t border-surface-border/5">
-              <Link href={`/opportunity-radar/${typeof item.id === "number" ? item.id : (item.slug ?? item.id)}`} className="flex items-center gap-1 text-[12px] font-medium text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">
+            <div className="mt-auto pt-2 border-t border-surface-border/8">
+              {/* SEO fix (2026-10-17): radar.py now resolves a real V1
+                  slug (it always existed in the DB, nothing could look it
+                  up) alongside the existing numeric id, which stays valid
+                  forever for any already-indexed/shared link. Slug
+                  preferred here for new links -- human-readable URLs
+                  outrank bare numeric ids. V2's own uuid-shaped "id" was
+                  never a real slug, so it still falls back to itself. */}
+              <Link href={`/opportunity-radar/${item.slug ?? item.id}`} className="flex items-center gap-1 text-[12px] font-medium text-sky-400 transition group-hover:gap-1.5 hover:text-sky-600 dark:text-sky-300">
                 View Details
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
+                <svg className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
               </Link>
             </div>
           </div>
@@ -184,16 +206,16 @@ function AllOpportunitiesTab({ items, loading }: { items: RadarItem[]; loading: 
   return (
     <>
       <div className="mb-6 flex flex-wrap gap-2">
-        <select value={sectorFilter} onChange={e => setSectorFilter(e.target.value)} className="rounded-xl border border-surface-border/10 bg-text-primary/[0.03] px-3 py-2 text-[13px] text-text-secondary outline-none hover:border-surface-border/20">
+        <select value={sectorFilter} onChange={e => setSectorFilter(e.target.value)} className="glass-pill border border-surface-border/14 bg-text-primary/[0.03] px-3 py-2 text-[13px] text-text-secondary outline-none transition hover:border-surface-border/24 focus-visible:border-accent-violet/50">
           {SECTORS_FILTER.map(s => <option key={s} value={s} className="bg-surface-card">{s}</option>)}
         </select>
-        <select value={themeFilter} onChange={e => setThemeFilter(e.target.value)} className="rounded-xl border border-surface-border/10 bg-text-primary/[0.03] px-3 py-2 text-[13px] text-text-secondary outline-none hover:border-surface-border/20">
+        <select value={themeFilter} onChange={e => setThemeFilter(e.target.value)} className="glass-pill border border-surface-border/14 bg-text-primary/[0.03] px-3 py-2 text-[13px] text-text-secondary outline-none transition hover:border-surface-border/24 focus-visible:border-accent-violet/50">
           {THEMES_FILTER.map(t => <option key={t} value={t} className="bg-surface-card">{t}</option>)}
         </select>
-        <select value={horizon} onChange={e => setHorizon(e.target.value)} className="rounded-xl border border-surface-border/10 bg-text-primary/[0.03] px-3 py-2 text-[13px] text-text-secondary outline-none hover:border-surface-border/20">
+        <select value={horizon} onChange={e => setHorizon(e.target.value)} className="glass-pill border border-surface-border/14 bg-text-primary/[0.03] px-3 py-2 text-[13px] text-text-secondary outline-none transition hover:border-surface-border/24 focus-visible:border-accent-violet/50">
           {HORIZONS.map(h => <option key={h} value={h} className="bg-surface-card">{h}</option>)}
         </select>
-        <select onChange={e => setMinScore(Number(e.target.value))} className="rounded-xl border border-surface-border/10 bg-text-primary/[0.03] px-3 py-2 text-[13px] text-text-secondary outline-none hover:border-surface-border/20">
+        <select onChange={e => setMinScore(Number(e.target.value))} className="glass-pill border border-surface-border/14 bg-text-primary/[0.03] px-3 py-2 text-[13px] text-text-secondary outline-none transition hover:border-surface-border/24 focus-visible:border-accent-violet/50">
           <option value={0} className="bg-surface-card">Min Score</option>
           <option value={80} className="bg-surface-card">80+</option>
           <option value={85} className="bg-surface-card">85+</option>
@@ -204,13 +226,13 @@ function AllOpportunitiesTab({ items, loading }: { items: RadarItem[]; loading: 
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_220px]">
         {loading ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {[1,2,3,4,5,6].map(i => <div key={i} className="h-[280px] animate-pulse rounded-[20px] border border-surface-border/6 bg-text-primary/[0.02]" />)}
+            {[1,2,3,4,5,6].map(i => <div key={i} className="glass-panel h-[280px] animate-pulse" />)}
           </div>
         ) : (
           <OpportunityCardGrid displayed={displayed} />
         )}
 
-        <aside className="rounded-[20px] border border-surface-border/10 bg-text-primary/[0.03] p-4 lg:sticky lg:top-[84px]">
+        <aside className="glass-panel p-4 lg:sticky lg:top-[84px]">
           <h3 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-text-secondary">Top Sectors</h3>
           {topSectors.length === 0 ? (
             <p className="text-[11px] text-text-muted">Not enough scored opportunities yet to rank sectors.</p>
@@ -229,9 +251,9 @@ function AllOpportunitiesTab({ items, loading }: { items: RadarItem[]; loading: 
               ))}
             </div>
           )}
-          <div className="mt-6 border-t border-surface-border/5 pt-4">
+          <div className="mt-6 border-t border-surface-border/8 pt-4">
             <Link href="/ai-search?q=top investment opportunities India"
-              className="block w-full rounded-xl bg-gradient-to-r from-violet-600/80 to-sky-500/80 py-2 text-center text-[12px] font-semibold text-text-primary hover:opacity-90 transition">
+              className="block w-full rounded-xl bg-gradient-to-r from-violet-500 to-sky-400 py-2 text-center text-[12px] font-semibold text-white shadow-[0_8px_24px_-6px_rgba(99,102,241,0.5)] transition hover:shadow-[0_10px_30px_-4px_rgba(99,102,241,0.65)] hover:brightness-110">
               Ask AI for Analysis
             </Link>
           </div>
@@ -355,6 +377,12 @@ export default function OpportunityRadarPage() {
             beneficiaries: (o.companies ?? []).map((c: any) => typeof c === "string" ? c : c.symbol),
             sectors:      o.sectors ?? o.sectors_themes ?? [],
             trend:        o.trend ?? null,
+            // Honest-classification fix (2026-10-17): V2 items have no
+            // classification_status field at all -- left undefined so
+            // isHighConviction's existing V2 "no concept to check" path
+            // is unaffected. Only an explicit "unclassified" from the
+            // API disqualifies an item.
+            classification_status: o.classification_status,
           };
         });
         setItems(mapped);
@@ -390,7 +418,7 @@ export default function OpportunityRadarPage() {
   ];
 
   return (
-    <main className="min-w-0 pb-10">
+    <main className="radar-aurora min-w-0 pb-10">
       <HubHero
         hub="Opportunity Radar"
         eyebrow="AI-Powered"
