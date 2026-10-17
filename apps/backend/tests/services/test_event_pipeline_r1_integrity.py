@@ -80,7 +80,7 @@ class _FakeAIProvider:
         }
 
     async def generate_timeline(self, title, text, event_type):
-        return []
+        return {"items": [], "integrity_status": IntegrityStatus.VALID.value}
 
     async def find_similar_events(self, title, sectors, candidates):
         return []

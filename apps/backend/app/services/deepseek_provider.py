@@ -225,8 +225,16 @@ Return 1-5 most relevant sectors only.""",
 
     async def generate_timeline(
         self, title: str, text: str, event_type: str
-    ) -> List[Dict[str, Any]]:
-        result, _status = await self._safe_json_call(
+    ) -> Dict[str, Any]:
+        """Event Enrichment integrity fix (2026-10-17): this used to discard
+        _safe_json_call's own integrity_status, returning a bare list. An
+        empty/boilerplate timeline from a failed call was indistinguishable
+        from a genuine "4-5 phases" answer at every layer above this
+        function -- the exact gap already fixed for extract_companies/
+        extract_sectors (R1, 2026-09-08) but left open here. Returning the
+        real status (matching those call sites' contract) lets a caller
+        tell the two apart, same as it already can for stage 4."""
+        result, status = await self._safe_json_call(
             system="""You are a market event analyst.
 Generate a 4-5 phase chronological timeline for this event.
 Return a JSON array only:
@@ -236,7 +244,8 @@ Phases should cover: background context, triggering event, immediate market reac
             fallback=[],
             max_tokens=1024,
         )
-        return result if isinstance(result, list) else []
+        items = result if isinstance(result, list) else []
+        return {"items": items, "integrity_status": status}
 
     async def generate_impact_analysis(
         self,

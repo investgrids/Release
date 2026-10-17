@@ -20,11 +20,23 @@ sectors (VALID) or the call itself failed (FALLBACK), and this pipeline
 has no other way to detect a stage-4-specific provider failure (its only
 health check is on stage 2's classify_event). Both now return
 (list, integrity_status) tuples, matching every dict-shaped call site's
-own contract. generate_timeline/find_similar_events are UNCHANGED --
-out of this remediation's scope; their [] fallback really is
-self-evidently sufficient for what they feed (a cosmetic timeline / a
-similar-events list, neither gated behind a coverage floor the way
-extract_companies/extract_sectors feed scoring_engine's real threshold).
+own contract. find_similar_events remains UNCHANGED -- out of scope,
+tracked separately; its [] fallback feeds a non-gated similarity list.
+
+Integrity-status propagation fix (2026-10-17): generate_timeline had the
+exact same gap R1 fixed for extract_companies/extract_sectors -- it also
+discarded _safe_json_call's status and returned a bare list, so a
+provider failure at stage 6 was invisible at every layer above this
+function (an open gap this codebase's own earlier audits explicitly
+flagged: "the AI answers stage 2 for real but then falls back on stage
+4, 6, or 8 -- still completes as done with partially-fallback data,
+undetected"). generate_timeline now returns {items, integrity_status},
+matching extract_companies/extract_sectors' corrected contract rather
+than the dict-shaped callers' in-place tag (a bare list has nowhere to
+attach a key). event_pipeline.py's stage 6 does not yet act on the
+status (no new retry trigger -- that's a separate, later change); this
+fix only makes the signal reach the caller, same scope as R1's own
+first step.
 
 Pure unit tests against DeepSeekProvider directly (mocking _chat), same
 convention as this module's sibling suites.
@@ -116,13 +128,54 @@ async def test_generate_graph_malformed_json_shape_also_tagged_fallback():
 
 
 @pytest.mark.asyncio
-async def test_generate_timeline_still_returns_a_plain_list_on_fallback():
-    """generate_timeline/find_similar_events are explicitly OUT of R1's
-    scope -- confirms they still return a bare list, untouched."""
+async def test_generate_timeline_tags_fallback_on_provider_failure():
+    """Integrity-status propagation fix (2026-10-17): a provider failure
+    must surface as {"items": [], "integrity_status": "fallback"}, not a
+    bare [] indistinguishable from a genuine empty timeline."""
     provider = _provider()
     with patch.object(provider, "_chat", new=AsyncMock(side_effect=RuntimeError("provider down"))):
-        timeline = await provider.generate_timeline("Title", "text", "macro")
-    assert timeline == []
+        result = await provider.generate_timeline("Title", "text", "macro")
+    assert result == {"items": [], "integrity_status": IntegrityStatus.FALLBACK.value}
+
+
+@pytest.mark.asyncio
+async def test_generate_timeline_tags_valid_on_real_success():
+    """A genuine, well-formed AI answer must be tagged VALID, with its
+    real items intact -- the positive case the FALLBACK test above is
+    meant to be distinguishable from."""
+    provider = _provider()
+    payload = '[{"date": "2026-01-01", "title": "Phase 1", "description": "x", "order": 1}]'
+    with patch.object(provider, "_chat", new=AsyncMock(return_value=payload)):
+        result = await provider.generate_timeline("Title", "text", "macro")
+    assert result["integrity_status"] == IntegrityStatus.VALID.value
+    assert result["items"] == [{"date": "2026-01-01", "title": "Phase 1", "description": "x", "order": 1}]
+
+
+@pytest.mark.asyncio
+async def test_generate_timeline_valid_empty_is_distinguishable_from_fallback():
+    """A genuine 'no phases' answer (VALID, empty) must not be
+    byte-identical to a FALLBACK empty result -- the exact ambiguity
+    this fix exists to resolve."""
+    provider = _provider()
+    with patch.object(provider, "_chat", new=AsyncMock(return_value="[]")):
+        result = await provider.generate_timeline("Title", "text", "macro")
+    assert result == {"items": [], "integrity_status": IntegrityStatus.VALID.value}
+
+
+@pytest.mark.asyncio
+async def test_generate_timeline_malformed_shape_stays_tagged_valid():
+    """_parse_json succeeding but returning a non-list (e.g. the model
+    wrapped its JSON object instead of an array) must resolve to an
+    empty items list -- and, unlike before this fix, that is now
+    reachable in the integrity_status it was actually tagged with by
+    _safe_json_call (VALID: the call succeeded, only the shape was
+    wrong -- a different failure mode than an exception, and the two
+    must stay distinguishable, not collapsed into one 'fallback' bucket)."""
+    provider = _provider()
+    with patch.object(provider, "_chat", new=AsyncMock(return_value='{"not": "a list"}')):
+        result = await provider.generate_timeline("Title", "text", "macro")
+    assert result["items"] == []
+    assert result["integrity_status"] == IntegrityStatus.VALID.value
 
 
 # ── Event Enrichment R1 (2026-09-08): extract_companies/extract_sectors ────

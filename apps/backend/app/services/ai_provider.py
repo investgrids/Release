@@ -70,10 +70,14 @@ class AIProvider(ABC):
     @abstractmethod
     async def generate_timeline(
         self, title: str, text: str, event_type: str
-    ) -> List[Dict[str, Any]]:
+    ) -> Dict[str, Any]:
         """
-        Return chronological timeline:
-        [{date, title, description, order}]
+        Return {items, integrity_status}:
+        items: [{date, title, description, order}]
+        integrity_status: measurement_semantics.IntegrityStatus.VALID/FALLBACK.value
+        (same R1-style correction as extract_companies/extract_sectors -- an
+        empty items list alone cannot tell a caller whether the AI genuinely
+        found no timeline phases or this call itself failed.)
         """
         raise NotImplementedError
 

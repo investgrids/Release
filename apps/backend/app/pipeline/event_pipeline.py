@@ -262,7 +262,8 @@ async def _run_event_pipeline_impl(event: Event, db: AsyncSession) -> bool:
         await asyncio.sleep(_STAGE_DELAY)
         stage = "timeline"
         logger.debug("[Pipeline:%s] timeline", eid)
-        timeline_raw = await ai.generate_timeline(title, full_text, event_type)
+        timeline_result = await ai.generate_timeline(title, full_text, event_type)
+        timeline_raw = timeline_result["items"]
         stages_done.append(stage)
 
         # Stage 7 — Similar events (DB lookup → AI ranking)
