@@ -67,12 +67,23 @@ async def get_opportunity_detail(
     # page (each already degrades gracefully to None/[] on its own).
     from app.services import opportunity_intelligence as oi
 
-    try:
-        detail.investment_verdict = oi.compute_investment_verdict(
-            detail.opportunity_score, detail.confidence, detail.risk_level, detail.trend,
-        )
-    except Exception as exc:
-        logger.warning("radar.verdict_fail", exc=str(exc)[:160])
+    # Honest-classification fix (2026-10-17, found during final review):
+    # compute_investment_verdict does `confidence * 100 if confidence <= 1
+    # else confidence` -- a guaranteed TypeError now that confidence is
+    # None for an unclassified record, caught by the except below (no
+    # crash, no fabrication -- investment_verdict just stays at its
+    # Optional[...] = None default), but it logged a warning on every
+    # single detail fetch for every one of the 20 currently-unclassified
+    # production records. There is no honest verdict to compute from a
+    # classification that never happened; skip the call entirely instead
+    # of relying on an exception to arrive at the same no-verdict result.
+    if detail.classification_status != "unclassified":
+        try:
+            detail.investment_verdict = oi.compute_investment_verdict(
+                detail.opportunity_score, detail.confidence, detail.risk_level, detail.trend,
+            )
+        except Exception as exc:
+            logger.warning("radar.verdict_fail", exc=str(exc)[:160])
 
     try:
         detail.primary_event = await oi.select_primary_event(db, detail.events)

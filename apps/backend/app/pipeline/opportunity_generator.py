@@ -28,6 +28,7 @@ from app.pipeline.classifier import classify_text, classify_with_ai
 from app.repositories.opportunity_repository import OpportunityRepository
 from app.services.evidence_clustering.dedup import cluster_evidence
 from app.services.evidence_clustering.evidence import HEURISTIC, EvidenceItem
+from app.services.measurement_semantics import IntegrityStatus
 
 logger = structlog.get_logger(__name__)
 
@@ -268,6 +269,19 @@ Return:
   "why_bullets": ["<bullet1>", "<bullet2>", "<bullet3>", "<bullet4>"]
 }}"""
 
+    # Honest-classification fix (2026-10-17): ai_classified tracks whether
+    # this opportunity's trend/risk/time_horizon/confidence actually came
+    # from a successful AI classification, as opposed to the heuristic
+    # fallback below standing in for it. Read-only audit confirmed every
+    # sampled production record had hit this fallback (the heuristic
+    # summary template appeared verbatim), yet the fallback's trend/risk
+    # defaults ("Positive"/"Medium") were indistinguishable from a real
+    # AI verdict -- a failed classification looked exactly like a
+    # confident, positive one. ai_classified is persisted via
+    # ai_summary_data["integrity_status"] below and read by
+    # OpportunityService to decide whether to serialize these fields at
+    # all (see opportunity_service.py).
+    ai_classified = False
     ai_text = await _call_ai(ai_prompt, max_tokens=700)
     if ai_text:
         parsed = _parse_json_block(ai_text)
@@ -284,6 +298,7 @@ Return:
             trend = parsed.get("trend", "Positive")
             risk = parsed.get("risk_level", "Medium")
             horizon = parsed.get("time_horizon", "3-5 Years")
+            ai_classified = True
 
     # Heuristic fallbacks
     if not title:
@@ -307,11 +322,24 @@ Return:
     if not ai_summary_data:
         ai_summary_data = _build_heuristic_summary(title, sectors, companies)
     if "trend" not in locals():
-        trend = "Positive"
+        # Honest-classification fix: "Positive" implied a real, favorable
+        # AI verdict that never happened. "Neutral" is the Opportunity
+        # model's own documented column default (db/models/opportunity.py)
+        # -- reusing it here means a failed classification no longer
+        # invents a directional claim the AI was never asked and never
+        # answered.
+        trend = "Neutral"
     if "risk" not in locals():
         risk = "Medium"
     if "horizon" not in locals():
         horizon = "3 – 5 Years"
+
+    # ai_summary_data is never None by this point (either the real parsed
+    # dict or _build_heuristic_summary's equivalent) -- integrity_status
+    # always has somewhere to live, no schema change needed.
+    ai_summary_data["integrity_status"] = (
+        IntegrityStatus.VALID.value if ai_classified else IntegrityStatus.FALLBACK.value
+    )
 
     clusters = await _cluster_event_dicts(db, event_texts)
     score = _score_opportunity(len(clusters), companies, sectors)

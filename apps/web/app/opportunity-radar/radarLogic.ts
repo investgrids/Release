@@ -22,6 +22,14 @@ export interface RadarItem {
   beneficiaries: string[];
   sectors?: string[];
   trend?: string | null;
+  // Honest-classification fix (2026-10-17): absent for V2 items (no
+  // concept of this at all, same as confidence below) and for V1 items
+  // fetched before this fix shipped (page.tsx's mapping defaults it to
+  // "classified" only when the API's own field is itself undefined --
+  // see the mapping in page.tsx). "unclassified" means the AI call that
+  // would have produced a real trend/risk/confidence verdict failed or
+  // returned unparseable output.
+  classification_status?: "classified" | "unclassified";
 }
 
 // 2026-09-20 V2-compatibility fix: `confidence` is a V1-only concept
@@ -35,7 +43,13 @@ export interface RadarItem {
 // requiring a criterion that structurally doesn't apply: a real score
 // alone qualifies when there's no confidence concept to check; V1 items
 // still require both real thresholds, unchanged.
-export function isHighConviction(item: Pick<RadarItem, "score" | "confidence">): boolean {
+export function isHighConviction(item: Pick<RadarItem, "score" | "confidence" | "classification_status">): boolean {
+  // Honest-classification fix (2026-10-17): a V1 item whose AI
+  // classification failed must never qualify as High Conviction just
+  // because its null confidence happened to take the same "no concept to
+  // check" bypass V2 items legitimately use below -- missing/failed
+  // evidence must not silently produce maximum conviction.
+  if (item.classification_status === "unclassified") return false;
   if ((item.score ?? 0) < 90) return false;
   return item.confidence === null ? true : item.confidence >= 0.85;
 }

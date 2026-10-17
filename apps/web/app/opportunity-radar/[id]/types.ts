@@ -21,7 +21,16 @@ interface AISummary    { matters: string; benefits: string; risks: string[]; inv
 export interface OpportunityDetail {
   id: number; slug: string; title: string; summary: string;
   opportunity_score: number | null; confidence: number | null;
-  trend: string; risk_level: string; time_horizon: string;
+  // Honest-classification fix (2026-10-17): these are null, and
+  // classification_status is "unclassified", when the AI call that
+  // would have produced a real trend/risk/time_horizon verdict failed
+  // or returned unparseable output -- see opportunity_service.py.
+  trend: string | null; risk_level: string | null; time_horizon: string | null;
+  // Optional, not required: existing fixtures/callers built before this
+  // fix (including this file's own pre-existing unit tests) construct
+  // OpportunityDetail without it -- undefined must behave exactly like
+  // "classified" (the pre-fix default), never like "unclassified".
+  classification_status?: "classified" | "unclassified";
   sectors: string[];
   ai_summary: AISummary | null;
   metrics: MetricSchema | null;

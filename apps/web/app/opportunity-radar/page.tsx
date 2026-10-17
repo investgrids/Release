@@ -355,6 +355,12 @@ export default function OpportunityRadarPage() {
             beneficiaries: (o.companies ?? []).map((c: any) => typeof c === "string" ? c : c.symbol),
             sectors:      o.sectors ?? o.sectors_themes ?? [],
             trend:        o.trend ?? null,
+            // Honest-classification fix (2026-10-17): V2 items have no
+            // classification_status field at all -- left undefined so
+            // isHighConviction's existing V2 "no concept to check" path
+            // is unaffected. Only an explicit "unclassified" from the
+            // API disqualifies an item.
+            classification_status: o.classification_status,
           };
         });
         setItems(mapped);

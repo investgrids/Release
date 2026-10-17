@@ -248,9 +248,25 @@ export function LegacyOpportunityDetail({ detail, id, hasInitialDetail, initialR
                   score, not an independent measurement (also feeds the Investment
                   Verdict below, so kept rather than removed). Disclosed via tooltip. */}
               <StatCard label="Confidence Score" value={confidence !== null ? `${confidence}%` : "—"} sub={confidence !== null ? "Confidence" : "Unscored"} valueClass="text-sky-400" title="Derived from the opportunity score, not an independently measured confidence"/>
-              <StatCard label="Time Horizon"     value={fixMojibake(d.time_horizon)}/>
-              <StatCard label="Risk Level"       value={d.risk_level}   valueClass={riskColor(d.risk_level)}/>
-              <StatCard label="Trend"            value={d.trend}        valueClass={trendColor(d.trend)}/>
+              {/* Honest-classification fix (2026-10-17): d.classification_status
+                  is "unclassified" when the AI call that would have produced a
+                  real trend/risk/time_horizon verdict failed or returned
+                  unparseable output -- the stored values are heuristic-fallback
+                  defaults, not a real classification, and must never render as
+                  a confident-looking verdict. */}
+              {d.classification_status === "unclassified" ? (
+                <>
+                  <StatCard label="Time Horizon" value="—" sub="Unclassified" valueClass="text-text-muted" title="This opportunity's AI classification failed or was unavailable when it was generated — no real time-horizon verdict exists for it."/>
+                  <StatCard label="Risk Level"   value="—" sub="Unclassified" valueClass="text-text-muted" title="This opportunity's AI classification failed or was unavailable when it was generated — no real risk verdict exists for it."/>
+                  <StatCard label="Trend"        value="—" sub="Unclassified" valueClass="text-text-muted" title="This opportunity's AI classification failed or was unavailable when it was generated — no real trend verdict exists for it."/>
+                </>
+              ) : (
+                <>
+                  <StatCard label="Time Horizon" value={fixMojibake(d.time_horizon ?? "")}/>
+                  <StatCard label="Risk Level"   value={d.risk_level ?? ""}   valueClass={riskColor(d.risk_level ?? "")}/>
+                  <StatCard label="Trend"        value={d.trend ?? ""}        valueClass={trendColor(d.trend ?? "")}/>
+                </>
+              )}
             </div>
           </SectionCard>
 
@@ -474,7 +490,7 @@ export function LegacyOpportunityDetail({ detail, id, hasInitialDetail, initialR
 
           {/* Financial Impact */}
           {metrics && (
-            <SectionCard title={`Financial Impact (Next ${fixMojibake(d.time_horizon)})`}>
+            <SectionCard title={d.classification_status === "unclassified" ? "Financial Impact" : `Financial Impact (Next ${fixMojibake(d.time_horizon ?? "")})`}>
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { label: "Revenue Potential",    value: metrics.revenue_potential  },
