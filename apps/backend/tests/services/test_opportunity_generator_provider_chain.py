@@ -84,7 +84,13 @@ async def test_empty_result_from_shared_chain_produces_the_existing_honest_fallb
             opp = await gen_mod.generate_opportunity_from_events(db, events)
             assert opp is not None
             opp_id = opp.id
-            # Pre-existing heuristic fallback, unchanged by this patch.
+            # Pre-existing heuristic fallback, unchanged by this patch -- correct
+            # for this branch alone. NOTE (release prep): once this branch is
+            # merged/rebased onto main after fix/opportunity-radar-honest-
+            # classification lands there, that commit changes this fallback's
+            # default to "Neutral" and this assertion must be updated to match
+            # as part of preparing this PR against the new main (see
+            # D:\IG-opp-integration for the validated combined-context value).
             assert opp.trend == "Positive"
             assert opp.risk_level == "Medium"
             assert "Investment opportunity driven by:" in opp.summary
