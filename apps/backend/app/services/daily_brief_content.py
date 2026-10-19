@@ -300,9 +300,20 @@ def dedupe_evidence(facts: list[dict], ledger: "Ledger") -> list[dict]:
 
 def why_today_matters(facts: list[dict]) -> list[dict]:
     """Event/fact -> consequence -> sectors. Companies are never listed as 'affected': a ticker only appears under
-    companies_named, for events whose own text names it, because an impact on a specific company is not established here."""
+    companies_named, for events whose own text names it, because an impact on a specific company is not established here.
+
+    Provenance contract (2026-10-19): an event fact's sectors/companies here
+    are INFERRED from its own (sometimes AI-synthesized) one_liner -- an
+    inference that is not safe to make from an unverified raw triage headline.
+    A rule_based_fallback or unknown-provenance event is skipped entirely
+    rather than shown with a caveat, because this function's whole premise
+    (claim -> consequence -> affected sectors/companies) doesn't hold for
+    text nobody has actually processed. Non-event facts (market_index,
+    macro) never carry triage_source at all and are unaffected."""
     out = []
     for f in facts:
+        if f.get("entity_type") == "event" and (f.get("evidence") or {}).get("triage_source") in ("rule_based_fallback", "unknown"):
+            continue
         sectors = list(f.get("affected_sectors") or [])
         named = [str(t).upper().split(".")[0] for t in (f.get("affected_companies") or []) if t] if f.get("entity_type") == "event" else []
         if not sectors and not named:

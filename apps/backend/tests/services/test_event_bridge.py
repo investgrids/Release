@@ -56,6 +56,7 @@ async def test_critical_rss_event_creates_event_row():
             raw=raw, urgency=1, importance=6, confidence=50,
             sentiment="negative", horizon="short", market_impact="high",
             is_structural=False, direction="down", one_liner="test",
+            triage_source="ai",
             themes=[], sectors=["Energy"], tickers=[],
             broadcast=False, refresh_homepage=False,
         )
@@ -90,6 +91,7 @@ async def test_medium_tier_event_does_not_bridge():
             raw=raw, urgency=3, importance=3, confidence=40,
             sentiment="neutral", horizon="short", market_impact="low",
             is_structural=False, direction="flat", one_liner="test",
+            triage_source="ai",
             themes=[], sectors=[], tickers=[],
             broadcast=False, refresh_homepage=False,
         )
@@ -122,6 +124,7 @@ async def test_existing_event_row_never_overwritten():
             raw=raw, urgency=9, importance=9, confidence=90,
             sentiment="negative", horizon="short", market_impact="high",
             is_structural=True, direction="down", one_liner="t",
+            triage_source="ai",
             themes=[], sectors=[], tickers=[], broadcast=True, refresh_homepage=True,
         )
         await _store_triage(triage)

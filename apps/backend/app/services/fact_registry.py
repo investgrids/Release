@@ -190,7 +190,13 @@ async def refresh_event_facts(db: AsyncSession, limit: int = 10) -> list[Fact]:
             direction=e.get("direction"), change_pct=None,
             confidence=(float(confidence_raw) / 10.0) if confidence_raw is not None else None,
             source=source_label,
-            evidence={"sentiment": e.get("sentiment"), "market_impact": e.get("market_impact")},
+            # Default "unknown" here, never "ai" -- this IS the triage path
+            # (read_top_events() -> EventTriage), unlike base.py's evidence
+            # serialization where most sources have no triage concept at all.
+            evidence={
+                "sentiment": e.get("sentiment"), "market_impact": e.get("market_impact"),
+                "triage_source": e.get("triage_source", "unknown"),
+            },
             affected_sectors=e.get("sectors") or [], affected_companies=e.get("tickers") or [],
             observed_at=_now(),
         ))

@@ -59,7 +59,16 @@ def decision_facts_json(decision: DecisionResult, evidence: list[Evidence]) -> s
         "losers": decision.losers,
         "missing_data": decision.missing_data,
         "supporting_evidence": [
-            {"source": e.source, "entity": e.entity, "claim": e.claim, "polarity": e.polarity}
+            {
+                "source": e.source, "entity": e.entity, "claim": e.claim, "polarity": e.polarity,
+                # Only set when the retriever that produced this evidence actually
+                # tracks it (today, only intelligence_publishing_retriever.py, via
+                # EventTriage.triage_source) — never defaulted to "ai" for sources
+                # that have no concept of triage provenance at all. "rule_based_fallback"
+                # here means claim is an unprocessed raw headline, not an AI-
+                # synthesized one-liner; see build_prompt()'s instruction below.
+                **({"provenance": e.raw["triage_source"]} if "triage_source" in e.raw else {}),
+            }
             for e in top_evidence
         ],
     }
@@ -77,7 +86,11 @@ def build_prompt(template: AnswerTemplate, query: str, decision: DecisionResult,
         f"elaborates on the computed facts above in plain English for an investor. "
         f"Do not introduce new statistics, percentages, or company names not already present "
         f"in the facts. If missing_data is non-empty, acknowledge the gap honestly rather than "
-        f"filling it in. Return only the JSON object, no markdown fences, no extra text."
+        f"filling it in. Some supporting_evidence items carry a \"provenance\" field: "
+        f"\"rule_based_fallback\" means that item's claim is an unprocessed raw source headline, "
+        f"not an analyst-verified conclusion -- treat it as something reported, not something "
+        f"established, and do not restate it as a confirmed fact. Return only the JSON object, "
+        f"no markdown fences, no extra text."
     )
 
 

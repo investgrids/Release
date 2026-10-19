@@ -323,8 +323,15 @@ async def update_article(
         # pure market_move_reason trigger, where the move itself already IS
         # this article's own sector/price, so the broader narrative is
         # legitimate context, not contamination.
-        if new_triage_events:
-            top_event = sorted(new_triage_events, key=lambda e: e.get("urgency", 0), reverse=True)[0]
+        # Same provenance rule as _generate_updated_takeaway(): a fallback/
+        # unknown event's one_liner must not be quoted as this article's own
+        # "Update" note. Prefer the next-best genuinely AI-sourced candidate;
+        # if none exists this cycle, fall back to market_move_reason/the
+        # global story the same way the "no new_triage_events" branch already
+        # does, rather than quoting an unprocessed raw headline.
+        eligible_events = [e for e in new_triage_events if e.get("triage_source") not in ("rule_based_fallback", "unknown")]
+        if eligible_events:
+            top_event = sorted(eligible_events, key=lambda e: e.get("urgency", 0), reverse=True)[0]
             note_text = top_event.get("one_liner") or mie_context.get("story", update_reason)
         else:
             note_text = market_move_reason or mie_context.get("story", update_reason)
@@ -374,7 +381,17 @@ def _generate_updated_takeaway(
     """
     if not new_events:
         return None
-    top = sorted(new_events, key=lambda e: e.get("urgency", 0), reverse=True)[0]
+    # Provenance contract (2026-10-19): a rule_based_fallback/unknown event's
+    # one_liner is a raw, unprocessed triage headline, not a synthesized
+    # takeaway -- never publish it prefixed as "LATEST:" (implies MarketRipple
+    # processed/verified it). Fall through to the next-best genuinely
+    # AI-sourced candidate rather than silently picking a lower-urgency one;
+    # if none exists this cycle, return None (no grounded takeaway available),
+    # same as the existing empty-new_events behavior.
+    candidates = sorted(new_events, key=lambda e: e.get("urgency", 0), reverse=True)
+    top = next((e for e in candidates if e.get("triage_source") not in ("rule_based_fallback", "unknown")), None)
+    if top is None:
+        return None
     one_liner = top.get("one_liner")
     return f"LATEST: {one_liner}"[:400] if one_liner else None
 
@@ -391,7 +408,11 @@ def _generate_watch_next(
     if mie_context.get("trader_watch"):
         items.append(mie_context["trader_watch"])
 
-    for ev in new_events[:2]:
+    # Same provenance rule as _generate_updated_takeaway(): skip
+    # rule_based_fallback/unknown candidates rather than publish an
+    # unprocessed raw headline as a watch-next item.
+    eligible = [e for e in new_events if e.get("triage_source") not in ("rule_based_fallback", "unknown")]
+    for ev in eligible[:2]:
         if ev.get("one_liner"):
             items.append(ev["one_liner"])
 

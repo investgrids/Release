@@ -96,6 +96,14 @@ def _verified_drivers_for(symbol: str, change_pct: float, themes: list[dict], ev
         tickers = [t.upper() for t in (e.get("tickers") or [])]
         if sym_upper not in tickers:
             continue
+        # Provenance contract (2026-10-19): a rule_based_fallback/unknown
+        # event's one_liner is an unprocessed raw headline, not verified
+        # evidence -- skip it rather than present it as a checkable driver.
+        # Falls through to tier 2/3 (theme membership, momentum) or the
+        # existing empty-list "no verified driver identified" behavior,
+        # exactly as if this event had never matched the ticker.
+        if e.get("triage_source") in ("rule_based_fallback", "unknown"):
+            continue
         headline = e.get("one_liner") or e.get("headline") or ""
         label, driver_type, confidence = _classify_driver(headline)
         drivers.append({

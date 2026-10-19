@@ -25,6 +25,13 @@ class EventTriage(Base):
     is_structural = Column(Boolean, nullable=False, default=False)
     direction = Column(String(16), nullable=True)          # up/down/sideways
     one_liner = Column(Text, nullable=True)
+    # "ai" | "rule_based_fallback" | "unknown". Set explicitly at creation
+    # by triage_worker.py — "unknown" is the schema_patches.py backfill
+    # value for every row that existed before this column, never inferred
+    # from the rule_based_fallback signature (urgency/confidence/sentiment/
+    # etc. all matching the fixed fallback constants is a strong proxy, not
+    # certain provenance — do not silently relabel historical rows from it).
+    triage_source = Column(String(20), nullable=False, default="unknown")
     themes = Column(JSON, nullable=False, default=list)
     sectors = Column(JSON, nullable=False, default=list)
     tickers = Column(JSON, nullable=False, default=list)

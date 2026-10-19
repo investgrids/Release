@@ -75,6 +75,38 @@ def test_company_impact_is_never_claimed():
     assert rows[1]["companies_named"] == ["ADANIENT"] and rows[1]["affected_label"] == "Sectors tagged"
 
 
+def test_fallback_sourced_event_is_never_shown_as_why_today_matters():
+    """Provenance contract (2026-10-19): an event fact's sectors/companies
+    here are inferred from its own claim text -- unsafe to infer from a raw,
+    unprocessed triage headline. rule_based_fallback and unknown provenance
+    must both be skipped entirely, never shown with sector/company framing."""
+    rows = content.why_today_matters([
+        fact("e1", "Order win", "event", claim="Company X won an order.", sectors=["Power"], companies=["adanient"],
+             evidence={"triage_source": "rule_based_fallback"}),
+        fact("e2", "Old event", "event", claim="Something happened.", sectors=["Energy"], companies=["ONGC"],
+             evidence={"triage_source": "unknown"}),
+    ])
+    assert rows == []
+
+
+def test_ai_sourced_event_is_unaffected_by_the_provenance_check():
+    rows = content.why_today_matters([
+        fact("e1", "Order win", "event", claim="Company X won an order.", sectors=["Power"], companies=["adanient"],
+             evidence={"triage_source": "ai"}),
+    ])
+    assert len(rows) == 1 and rows[0]["companies_named"] == ["ADANIENT"]
+
+
+def test_non_event_fact_with_no_triage_source_key_is_unaffected():
+    """market_index/macro facts never carry triage_source at all -- its
+    absence must not be mistaken for fallback/unknown and suppress them."""
+    rows = content.why_today_matters([
+        fact("BRENT_CRUDE", "Brent Crude Oil", "commodity", "rising", claim="Brent is rising.",
+             sectors=["Aviation"], companies=["INDIGO"]),
+    ])
+    assert len(rows) == 1 and rows[0]["affected"] == ["Aviation"]
+
+
 # ── sentiment ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
 def q(name, pct, value="1"):

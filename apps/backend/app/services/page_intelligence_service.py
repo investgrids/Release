@@ -239,7 +239,13 @@ async def get_home_intelligence() -> dict:
             pass
 
         signals  = mie.get("signals", {})
-        top_evts = [e for e in mie.get("top_events", []) if e.get("urgency", 0) >= 5][:6]
+        # Provenance contract (2026-10-19): a rule_based_fallback/unknown
+        # event's one_liner must never enter this cached, AI-generated
+        # "LIVE HIGH-URGENCY EVENTS" context.
+        top_evts = [
+            e for e in mie.get("top_events", [])
+            if e.get("urgency", 0) >= 5 and e.get("triage_source") not in ("rule_based_fallback", "unknown")
+        ][:6]
 
         from app.db.session import AsyncSessionLocal
         from app.db.models_legacy import Event, NewsArticle
@@ -327,12 +333,17 @@ async def get_company_intelligence(symbol: str) -> dict:
                 select(NewsArticle).order_by(desc(NewsArticle.created_at)).limit(10)
             )).scalars().all()
 
-        # Filter triage to rows mentioning this symbol
+        # Filter triage to rows mentioning this symbol. Provenance contract
+        # (2026-10-19): a rule_based_fallback/unknown row's one_liner must
+        # never enter this company's cached AI-generated intelligence context.
         sym_lower = sym.lower()
         company_triage = [
             r for r in triage_rows
-            if any(sym_lower in (t or "").lower() for t in (r.tickers or []))
-            or sym_lower in (r.headline or "").lower()
+            if (
+                any(sym_lower in (t or "").lower() for t in (r.tickers or []))
+                or sym_lower in (r.headline or "").lower()
+            )
+            and r.triage_source not in ("rule_based_fallback", "unknown")
         ][:6]
 
         # Filter news mentioning this symbol
@@ -387,7 +398,13 @@ async def get_company_intelligence(symbol: str) -> dict:
             parts.append("RECENT MARKET EVENTS RELATED TO THIS COMPANY:")
             for r in company_triage:
                 parts.append(f"  [{r.urgency}/10 urgency, {r.sentiment}] {r.headline[:120]}")
-                if r.one_liner:
+                # Never show one_liner as separate evidence when it's the
+                # same text as the headline above (always true for a
+                # rule_based_fallback row, since that path sets
+                # one_liner=headline[:200] -- the provenance filter above
+                # already excludes those rows, but this check is a
+                # structural guarantee independent of that filter).
+                if r.one_liner and r.one_liner.strip() != r.headline[:len(r.one_liner.strip())].strip():
                     parts.append(f"    → {r.one_liner[:100]}")
         if company_news:
             parts.append("RECENT NEWS:")

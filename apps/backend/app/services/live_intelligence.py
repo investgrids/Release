@@ -136,7 +136,18 @@ async def _detect_anomaly(db: AsyncSession) -> dict | None:
                             bucket["directions"][sym] = (r.direction, r.triaged_at)
                     matched_this_event = True
             if matched_this_event:
-                bucket["headlines"].append(r.one_liner or r.headline)
+                # Provenance contract (2026-10-19): cluster membership
+                # (tickers/directions above) is a real statistical signal
+                # regardless of provenance -- only the explanatory headline
+                # text is restricted. A rule_based_fallback/unknown event's
+                # one_liner is never added as the "why_it_matters" candidate;
+                # if every matched event is ineligible, headlines stays
+                # empty and the existing `bucket["headlines"][0] if ... else
+                # None` fallback below applies unchanged. Deliberately not
+                # touching the first-headline-selection order itself (a
+                # separate, already-flagged issue).
+                if r.triage_source not in ("rule_based_fallback", "unknown"):
+                    bucket["headlines"].append(r.one_liner or r.headline)
                 if r.triaged_at and (bucket["latest"] is None or r.triaged_at > bucket["latest"]):
                     bucket["latest"] = r.triaged_at
 

@@ -138,3 +138,95 @@ async def test_market_behaviour_inputs_is_added_to_existing_snapshot_table():
                 await apply_schema_patches(conn)
         finally:
             await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_triage_source_column_is_added_and_backfills_unknown_on_existing_rows():
+    """Provenance contract (2026-10-19): unlike validation_status, this
+    column needs no reclassification pass -- "unknown" is the correct,
+    intended value for every row that predates the column, not a
+    placeholder waiting to be corrected. This test proves both the ADD
+    COLUMN and that a raw insert predating the patch (simulating a real
+    pre-migration row written before this column existed) reads back as
+    "unknown", never silently inferred as "ai" or "rule_based_fallback"."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "pre_triage_source.db"
+        engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+                await conn.execute(text("ALTER TABLE event_triage DROP COLUMN triage_source"))
+
+            async with engine.begin() as conn:
+                result = await conn.execute(text("PRAGMA table_info(event_triage)"))
+                cols_before = {row[1] for row in result.fetchall()}
+                assert "triage_source" not in cols_before, "test setup failed to simulate a pre-migration table"
+                # Insert a row the way the real pre-column code did, before
+                # apply_schema_patches() has run.
+                await conn.execute(text(
+                    "INSERT INTO event_triage (id, event_id, source, headline, urgency, importance, "
+                    "confidence, is_structural, one_liner, themes, sectors, tickers, broadcast, refresh_homepage) "
+                    "VALUES ('t-pre-1', 'ev-pre-1', 'news', 'Pre-migration headline', 3, 5, 4, 0, "
+                    "'Pre-migration headline', '[]', '[]', '[]', 0, 0)"
+                ))
+
+            async with engine.begin() as conn:
+                await apply_schema_patches(conn)
+
+            async with engine.begin() as conn:
+                result = await conn.execute(text("PRAGMA table_info(event_triage)"))
+                cols_after = {row[1] for row in result.fetchall()}
+                assert "triage_source" in cols_after, "apply_schema_patches() must add triage_source to an existing table"
+
+                row = (await conn.execute(text(
+                    "SELECT triage_source FROM event_triage WHERE id = 't-pre-1'"
+                ))).first()
+                assert row[0] == "unknown", "a pre-migration row must backfill to 'unknown', never a guessed provenance"
+
+            async with engine.begin() as conn:
+                # Idempotent re-run.
+                await apply_schema_patches(conn)
+        finally:
+            await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_triage_source_set_explicitly_for_ai_and_rule_based_fallback_rows():
+    """The two real write paths (triage_worker.py's AI-success branch and
+    its _rule_based_fallback() branch) must each persist their own
+    explicit triage_source -- never left to fall through to the "unknown"
+    column default, which is reserved for rows that predate the column
+    entirely (see the test above)."""
+    from app.db.models.intelligence import EventTriage
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "fresh_triage_source.db"
+        engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+
+            from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+            Session = async_sessionmaker(engine, expire_on_commit=False)
+            async with Session() as session:
+                async with session.begin():
+                    session.add(EventTriage(
+                        id="t-ai-1", event_id="ev-ai-1", source="news", headline="AI-triaged headline",
+                        one_liner="AI-triaged headline", triage_source="ai",
+                    ))
+                    session.add(EventTriage(
+                        id="t-fallback-1", event_id="ev-fallback-1", source="news", headline="Fallback headline",
+                        one_liner="Fallback headline", triage_source="rule_based_fallback",
+                    ))
+
+            async with engine.begin() as conn:
+                ai_row = (await conn.execute(text(
+                    "SELECT triage_source FROM event_triage WHERE id = 't-ai-1'"
+                ))).first()
+                fallback_row = (await conn.execute(text(
+                    "SELECT triage_source FROM event_triage WHERE id = 't-fallback-1'"
+                ))).first()
+                assert ai_row[0] == "ai"
+                assert fallback_row[0] == "rule_based_fallback"
+        finally:
+            await engine.dispose()

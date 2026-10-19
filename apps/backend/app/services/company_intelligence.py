@@ -99,6 +99,12 @@ async def get_active_events(db: AsyncSession, symbol: str, sector: str | None, l
         if r.id in seen_ids:
             continue
         seen_ids.add(r.id)
+        # Provenance contract (2026-10-19): a rule_based_fallback/unknown
+        # event's one_liner/headline is unprocessed and unverified -- do not
+        # show it as one of this company's "active events" today. Sorting/
+        # scoring for the remaining real items is otherwise untouched.
+        if r.triage_source in ("rule_based_fallback", "unknown"):
+            continue
         items.append({
             "id": r.event_id,
             "slug": slug_by_event_id.get(r.event_id, ""),

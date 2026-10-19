@@ -43,6 +43,7 @@ def _serialize_triaged(event: TriagedEvent) -> str:
         "is_structural":    event.is_structural,
         "direction":        event.direction,
         "one_liner":        event.one_liner,
+        "triage_source":    event.triage_source,
         "themes":           event.themes,
         "sectors":          event.sectors,
         "tickers":          event.tickers,
