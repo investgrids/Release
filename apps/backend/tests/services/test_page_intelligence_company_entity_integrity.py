@@ -97,13 +97,13 @@ async def test_company_with_real_coverage_uses_only_its_own_real_matched_rows(mo
         db.add(EventTriage(
             id=real_triage_id, event_id=f"ev-real-{tag}", source="news",
             headline=f"{target_symbol} announces real quarterly results",
-            urgency=6, importance=6, confidence=70, sentiment="neutral",
+            urgency=6, importance=6, confidence=70, sentiment="neutral", triage_source="ai",
             tickers=[target_symbol], triaged_at=datetime.now(timezone.utc),
         ))
         db.add(EventTriage(
             id=other_triage_id, event_id=f"ev-other-{tag}", source="news",
             headline=f"{other_symbol} unrelated real headline",
-            urgency=9, importance=9, confidence=90, sentiment="bearish",
+            urgency=9, importance=9, confidence=90, sentiment="bearish", triage_source="ai",
             tickers=[other_symbol], triaged_at=datetime.now(timezone.utc),
         ))
         await db.commit()

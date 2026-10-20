@@ -27,6 +27,11 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     ("intelligence_articles", "is_evergreen",            "BOOLEAN NOT NULL DEFAULT 0"),
     ("intelligence_articles", "share_count",              "INTEGER NOT NULL DEFAULT 0"),
     ("event_triage", "origin",                             "VARCHAR(128)"),
+    # Provenance contract (2026-10-19): "unknown" is correct for every row
+    # that predates this column — see EventTriage.triage_source's docstring.
+    # Unlike validation_status below, this needs no reclassification pass:
+    # the DEFAULT already is the intended value for 100% of existing rows.
+    ("event_triage", "triage_source",                       "VARCHAR(20) NOT NULL DEFAULT 'unknown'"),
     ("intelligence_articles", "headline_angle",             "VARCHAR(24)"),
     ("intelligence_articles", "primary_keyword",            "VARCHAR(160)"),
     ("intelligence_articles", "secondary_keywords",         "JSON DEFAULT '[]'"),

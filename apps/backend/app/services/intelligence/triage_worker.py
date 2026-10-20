@@ -78,6 +78,7 @@ def _rule_based_fallback(headline: str) -> dict:
         "sentiment": "neutral", "horizon": "short", "market_impact": "medium",
         "is_structural": False, "direction": "sideways",
         "one_liner": headline[:200], "themes": [], "sectors": [], "tickers": [],
+        "triage_source": "rule_based_fallback",
         # Not part of the TriagedEvent schema — popped by _ai_triage before
         # the dict is used, only carried this far so the fallback-visibility
         # log line below can include which keyword (if any) fired, e.g. to
@@ -126,6 +127,10 @@ async def _ai_triage(headline: str, summary: str) -> dict:
         ai_urgency = scores.get("urgency")
         if isinstance(ai_urgency, (int, float)) and ai_urgency < 6:
             log.info("triage.ai_scored_low_urgency", headline=headline[:300], ai_urgency=ai_urgency)
+        # Set explicitly rather than relying on absence-of-fallback-marker —
+        # this is the one place that actually knows the AI call succeeded
+        # and its JSON parsed, so it's the only place allowed to assert "ai".
+        scores["triage_source"] = "ai"
         return scores
     except Exception:
         fallback = _rule_based_fallback(headline)
@@ -223,6 +228,7 @@ async def _store_triage(triage: TriagedEvent) -> None:
                 is_structural=triage.is_structural,
                 direction=triage.direction,
                 one_liner=triage.one_liner,
+                triage_source=triage.triage_source,
                 themes=triage.themes,
                 sectors=triage.sectors,
                 tickers=triage.tickers,
@@ -299,6 +305,7 @@ class TriageWorker:
                     is_structural=bool(scores.get("is_structural", False)),
                     direction=str(scores.get("direction", "sideways")),
                     one_liner=str(scores.get("one_liner", raw.headline))[:500],
+                    triage_source=str(scores.get("triage_source", "ai")),
                     themes=list(scores.get("themes", []))[:8],
                     sectors=list(scores.get("sectors", []))[:6],
                     tickers=list(scores.get("tickers", []))[:10],

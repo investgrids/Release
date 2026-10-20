@@ -63,9 +63,19 @@ async def _fetch_context() -> dict:
                 .limit(6)
             )).scalars().all()
 
+        # Provenance contract (2026-10-19): this narrative is persisted
+        # (MarketStory) and Redis-cached, then reused by multiple downstream
+        # surfaces (engine.py's "ai_synthesis" Biggest Risk fallback,
+        # continuous_updater.py's mie_context["story"]) -- a fallback/
+        # unknown event's one_liner must never enter the analytical context
+        # that produces it. Index/sector numeric data stays untouched, and
+        # _generate()'s existing "- None" fallback already represents an
+        # empty event list honestly, so no new empty-evidence branch is
+        # needed here.
         event_bullets = [
             f"[{e.urgency}/10] {e.one_liner or e.headline[:100]}"
             for e in rows
+            if e.triage_source not in ("rule_based_fallback", "unknown")
         ]
 
         nifty = next((i for i in indices if "NIFTY 50" in str(i.get("name", "")).upper()), {})
@@ -253,6 +263,7 @@ class StoryEngineWorker:
                         sentiment="neutral", horizon="intraday", market_impact="medium",
                         is_structural=False, direction=data.get("direction", "sideways"),
                         one_liner=data.get("story", "")[:200],
+                        triage_source="ai",
                         themes=[], sectors=[], tickers=[],
                         broadcast=True, refresh_homepage=False,
                     )

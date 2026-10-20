@@ -85,13 +85,31 @@ async def explain_change(symbol: str = Query(default="")):
             or sym_upper in (r.headline or "").upper()
         ] or rows[:5]
 
+        # Provenance contract (2026-10-19): a rule_based_fallback/unknown
+        # event's one_liner is an unprocessed, unverified raw headline --
+        # never admit it to this endpoint's causal evidence set, since the
+        # model is explicitly asked "what caused this to move" and the
+        # result is returned directly to the user with no downstream check.
+        eligible = [r for r in relevant if r.triage_source not in ("rule_based_fallback", "unknown")]
+
+        if not eligible:
+            return {
+                "symbol":       symbol,
+                "explanation":  "Not enough verified market signal is available right now to explain this move.",
+                "events_used":  0,
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+            }
+
         context = "\n".join(
             f"- [{r.urgency}/10] {r.one_liner or r.headline[:100]}"
-            for r in relevant
+            for r in eligible
         )
 
         explanation = await _call_with_fallback(
-            f"Explain what caused {symbol or 'the market'} to move today:\n\n{context}\n\nGive a 2-3 sentence explanation for retail investors.",
+            f"Explain what caused {symbol or 'the market'} to move today, using ONLY the signals below. "
+            f"These are automated AI-triage summaries, not independently verified facts -- do not state a cause "
+            f"more strongly than the signals support, and say so honestly if they don't clearly explain the move:"
+            f"\n\n{context}\n\nGive a 2-3 sentence explanation for retail investors.",
             "You explain Indian stock market moves simply and clearly.",
             max_tokens=200,
             priority="interactive",
@@ -100,7 +118,7 @@ async def explain_change(symbol: str = Query(default="")):
         return {
             "symbol":       symbol,
             "explanation":  (explanation or "Unable to generate explanation.").strip(),
-            "events_used":  len(relevant),
+            "events_used":  len(eligible),
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
     except Exception as exc:

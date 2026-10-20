@@ -69,6 +69,7 @@ class TriagedEvent:
     is_structural: bool
     direction: str
     one_liner: str
+    triage_source: str       # "ai" | "rule_based_fallback"
     themes: list[str]
     sectors: list[str]
     tickers: list[str]

@@ -154,6 +154,7 @@ async def get_high_urgency_triage(
             "market_impact": r.market_impact,
             "is_structural": r.is_structural,
             "one_liner":    r.one_liner,
+            "triage_source": r.triage_source,
             "source":       r.source,
             "origin":       r.origin,
             "sectors":      r.sectors or [],

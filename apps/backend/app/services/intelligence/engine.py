@@ -330,6 +330,7 @@ async def read_top_events(limit: int = 12, min_urgency: int = 4, hours: int = 8)
                     "broadcast":     r.broadcast,
                     "source":        r.source,
                     "origin":        r.origin,
+                    "triage_source": r.triage_source,
                     "triaged_at":    r.triaged_at.isoformat() if r.triaged_at else None,
                     "priority_score": priority_score,
                     "priority_tier":  priority_tier,
@@ -624,8 +625,14 @@ def _derive_biggest_risk(story: Optional[dict], events: list[dict]) -> Optional[
     risk" vs "AI-identified consideration") and must never infer which
     one they have from an incidental null check.
     """
+    # Provenance contract (2026-10-19): a rule_based_fallback/unknown event's
+    # one_liner is unprocessed and unverified -- it must never become this
+    # card's "reason" text under the "tracked_event" (verified) label. Skip
+    # it and fall through to the next bearish event, or to the pre-existing
+    # "ai_synthesis" story.risk branch below (already separately labeled,
+    # not a provenance risk itself) if none remain eligible.
     bearish = sorted(
-        (e for e in events if e.get("sentiment") == "bearish"),
+        (e for e in events if e.get("sentiment") == "bearish" and e.get("triage_source") not in ("rule_based_fallback", "unknown")),
         key=lambda e: -(e.get("urgency") or 0),
     )
     if bearish:
@@ -662,6 +669,11 @@ def _derive_companies_to_watch(events: list[dict], limit: int = 8) -> list[dict]
     seen: set[str] = set()
     out: list[dict] = []
     for e in events:
+        # Provenance contract (2026-10-19): skip the whole event, not just
+        # its "why" text -- a later, eligible event mentioning the same
+        # ticker must still be able to add it (so don't mark it seen here).
+        if e.get("triage_source") in ("rule_based_fallback", "unknown"):
+            continue
         for t in (e.get("tickers") or []):
             if t in seen:
                 continue
@@ -742,8 +754,11 @@ async def compute_intelligence_state() -> dict:
         "companies_to_watch": _derive_companies_to_watch(homepage_events),
         "market_drivers":     [
             {"headline": e.get("one_liner") or e.get("headline"), "urgency": e.get("urgency")}
-            for e in homepage_events[:5]
-        ],
+            # Provenance contract (2026-10-19): a rule_based_fallback/unknown
+            # event's one_liner must not be shown as a verified market driver.
+            for e in homepage_events
+            if e.get("triage_source") not in ("rule_based_fallback", "unknown")
+        ][:5],
         "strongest_themes":   themes[:5],
         "weakest_themes":     list(reversed(themes[-5:])) if themes else [],
         "tomorrow_watch":     tomorrow_watch,
