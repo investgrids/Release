@@ -48,6 +48,7 @@ from app.services.coverage_engine import (
     mark_failed as coverage_mark_failed,
     mark_skipped_daily_cap as coverage_mark_skipped_daily_cap,
     mark_skipped_already_generated_today as coverage_mark_skipped_already_generated_today,
+    mark_skipped_not_material as coverage_mark_skipped_not_material,
 )
 from app.services.aipe.market_story_engine import (
     fetch_historical_context,
@@ -816,6 +817,83 @@ async def run_aipe_cycle() -> None:
                         story_id=story_id, article_type=article_type, matched_article_id=duplicate.id,
                     )
                 else:
+                    # ── Workstream A: materiality gate (2026-10-24) ──────────
+                    # V1 found no duplicate and is about to CREATE a new
+                    # standalone article. The deterministic, no-LLM publication-
+                    # tier classifier (the SAME audited predicates the V2 path
+                    # uses, via classify_from_title) decides whether this event's
+                    # headline is routine/non-substantive.
+                    #
+                    # SCOPE (owner review, 2026-10-24): the gate applies ONLY to
+                    # events positively sourced from NSE filings (triage origin ==
+                    # "NSE"). A read-only offline estimate over 14 days of real
+                    # triage data showed the title-based classifier over-suppresses
+                    # material MACRO / policy NEWS (RBI/rupee/crude, from Economic
+                    # Times / Livemint / NDTV Profit) that happens to be Critical-
+                    # tier -- that content is OUT of this gate's scope. `source` is
+                    # NOT a usable discriminator (it is "news" for ~99.8% of rows,
+                    # a pipeline label, not the origin); `origin` names the real
+                    # source and cleanly separates NSE filings from news (0 filing-
+                    # shaped headlines were non-NSE in the sample). FAIL-OPEN:
+                    # missing/unknown/non-NSE provenance is NEVER suppressed on the
+                    # basis of uncertain metadata -- such events bypass the gate
+                    # entirely and publish exactly as before.
+                    #
+                    # market_impact=="high" maps to analytical context as a
+                    # conservative KEEP signal (a high-impact filing escalates to
+                    # ARTICLE even with a bland title). is_structural is NOT used.
+                    # There is deliberately NO must-cover carve-out: coverage_
+                    # classify's keyword floor elevates routine "SEBI"/"Regulation"
+                    # filings to Critical/High purely on keywords -- exempting
+                    # must-cover events would exempt exactly the routine filings
+                    # this gate exists to suppress; a genuinely material filing
+                    # (numeric earnings, acquisition) classifies ARTICLE and is
+                    # never suppressed. Two modes (settings.aipe_materiality_gate_
+                    # mode): "shadow" (default) logs + counts and changes NOTHING;
+                    # "enforce" records the routine event as coverage (SKIPPED_NOT_
+                    # MATERIAL) and skips creation -- so its fan-out angles never
+                    # run either. Only the create path is gated; the duplicate-
+                    # update path above is untouched.
+                    _is_nse_filing = (triage_event.get("origin") or "").strip().upper() == "NSE"
+                    if _is_nse_filing:
+                        from app.services.article_v2.publication_tier import (
+                            classify_from_title,
+                            EVENT_ONLY as _PUB_EVENT_ONLY,
+                            REJECT as _PUB_REJECT,
+                        )
+                        _tier = classify_from_title(
+                            ev_headline,
+                            has_analytical_context=(triage_event.get("market_impact") == "high"),
+                        )
+                        if _tier.tier in (_PUB_EVENT_ONLY, _PUB_REJECT):
+                            _gate_mode = settings.aipe_materiality_gate_mode
+                            _enforcing = _gate_mode == "enforce"
+                            _STATS["materiality_would_suppress_today"] = _STATS.get("materiality_would_suppress_today", 0) + 1
+                            # Bounded telemetry: ids + tier + reasons + a truncated
+                            # headline only, never the full event payload.
+                            log.info(
+                                "aipe.materiality_gate",
+                                mode=_gate_mode,
+                                enforced=_enforcing,
+                                is_must_cover=is_critical,
+                                origin=triage_event.get("origin"),
+                                event_id=triage_event.get("event_id"),
+                                article_type=article_type,
+                                proposed_tier=_tier.tier,
+                                reason_codes=_tier.reason_codes,
+                                headline=ev_headline[:120],
+                            )
+                            if _enforcing:
+                                await coverage_mark_skipped_not_material(
+                                    db, event_id=triage_event.get("event_id"),
+                                )
+                                v1_decisions[triage_event.get("event_id")] = V1Decision(
+                                    decision="skipped_not_material",
+                                    story_id=story_id, article_type=article_type,
+                                )
+                                continue
+                            # shadow mode: fall through, publish exactly as before.
+
                     # P7 Candidate Ownership Arbitration (2026-09-13):
                     # only checked here, in the "V1 found no duplicate,
                     # about to create" branch -- arbitration never

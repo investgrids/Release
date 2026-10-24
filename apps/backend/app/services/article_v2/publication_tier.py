@@ -159,16 +159,17 @@ def _effective_substantiveness_text(primary_title: str) -> str:
     return m.group(1) if m else primary_title
 
 
-def classify_publication_tier(
-    decision: ArticleDecision, evidence_set: ArticleEvidenceSet, context: ArticleContextBundle | None,
+def classify_from_title(
+    primary_title: str | None, *, has_analytical_context: bool = False,
 ) -> PublicationTierResult:
-    """The one real entry point. Only meaningful for a decision that
-    already reached CREATE/UPDATE_EXISTING with real C2 primary
-    evidence -- callers should not call this for a C4 SKIP or a C5
-    NO_PUBLICATION (matching every other C1-C6 stage's own convention
-    of trusting the caller has already checked the upstream gate)."""
-    primary_title = evidence_set.primary_evidence.title if evidence_set.primary_evidence else None
-
+    """Pure, title-based materiality classification — the shared core used by
+    BOTH the V2 entry point (`classify_publication_tier`, which derives
+    `has_analytical_context` from the V2 object graph) and the V1 publisher
+    materiality gate (Workstream A, 2026-10-24), which has no V2 objects and
+    passes only the triage event's own headline plus a conservatively-derived
+    analytical-context boolean. All the real logic lives here, so there is ONE
+    audited set of predicates and no fork; `classify_publication_tier` is a thin
+    compatibility shim over this, keeping V2 behavior byte-identical."""
     if primary_title and _DEGENERATE_SUBJECT_RE.search(primary_title):
         return PublicationTierResult(REJECT, ["DEGENERATE_SUBJECT"])
 
@@ -184,6 +185,35 @@ def classify_publication_tier(
         or _matches_supplementary_high_signal(substantiveness_text)
     )
     has_real_numbers = _has_numeric_substance(primary_title)
+
+    reasons = []
+    if is_high_substantive:
+        reasons.append("HIGH_SUBSTANTIVENESS_MATCH")
+    if has_real_numbers:
+        reasons.append("REAL_NUMERIC_SUBSTANCE")
+    if has_analytical_context:
+        reasons.append("ANALYTICAL_CONTEXT_PRESENT")
+
+    if reasons:
+        return PublicationTierResult(ARTICLE, reasons)
+
+    return PublicationTierResult(EVENT_ONLY, ["ROUTINE_NO_SUBSTANTIVE_SIGNAL"])
+
+
+def classify_publication_tier(
+    decision: ArticleDecision, evidence_set: ArticleEvidenceSet, context: ArticleContextBundle | None,
+) -> PublicationTierResult:
+    """The one real V2 entry point. Only meaningful for a decision that
+    already reached CREATE/UPDATE_EXISTING with real C2 primary
+    evidence -- callers should not call this for a C4 SKIP or a C5
+    NO_PUBLICATION (matching every other C1-C6 stage's own convention
+    of trusting the caller has already checked the upstream gate).
+
+    Thin shim (2026-10-24): derives the two inputs `classify_from_title` needs
+    from the V2 object graph and delegates. Behavior is unchanged from before
+    the Workstream A refactor."""
+    primary_title = evidence_set.primary_evidence.title if evidence_set.primary_evidence else None
+
     # Real bug found via the C8 500-event rerun, not anticipated: C4's
     # own decide() only ever appends the literal "SUFFICIENT_ANALYTICAL_
     # CONTEXT" string to its returned reason_codes inside the
@@ -201,16 +231,4 @@ def classify_publication_tier(
         bool(context.financial_context)
         or (context.market_reaction is not None and abs(context.market_reaction.price_move_pct) >= _MATERIAL_MARKET_MOVE_PCT)
     )
-
-    reasons = []
-    if is_high_substantive:
-        reasons.append("HIGH_SUBSTANTIVENESS_MATCH")
-    if has_real_numbers:
-        reasons.append("REAL_NUMERIC_SUBSTANCE")
-    if has_analytical_context:
-        reasons.append("ANALYTICAL_CONTEXT_PRESENT")
-
-    if reasons:
-        return PublicationTierResult(ARTICLE, reasons)
-
-    return PublicationTierResult(EVENT_ONLY, ["ROUTINE_NO_SUBSTANTIVE_SIGNAL"])
+    return classify_from_title(primary_title, has_analytical_context=has_analytical_context)
