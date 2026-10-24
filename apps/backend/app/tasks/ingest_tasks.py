@@ -244,14 +244,59 @@ async def _persist_policies(db, items: list[RawItem]) -> int:
 # other (ingest_announcements() already wraps its own body in try/except
 # and returns 0 on any failure -- see its docstring).
 
+async def _fetch_yfinance_items() -> list[RawItem]:
+    """Workstream C forward-durability (Option A, 2026-10-24): yfinance is the
+    one live-news source surfaced by the in-memory cache (news_fetcher) that the
+    scheduled ingest did NOT persist, so its `/news/*` URLs were never durable.
+    Fetch it here and feed it through the SAME persistence path as RSS, reusing
+    the established `rss-md5(source+title)[:12]` id scheme (NO new scheme; source
+    is the per-item publisher, stable per item) so cross-source dedup + skip-
+    existing idempotency apply unchanged. Wrapped so a yfinance failure/timeout
+    never aborts the rest of the ingest. published_at is a stable ISO timestamp
+    from the provider epoch (`_ts`), not news_fetcher's relative display label."""
+    import asyncio
+    import hashlib
+    from datetime import datetime, timezone
+    try:
+        from app.services.news_fetcher import _sync_fetch_yfinance
+        loop = asyncio.get_running_loop()
+        dicts = await loop.run_in_executor(None, _sync_fetch_yfinance)
+    except Exception:
+        log.warning("ingest.yfinance_fetch_failed")
+        return []
+    items: list[RawItem] = []
+    for d in dicts:
+        headline = (d.get("headline") or "").strip()
+        if not headline:
+            continue
+        source = d.get("source") or "Yahoo Finance"
+        ts = d.get("_ts")
+        published_at = (
+            datetime.fromtimestamp(float(ts), tz=timezone.utc).isoformat() if ts else ""
+        )
+        items.append(RawItem(
+            id="rss-" + hashlib.md5((source + headline).encode()).hexdigest()[:12],
+            headline=headline[:512],
+            summary=(d.get("summary") or "")[:1000],
+            source=source,
+            url=d.get("url") or "",
+            published_at=published_at,
+            companies=[],
+            impact_score=None,
+            event_type="news",
+        ))
+    return items
+
+
 async def job_ingest_news() -> None:
     t0 = time.perf_counter()
     log.info("job.ingest_news.start")
 
     nse_items = await NSEProvider().fetch_and_normalize()
     rss_items = await RSSProvider().fetch_and_normalize()
+    yf_items = await _fetch_yfinance_items()
 
-    all_items = nse_items + rss_items
+    all_items = nse_items + rss_items + yf_items
     # Sliced from the already-fetched batch BEFORE the Event/NewsArticle
     # persistence block below, so a failure in that block (caught, not
     # propagated -- see try/except) can never prevent the
@@ -286,7 +331,7 @@ async def job_ingest_news() -> None:
     elapsed = round((time.perf_counter() - t0) * 1000)
     log.info(
         "job.ingest_news.done",
-        nse=len(nse_items), rss=len(rss_items),
+        nse=len(nse_items), rss=len(rss_items), yfinance=len(yf_items),
         new_articles=len(new_ids),
         new_events=nse_events,
         announcements_saved=announcements_saved,
