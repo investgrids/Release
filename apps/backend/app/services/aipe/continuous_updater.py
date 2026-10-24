@@ -62,6 +62,131 @@ _SHARE_WEIGHT = 5
 _ENGAGEMENT_REFRESH_STALE_HOURS = 6
 
 
+# ── Event scope (Workstream B, 2026-10-24) ───────────────────────────────────
+# The CD2 overlap filter (run cycle, below) lets an event update an article when
+# their sectors OR tickers intersect. That correctly blocks an unrelated single
+# company's event, but a market-wide development tagged with broad sectors (or an
+# index ticker) legitimately overlaps many articles' sectors — so the single
+# highest-urgency such event was stamped, identically, as the "LATEST:" takeaway
+# of dozens of unrelated company/question/theme/sector/ripple articles (confirmed
+# live: 93 cross-type duplicate-takeaway groups / 425 articles published on/after
+# the 2026-09-01 CD2 fix; newest 2026-10-07). Scope classification here is
+# deliberately CONSERVATIVE and metadata-only — it never keyword-sniffs a
+# headline (so "RBI"/"crude" in text does not by itself make an event macro).
+# Market-wide requires an explicit signal: a known index ticker, the event's own
+# is_structural flag, or breadth across several distinct sectors with no single-
+# company subject. A broad single-sector tag alone does NOT make an event
+# market-wide (safeguard 1).
+_INDEX_TICKERS = {
+    "NIFTY", "NIFTY50", "NIFTYBANK", "BANKNIFTY", "SENSEX", "FINNIFTY",
+    "NIFTYIT", "NIFTYMIDCAP", "NIFTYNEXT50", "NIFTY500", "NIFTYFMCG",
+    "NIFTYAUTO", "NIFTYPHARMA", "NIFTYMETAL", "NIFTYREALTY", "NIFTYENERGY",
+    "INDIAVIX", "GIFTNIFTY", "SGXNIFTY", "BANKEX",
+}
+
+# An event carrying no single-company ticker but spanning at least this many
+# distinct sectors is treated as market-wide (documented deterministic fallback).
+_MARKET_WIDE_SECTOR_COUNT = 3
+
+
+def _norm_sym(x: Any) -> str:
+    return str(x).strip().upper()
+
+
+def _compact_sym(x: Any) -> str:
+    return _norm_sym(x).replace(" ", "").replace("-", "").replace("_", "").replace(".", "")
+
+
+_INDEX_COMPACT = {_compact_sym(t) for t in _INDEX_TICKERS}
+
+
+def _event_tickers(ev: dict[str, Any]) -> set[str]:
+    return {_norm_sym(t) for t in (ev.get("tickers") or []) if t}
+
+
+def _event_sectors(ev: dict[str, Any]) -> set[str]:
+    return {_norm_sym(s) for s in (ev.get("sectors") or []) if s}
+
+
+def _article_companies(article: IntelligenceArticle) -> set[str]:
+    return {
+        _norm_sym(c.get("symbol", c) if isinstance(c, dict) else c)
+        for c in (article.companies_affected or []) if c
+    }
+
+
+def _article_sectors(article: IntelligenceArticle) -> set[str]:
+    return {
+        _norm_sym(s.get("name", s) if isinstance(s, dict) else s)
+        for s in (article.sectors_affected or []) if s
+    }
+
+
+def _event_scope(ev: dict[str, Any]) -> str:
+    """Deterministic, metadata-only event scope. One of:
+      "entity"      — carries a specific (non-index) company ticker
+      "market_wide" — only an index ticker, is_structural, or >= N sectors
+      "sector"      — one or two sector tags, no specific ticker
+      "unscoped"    — no sectors and no tickers
+    A specific company ticker always wins (an event about a named company that
+    also tags Nifty is entity-scoped, not market-wide), so legitimate company
+    updates are never suppressed (safeguard 3)."""
+    compact = {_compact_sym(t) for t in (ev.get("tickers") or []) if t}
+    specific = compact - _INDEX_COMPACT
+    if specific:
+        return "entity"
+    sectors = ev.get("sectors") or []
+    if (compact & _INDEX_COMPACT) or ev.get("is_structural") or len(sectors) >= _MARKET_WIDE_SECTOR_COUNT:
+        return "market_wide"
+    if sectors:
+        return "sector"
+    return "unscoped"
+
+
+def _event_sets_takeaway(ev: dict[str, Any], article: IntelligenceArticle) -> bool:
+    """Whether `ev` is scope-eligible to SET this article's own takeaway / update
+    note — a stricter gate than the caller's membership filter. An entity-level
+    article needs a real company-ticker overlap; a bare sector overlap is not
+    enough. A pure sector/theme article (no specific companies) may take a
+    narrowly sector-scoped event. A market-wide or unscoped event never becomes a
+    specific article's own takeaway here — the cross-type contamination this
+    closes. (A dedicated market-wide article type that should carry a market-wide
+    takeaway is a documented follow-up, not handled here.)"""
+    scope = _event_scope(ev)
+    if scope == "entity":
+        return bool(_event_tickers(ev) & _article_companies(article))
+    if scope == "sector":
+        return (not _article_companies(article)) and bool(_event_sectors(ev) & _article_sectors(article))
+    if scope == "unscoped":
+        # No sector/ticker metadata at all: not provable evidence of a
+        # market-wide development, and in the live pipeline such an event never
+        # reaches here anyway (the caller's overlap filter requires a real
+        # sector/ticker intersection). Allow it rather than suppress a possibly
+        # legitimate update; only an explicitly market-wide event is blocked.
+        return True
+    return False  # market_wide
+
+
+def _select_takeaway_event(
+    article: IntelligenceArticle | None,
+    new_events: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Pick the single event that may set this article's takeaway / update note:
+    the highest-urgency candidate that is both (a) genuinely AI-sourced — not a
+    rule_based_fallback/unknown raw headline (2026-10-19 provenance contract) —
+    and (b) scope-eligible for this article (Workstream B). Returns None when no
+    such event exists, so the caller leaves the existing takeaway untouched
+    rather than manufacturing one. `article is None` keeps the legacy pure-
+    function behavior (provenance filter only, no scope restriction)."""
+    if not new_events:
+        return None
+    candidates = sorted(new_events, key=lambda e: e.get("urgency", 0), reverse=True)
+    candidates = [e for e in candidates if e.get("triage_source") not in ("rule_based_fallback", "unknown")]
+    if article is not None:
+        candidates = [e for e in candidates if _event_sets_takeaway(e, article)]
+    return candidates[0] if candidates else None
+
+
 def _engagement_score(article: IntelligenceArticle) -> int:
     return (article.views or 0) + (article.share_count or 0) * _SHARE_WEIGHT
 
@@ -261,8 +386,14 @@ async def update_article(
     update_reason = " | ".join(reasons)
     _update_start = time.monotonic()
 
-    # Regenerate dynamic sections
-    new_takeaway = _generate_updated_takeaway(article, mie_context, new_triage_events)
+    # Regenerate dynamic sections. A single scope- and provenance-eligible event
+    # (if any) drives BOTH the takeaway and the why_it_matters update note, so a
+    # market-wide development cannot become this specific article's own takeaway
+    # via a bare sector overlap (Workstream B, 2026-10-24).
+    chosen_event = _select_takeaway_event(article, new_triage_events)
+    new_takeaway = None
+    if chosen_event and chosen_event.get("one_liner"):
+        new_takeaway = f"LATEST: {chosen_event['one_liner']}"[:400]
     new_watch_next = _generate_watch_next(mie_context, new_triage_events)
 
     # Update history entry — captures a before/after AI-opinion snapshot
@@ -283,6 +414,15 @@ async def update_article(
         "previous_takeaway": article.key_takeaway,
         "new_takeaway":      new_takeaway or article.key_takeaway,
         "confidence":        article.confidence_score,
+        # Workstream B provenance (2026-10-24): which event (if any) set this
+        # cycle's takeaway, its deterministic scope, and its triage provenance.
+        # Stored in the existing update_history JSON column — no schema change.
+        # get_high_urgency_triage already surfaces the real triage_source on the
+        # event dict, so this records the true "ai"/"rule_based_fallback"; the
+        # "unknown" default only guards a dict that omits the key entirely.
+        "takeaway_source_event_id": (chosen_event or {}).get("event_id"),
+        "takeaway_event_scope":     _event_scope(chosen_event) if chosen_event else None,
+        "triage_source":            (chosen_event or {}).get("triage_source", "unknown"),
     }
 
     current_history = article.update_history or []
@@ -318,26 +458,34 @@ async def update_article(
     # ["story"] alone is not). Gated the same way: only a genuine
     # article-relevant trigger earns an update note.
     if market_move_reason or new_triage_events:
-        # Prefer the actual article-relevant event's own content over the
-        # global market story — falls back to the global story only for a
-        # pure market_move_reason trigger, where the move itself already IS
-        # this article's own sector/price, so the broader narrative is
-        # legitimate context, not contamination.
-        # Same provenance rule as _generate_updated_takeaway(): a fallback/
-        # unknown event's one_liner must not be quoted as this article's own
-        # "Update" note. Prefer the next-best genuinely AI-sourced candidate;
-        # if none exists this cycle, fall back to market_move_reason/the
-        # global story the same way the "no new_triage_events" branch already
-        # does, rather than quoting an unprocessed raw headline.
-        eligible_events = [e for e in new_triage_events if e.get("triage_source") not in ("rule_based_fallback", "unknown")]
-        if eligible_events:
-            top_event = sorted(eligible_events, key=lambda e: e.get("urgency", 0), reverse=True)[0]
-            note_text = top_event.get("one_liner") or mie_context.get("story", update_reason)
+        # Workstream B (2026-10-24): the note's own one_liner now comes only from
+        # chosen_event — the single scope- AND provenance-eligible event (see
+        # _select_takeaway_event) — so a market-wide or out-of-scope event's raw
+        # one_liner can no longer be stamped as this specific article's own
+        # "Update". Fallbacks, in order:
+        #   1. chosen_event.one_liner — a genuinely in-scope, AI-sourced dev.
+        #   2. market_move_reason — inherently article-scoped (the move IS this
+        #      article's own index/sector/price), legitimate context.
+        #   3. the global market-narrative story — ONLY for a non-entity article
+        #      (no companies of its own). Owner review #4 (2026-10-24): a
+        #      specific-company article must not be left with an unrelated
+        #      market-wide explanation when this cycle produced no in-scope
+        #      event, so for such an article we stamp NO note instead. (The
+        #      2026-10-19 provenance suite's fixture is a no-company article, so
+        #      its global-story fallback behavior is preserved.)
+        note_text: str | None
+        if chosen_event and chosen_event.get("one_liner"):
+            note_text = chosen_event["one_liner"]
+        elif market_move_reason:
+            note_text = market_move_reason
+        elif not _article_companies(article):
+            note_text = mie_context.get("story", update_reason)
         else:
-            note_text = market_move_reason or mie_context.get("story", update_reason)
-        update_note = f"\n\n**Update {now.strftime('%I:%M %p IST')}:** {note_text}"
-        base = (article.why_it_matters or "").split("\n\n**Update ", 1)[0]
-        article.why_it_matters = base + update_note
+            note_text = None
+        if note_text:
+            update_note = f"\n\n**Update {now.strftime('%I:%M %p IST')}:** {note_text}"
+            base = (article.why_it_matters or "").split("\n\n**Update ", 1)[0]
+            article.why_it_matters = base + update_note
 
     db.add(article)
     await db.commit()
@@ -379,17 +527,15 @@ def _generate_updated_takeaway(
     article.key_takeaway`), rather than manufacturing one from global
     narrative that has nothing to do with this article's subject.
     """
-    if not new_events:
-        return None
     # Provenance contract (2026-10-19): a rule_based_fallback/unknown event's
     # one_liner is a raw, unprocessed triage headline, not a synthesized
-    # takeaway -- never publish it prefixed as "LATEST:" (implies MarketRipple
-    # processed/verified it). Fall through to the next-best genuinely
-    # AI-sourced candidate rather than silently picking a lower-urgency one;
-    # if none exists this cycle, return None (no grounded takeaway available),
-    # same as the existing empty-new_events behavior.
-    candidates = sorted(new_events, key=lambda e: e.get("urgency", 0), reverse=True)
-    top = next((e for e in candidates if e.get("triage_source") not in ("rule_based_fallback", "unknown")), None)
+    # takeaway -- never publish it prefixed as "LATEST:". Workstream B
+    # (2026-10-24): and the chosen event must be scope-eligible for THIS article
+    # (see _event_sets_takeaway) so a market-wide development can't become an
+    # unrelated, entity-specific article's own takeaway via a bare sector
+    # overlap. Both rules live in _select_takeaway_event; None => no grounded,
+    # in-scope takeaway this cycle, leave the existing one in place.
+    top = _select_takeaway_event(article, new_events)
     if top is None:
         return None
     one_liner = top.get("one_liner")
