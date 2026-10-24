@@ -21,7 +21,7 @@ class NewsArticle(Base):
     published_at = Column(String(64), nullable=False)
     companies = Column(JSON, nullable=False, default=list)
     impact_score = Column(Float, nullable=False)
-    created_at = Column(DateTime(timezone=True), default=_now)
+    created_at = Column(DateTime(timezone=True), default=_now, index=True)  # Workstream C: news-list ORDER BY created_at DESC (schema_patches adds this to existing DBs)
 
 
 class CalendarEvent(Base):

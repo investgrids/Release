@@ -203,6 +203,23 @@ async def apply_schema_patches(conn: AsyncConnection) -> None:
     except Exception as exc:
         log.warning("schema_patch.index_skipped", index="ux_article_v2_canary_withholds_one_attempt_ever", error=str(exc)[:200])
 
+    # Workstream C (2026-10-24): index news_articles.created_at for the
+    # news-list query (`crud.get_news`: ORDER BY created_at DESC LIMIT 20).
+    # Without it the query is a full SCAN + TEMP B-TREE sort over the whole
+    # table (measured ~115ms at 50,886 rows and growing, no retention); the
+    # index turns it into a reverse index scan of ~20 rows. Non-unique
+    # (many rows share a timestamp). create_all adds this on fresh DBs via
+    # the model's index=True, but only this schema-patch reaches the
+    # already-existing prod table; a no-op on re-run via IF NOT EXISTS.
+    # (This only PREPARES the DB-backed list; list_news itself is NOT
+    # switched here — that remains separately gated.)
+    try:
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_news_articles_created_at ON news_articles (created_at)"
+        ))
+    except Exception as exc:
+        log.warning("schema_patch.index_skipped", index="ix_news_articles_created_at", error=str(exc)[:200])
+
 
 _EVENT_CHILD_TABLE_DDL: dict[str, str] = {
     "event_companies": """
