@@ -39,6 +39,11 @@ class Event(Base):
     summary = Column(Text, nullable=True)          # legacy / list endpoint
     description = Column(Text, nullable=True)       # enriched description
     source = Column(String(128), nullable=True, index=True)
+    # Structured original-source URL (2026-10-25). Nullable: NULL for every
+    # pre-existing event and any provider without a URL. Populated from
+    # RawItem.url at ingest. Rendered as PLAIN TEXT only (no clickable off-site
+    # link — existing product policy preserved).
+    source_url = Column(String(1000), nullable=True)
     event_type = Column(String(64), nullable=True, index=True)
 
     # Dates

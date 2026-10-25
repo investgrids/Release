@@ -204,6 +204,7 @@ class EventService:
                 "title": event.title,
                 "description": event.description or event.summary or "",
                 "source": event.source or "",
+                "source_url": event.source_url or None,   # structured original-source link (plain-text render only)
                 "event_type": event.event_type or event.category or "macro",
                 "event_date": _dt(event.event_date or event.published_at),
                 "created_at": _dt(event.created_at),
