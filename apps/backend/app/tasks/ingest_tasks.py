@@ -19,6 +19,7 @@ from app.db.models_legacy import NewsArticle
 from app.db.models.event import Event
 from app.db.models.macro_release import MacroRelease
 from app.providers import NSEProvider, RSSProvider, RBIProvider, PIBProvider, SEBIProvider, FedProvider, RawItem
+from app.providers import EdgarProvider, EcbProvider
 from app.repositories.government_policy_repository import GovernmentPolicyRepository
 from app.services.macro_extraction import extract_macro_release
 from app.services.ingestion_dedup import drop_cross_source_duplicates, fingerprint
@@ -347,7 +348,33 @@ async def job_ingest_news() -> None:
     await delete_pattern("dashboard:*")
 
 
-# ── Job: policy ingest (RBI + PIB + SEBI + Fed) — every hour ─────────────────
+async def _fetch_edgar_items() -> list[RawItem]:
+    """SEC EDGAR material filings (Phase 1) — gated OFF by default. When the flag
+    is off the provider is never constructed and makes NO network calls. A fetch
+    failure is isolated (returns []), never aborting the policy cycle."""
+    if not settings.edgar_ingestion_enabled:
+        return []
+    try:
+        return await EdgarProvider().fetch_and_normalize()
+    except Exception:
+        log.warning("ingest.edgar_fetch_failed")
+        return []
+
+
+async def _fetch_ecb_items() -> list[RawItem]:
+    """ECB press/statistical RSS (Phase 1) — gated OFF by default. Same isolation
+    as EDGAR: off ⇒ no provider, no network; a failure returns [] rather than
+    breaking the cycle."""
+    if not settings.ecb_ingestion_enabled:
+        return []
+    try:
+        return await EcbProvider().fetch_and_normalize()
+    except Exception:
+        log.warning("ingest.ecb_fetch_failed")
+        return []
+
+
+# ── Job: policy ingest (RBI + PIB + SEBI + Fed [+ ECB, EDGAR when flagged]) — hourly ─
 
 async def job_ingest_policy() -> None:
     t0 = time.perf_counter()
@@ -357,14 +384,20 @@ async def job_ingest_policy() -> None:
     pib_items  = await PIBProvider().fetch_and_normalize()
     sebi_items = await SEBIProvider().fetch_and_normalize()
     fed_items  = await FedProvider().fetch_and_normalize()
+    # Phase 1 (2026-10-25), additive + flag-gated (default OFF → empty, no network):
+    ecb_items   = await _fetch_ecb_items()      # policy-type, like Fed
+    edgar_items = await _fetch_edgar_items()     # filing-type (US corporate filings)
 
-    all_items = rbi_items + pib_items + sebi_items + fed_items
+    # ECB joins the policy lane; EDGAR is persisted/created separately as "filing".
+    policy_items = rbi_items + pib_items + sebi_items + fed_items + ecb_items
+    combined = policy_items + edgar_items
 
     async with AsyncSessionLocal() as db:
-        new_ids = await _persist_articles(db, all_items)
+        new_ids = await _persist_articles(db, combined)
         new_id_set = set(new_ids)
-        policies_saved = await _persist_policies(db, all_items)
-        events_created = await _create_events(db, all_items, new_id_set, "policy")
+        policies_saved = await _persist_policies(db, policy_items)
+        events_created = await _create_events(db, policy_items, new_id_set, "policy")
+        edgar_events = await _create_events(db, edgar_items, new_id_set, "filing") if edgar_items else 0
         # Macro extraction only makes sense for RBI/PIB — SEBI releases are
         # market-conduct/regulatory notices, not economic data prints.
         macro_saved = await _persist_macro_releases(db, rbi_items + pib_items)
@@ -373,16 +406,18 @@ async def job_ingest_policy() -> None:
     log.info(
         "job.ingest_policy.done",
         rbi=len(rbi_items), pib=len(pib_items), sebi=len(sebi_items), fed=len(fed_items),
+        ecb=len(ecb_items), edgar=len(edgar_items),
         new_articles=len(new_ids),
         policies=policies_saved,
         new_events=events_created,
+        edgar_events=edgar_events,
         macro_releases=macro_saved,
         elapsed_ms=elapsed,
     )
 
-    # Push policy items to the intelligence bus for triage
+    # Push newly-ingested items to the intelligence bus for triage
     if new_ids:
-        await _push_to_triage_bus(all_items, set(new_ids), "policy")
+        await _push_to_triage_bus(combined, set(new_ids), "policy")
 
 
 # ── Job: AI event enrichment — every 5 min ────────────────────────────────────

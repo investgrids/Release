@@ -222,6 +222,16 @@ class Settings(BaseSettings):
     event_enrichment_aging_hours: int = 6               # a normal fresh event waiting longer than this outranks newly arrived normal events
     event_enrichment_stage_diagnostics_enabled: bool = True   # log-only per-stage failure attribution
 
+    # ── International event providers (Phase 1, 2026-10-25) ───────────────────
+    # Two independently-gated, additive ingestion providers, both OFF by
+    # default. OFF means the provider is never constructed and makes NO network
+    # calls (see tasks/ingest_tasks.py::_fetch_edgar_items/_fetch_ecb_items).
+    # EDGAR = US corporate material filings (public domain); ECB = official
+    # press/statistical RSS (free reuse w/ "Source: ECB"). Feed the existing
+    # Event→Impact→Companies→Story pipeline; local-only until explicitly enabled.
+    edgar_ingestion_enabled: bool = False
+    ecb_ingestion_enabled: bool = False
+
     # ── Fact Grounding (AI Article Pipeline fix, 2026-08-10) ─────────────────
     # Shadow/log-only by default: validate_fact_grounding() always RUNS and
     # logs every violation (see publisher.py), but only actually blocks

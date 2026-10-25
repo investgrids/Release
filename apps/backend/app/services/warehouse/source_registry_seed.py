@@ -109,6 +109,21 @@ _ROWS: list[tuple[str, str, str, str, str, str, int, str, bool, str]] = [
      "_NIFTY500_SAMPLE", "intraday", 3, "vendor_data", False,
      "A genuine sample-based ESTIMATE, not real exchange-wide advance/decline data — no honest source for that exists "
      "in this codebase today (Phase 1A audit finding). Always captured with quality=estimated, never presented as authoritative breadth."),
+
+    # --- Phase 1 international event providers (2026-10-25) — flag-gated OFF ---
+    ("sec_edgar_filings", "SEC EDGAR Material Filings (8-K/10-K/10-Q/SC 13D/SC 13G/S-1)", "sec.gov", "api",
+     "official EDGAR getcurrent Atom feeds, one GET per form, declared User-Agent, <=10 req/s", "60min", 6,
+     "public_domain", True,
+     "US-gov public domain (17 U.S.C. 105); free public display permitted (verified 2026-10-25 against sec.gov/os/accessing-edgar-data). "
+     "Flag-gated OFF (settings.edgar_ingestion_enabled) — no network calls when off. Company resolution via the existing read-only resolver; "
+     "a US issuer against the India-centric master returns UNRESOLVED ⇒ no company link, never fabricated. CIK/form/accession retained in id+summary "
+     "(no schema change; events table has no url/cik column)."),
+    ("ecb_press_releases_intl", "ECB Press & Statistical Press Releases", "ecb.europa.eu", "rss",
+     "official ECB RSS (/rss/press.html + /rss/statpress.html), per-feed failure isolated", "60min", 6,
+     "official_rss", True,
+     "Free reuse WITH 'Source: ECB' attribution, no alteration, excludes third-party data (ECB/ESCB usage policy, verified 2026-10-25). "
+     "Flag-gated OFF (settings.ecb_ingestion_enabled). Headline + brief excerpt only (never full release text), links to original. "
+     "Distinct id from the India-only rbi_press_releases row. Forward meeting calendar deliberately NOT ingested (no machine-readable feed — see deferred_sources.py)."),
 ]
 
 
