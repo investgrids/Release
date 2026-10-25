@@ -15,6 +15,7 @@ class EventInfo(BaseModel):
     title: str
     description: str = ""
     source: str = ""
+    source_url: Optional[str] = None
     event_type: str = "macro"
     event_date: str = ""
     created_at: str = ""
