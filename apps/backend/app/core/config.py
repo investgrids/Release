@@ -191,6 +191,12 @@ class Settings(BaseSettings):
     # reports disabled and serves no assets. See artifacts/global_markets_*.
     global_markets_freshness_enabled: bool = False
     crypto_markets_enabled: bool = False
+    # Candidate 4 G3 (2026-10-25) — wires the US 10Y par-yield source into
+    # observed_global_triggers(). Default OFF: when off, that function returns []
+    # exactly as before. Even when ON, zero approved global_transmission rows ⇒
+    # zero implications, so the flag alone surfaces nothing. Flipping this on, and
+    # seeding/approving any relationship, are separate activation approvals.
+    global_transmission_triggers_enabled: bool = False
 
     # ── Fyers (primary market data provider) ──────────────────────────────────
     # Get credentials at https://myapi.fyers.in/dashboard

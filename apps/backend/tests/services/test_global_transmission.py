@@ -99,11 +99,66 @@ def test_positive_direction_wording():
     assert "could exert upward pressure on Indian exporters" in out[0]["hypothesis"]
 
 
-# ── Phase-1 trigger source is empty by design ────────────────────────────────
+# ── trigger source: OFF by default, US 10Y feed when flag ON (Candidate 4 G3) ──
 
 @pytest.mark.asyncio
-async def test_observed_triggers_empty_in_phase1():
+async def test_observed_triggers_empty_when_flag_off():
+    # default flag state is False → [] exactly as before G3
     assert await observed_global_triggers() == []
+
+
+def _fake_state(**kw):
+    from datetime import date
+    from app.services.macro_rates.us_treasury_source import UsTreasuryState
+    base = dict(status="live", latest_date=date.today(), y10=4.5, y10_trend="rising")
+    base.update(kw)
+    return UsTreasuryState(**base)
+
+
+@pytest.mark.asyncio
+async def test_observed_triggers_flag_on_rising_emits_one(monkeypatch):
+    import app.services.global_transmission as gt
+    monkeypatch.setattr(gt.settings, "global_transmission_triggers_enabled", True, raising=False)
+
+    async def fake():
+        return _fake_state()
+    monkeypatch.setattr(gt, "get_us_treasury_state", fake)
+
+    out = await gt.observed_global_triggers()
+    assert len(out) == 1
+    assert out[0]["factor"] == "US_10Y_YIELD" and out[0]["value"] == 4.5
+
+
+@pytest.mark.asyncio
+async def test_observed_triggers_flag_on_not_rising_empty(monkeypatch):
+    import app.services.global_transmission as gt
+    monkeypatch.setattr(gt.settings, "global_transmission_triggers_enabled", True, raising=False)
+
+    async def fake():
+        return _fake_state(y10_trend="stable")
+    monkeypatch.setattr(gt, "get_us_treasury_state", fake)
+
+    assert await gt.observed_global_triggers() == []
+
+
+@pytest.mark.asyncio
+async def test_end_to_end_flag_on_but_unapproved_rel_still_empty(monkeypatch):
+    # The flag ON + a real rising trigger must STILL surface nothing without an
+    # approved relationship — the activation gate, proven end to end.
+    import app.services.global_transmission as gt
+    monkeypatch.setattr(gt.settings, "global_transmission_triggers_enabled", True, raising=False)
+
+    async def fake():
+        return _fake_state()
+    monkeypatch.setattr(gt, "get_us_treasury_state", fake)
+
+    triggers = await gt.observed_global_triggers()
+    assert len(triggers) == 1
+    # unapproved relationship → no implication despite a valid trigger in-window
+    assert derive_india_implications([_rel(approved=False, lag_days_min=0, lag_days_max=10)], triggers) == []
+    # approved relationship within window → exactly one hypothesis
+    out = derive_india_implications([_rel(lag_days_min=0, lag_days_max=10)], triggers)
+    assert len(out) == 1 and out[0]["limitation"] == "Potential relationship; actual market impact is not confirmed."
 
 
 # ── model registration (new isolated table is created by create_all) ─────────

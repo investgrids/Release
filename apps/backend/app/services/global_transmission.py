@@ -16,7 +16,10 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.db.models.global_transmission import GlobalTransmissionRelationship
+from app.services.global_markets.us_10y_trigger import build_us_10y_trigger
+from app.services.macro_rates.us_treasury_source import get_us_treasury_state
 
 _VALID_TARGET_TYPES = {"sector", "instrument", "indicator"}
 _VALID_DIRECTIONS = {"positive", "negative"}
@@ -55,14 +58,22 @@ async def get_eligible_relationships(db: AsyncSession) -> list[GlobalTransmissio
 async def observed_global_triggers() -> list[dict]:
     """Verified, timestamped global observations keyed by source_factor.
 
-    Phase 1: returns [] — there is no wired, verified global-trigger source yet
-    mapped to source_factor keys. (US Fed policy events exist in EventTriage but
-    aren't tagged to a factor; macro-rate observations aren't persisted — see the
-    separate macro-rates defect.) This is the honest current state: the machinery
-    is complete and will populate as the Phase 2 feed/evidence work lands. Until
-    then, zero triggers ⇒ zero implications, regardless of approved relationships.
+    Default state (flag OFF): returns [] — exactly as before, so nothing changes
+    in production until the flag is deliberately flipped.
+
+    When settings.global_transmission_triggers_enabled is True (Candidate 4 G3, a
+    SEPARATE activation decision), this wires the first real feed: the US Treasury
+    10Y par-yield source. A US_10Y_YIELD trigger is emitted only for a live,
+    materially RISING, still-fresh reading (the source's own empirical rising-trend
+    flag — no new threshold). Even then, zero approved relationships ⇒ zero
+    implications: surfacing anything still requires a separately seeded + approved
+    row (see is_eligible / derive_india_implications).
     """
-    return []
+    if not settings.global_transmission_triggers_enabled:
+        return []
+    state = await get_us_treasury_state()
+    trig = build_us_10y_trigger(state, datetime.now(timezone.utc))
+    return [trig] if trig else []
 
 
 def derive_india_implications(
