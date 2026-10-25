@@ -158,6 +158,7 @@ async def _create_events(db, items: list[RawItem], new_ids: set[str],
             summary=item.summary,
             description=item.summary,
             source=item.source,
+            source_url=(item.url or None),   # structured original-source link; None when absent
             event_type=event_type,
             companies=item.companies,
             impact_score=item.impact_score,
