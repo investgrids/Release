@@ -43,6 +43,7 @@ class LegacyCalendarRow:
     title: str
     date: str
     description: str
+    country: str = ""   # "IN" | "US" | "EU" | "GB" — additive; lets callers scope global vs India
 
 
 def _aware(dt: datetime) -> datetime:
@@ -92,5 +93,6 @@ async def get_legacy_shaped_calendar(db: AsyncSession) -> list[LegacyCalendarRow
             id=r.id, category=r.category, title=r.title,
             date=scheduled_ist.strftime("%b %d, %Y"),
             description=_build_description(r),
+            country=(r.country or ""),
         ))
     return out

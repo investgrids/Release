@@ -184,6 +184,13 @@ class Settings(BaseSettings):
     backup_remote_compress: bool = False
     # Hard ceiling for everything under automated/ in the backup bucket (Cloudflare R2's free tier is 10 GB). Retention drops the least valuable backups to stay under it. 0 = no ceiling.
     backup_remote_max_bytes: int = 0
+    # Global Markets enhancement (2026-10-20) — both default OFF so production
+    # behaviour is unchanged until the Yahoo-redistribution licensing question
+    # is resolved. When freshness is off, /api/market/global returns its exact
+    # legacy shape (no new fields). When crypto is off, /api/market/crypto
+    # reports disabled and serves no assets. See artifacts/global_markets_*.
+    global_markets_freshness_enabled: bool = False
+    crypto_markets_enabled: bool = False
 
     # ── Fyers (primary market data provider) ──────────────────────────────────
     # Get credentials at https://myapi.fyers.in/dashboard

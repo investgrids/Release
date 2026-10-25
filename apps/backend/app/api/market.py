@@ -91,6 +91,67 @@ def _yf_quote(ticker: str) -> dict | None:
     return _yf_run(_inner)
 
 
+# ── Freshness (Global Markets enhancement, 2026-10-20) ──────────────────────────
+# yfinance fast_info carries NO quote timestamp; only .info/get_info() exposes a
+# real regularMarketTime + marketState + exchange timezone. So when the freshness
+# flag is on we use .info ONLY (never fast_info too — no duplicate calls per the
+# design) to obtain an honest source timestamp and session state. Threshold:
+# "live" means the provider timestamp is within _FRESH_THRESHOLD_S of now during a
+# REGULAR session; Yahoo's free index data is itself ~15 min delayed and our cache
+# TTL is 15 min, so 900 s is the smallest honest "current" window — anything older
+# in a live session is labelled "delayed", never silently presented as real-time.
+_FRESH_THRESHOLD_S = 900
+
+# Market states Yahoo reports where the shown value is an official/last close, not
+# a live tick — honest to label "closed", not "stale".
+_CLOSED_STATES = {"CLOSED", "PRE", "PREPRE", "POST", "POSTPOST", "POSTCLOSE"}
+
+
+def _evaluate_freshness(source_ts_epoch: float | None, market_state: str | None,
+                        now_epoch: float, *, continuous: bool = False) -> str:
+    """fresh('live') | 'delayed' | 'closed' | 'unknown'. `continuous`=True for
+    crypto (24/7 — never 'closed'; a stale feed is 'delayed', not a closed
+    session)."""
+    if source_ts_epoch is None:
+        return "unknown"
+    age = now_epoch - source_ts_epoch
+    st = (market_state or "").upper()
+    if continuous:
+        return "live" if age <= _FRESH_THRESHOLD_S else "delayed"
+    if st == "REGULAR":
+        return "live" if age <= _FRESH_THRESHOLD_S else "delayed"
+    if st in _CLOSED_STATES:
+        return "closed"
+    return "unknown"
+
+
+def _yf_quote_rich(ticker: str) -> dict | None:
+    """Price + HONEST metadata via .info/get_info() (regularMarketTime,
+    marketState, exchangeTimezoneName, 24h volume for crypto). Returns None on
+    failure so the caller serves an explicit 'unavailable', never a fabricated
+    value. Used only when a freshness/crypto flag is on."""
+    def _inner():
+        import yfinance as yf
+        info = yf.Ticker(ticker).get_info() or {}
+        price = info.get("regularMarketPrice")
+        prev  = info.get("regularMarketPreviousClose") or info.get("previousClose")
+        if price is None or not prev:
+            return None
+        price = float(price); prev = float(prev)
+        change = price - prev
+        pct    = (change / prev) * 100 if prev else 0.0
+        rmt = info.get("regularMarketTime")
+        return {
+            "price": price, "change": change, "pct": pct, "positive": change >= 0,
+            "source_ts_epoch": float(rmt) if rmt else None,
+            "market_state": info.get("marketState"),
+            "timezone": info.get("exchangeTimezoneName"),
+            "volume_24h": info.get("volume24Hr") or info.get("regularMarketVolume"),
+            "quote_currency": info.get("currency"),
+        }
+    return _yf_run(_inner)
+
+
 def _yf_mini(ticker: str, period: str = "1d", interval: str = "60m") -> list[dict]:
     def _inner():
         import yfinance as yf, math
@@ -466,9 +527,37 @@ def _fetch_enhanced_premarket() -> dict:
     }
 
 
-def _fetch_global_indices() -> list[dict]:
+def _fetch_global_indices(with_freshness: bool = False) -> list[dict]:
+    """Legacy shape by default (backward-compatible). When with_freshness is
+    True (gated by settings.global_markets_freshness_enabled), each row ALSO
+    carries honest freshness metadata from .info: source_timestamp, session,
+    timezone, source, freshness. Never fabricated — a failed fetch yields an
+    explicit 'unavailable' row with freshness='unavailable'."""
     result = []
+    now_epoch = time.time()
     for name, (ticker, flag) in _GLOBAL_INDICES.items():
+        if with_freshness:
+            q = _yf_quote_rich(ticker)
+            if q:
+                sign = "+" if q["positive"] else ""
+                ts = q.get("source_ts_epoch")
+                result.append({
+                    "name":     name,
+                    "flag":     flag,
+                    "value":    f"{q['price']:,.2f}",
+                    "pct":      f"{sign}{q['pct']:.2f}%",
+                    "positive": q["positive"],
+                    "source":   "Yahoo Finance",
+                    "source_timestamp": datetime.fromtimestamp(ts, tz=timezone.utc).isoformat() if ts else None,
+                    "session":  q.get("market_state"),
+                    "timezone": q.get("timezone"),
+                    "freshness": _evaluate_freshness(ts, q.get("market_state"), now_epoch),
+                })
+            else:
+                result.append({"name": name, "flag": flag, "value": "—", "pct": "—", "positive": True,
+                               "source": "Yahoo Finance", "source_timestamp": None, "session": None,
+                               "timezone": None, "freshness": "unavailable"})
+            continue
         q = _yf_quote(ticker)
         if q:
             sign = "+" if q["positive"] else ""
@@ -482,6 +571,195 @@ def _fetch_global_indices() -> list[dict]:
         else:
             result.append({"name": name, "flag": flag, "value": "—", "pct": "—", "positive": True})
     return result
+
+
+# ── Crypto Markets (enhancement 2026-10-20, gated by settings.crypto_markets_enabled) ──
+_CRYPTO_ASSETS = {
+    "Bitcoin":  ("BTC-USD", "BTC", "₿"),
+    "Ethereum": ("ETH-USD", "ETH", "Ξ"),
+    "Solana":   ("SOL-USD", "SOL", "◎"),
+    "XRP":      ("XRP-USD", "XRP", "✕"),
+    "BNB":      ("BNB-USD", "BNB", "◆"),
+}
+
+
+def _fetch_crypto() -> list[dict]:
+    """Crypto quotes via the existing Yahoo integration (verified coverage for
+    all 5 assets). 24h change is vs the prior UTC-day close (regularMarketPreviousClose)
+    — labelled accordingly, not claimed as a rolling-24h tick. Crypto trades 24/7,
+    so session is always continuous; a stale feed is 'delayed', never 'closed'.
+    A failed fetch yields an explicit 'unavailable' row, never a fabricated value."""
+    result = []
+    now_epoch = time.time()
+    for name, (ticker, sym, glyph) in _CRYPTO_ASSETS.items():
+        q = _yf_quote_rich(ticker)
+        if q:
+            sign = "+" if q["positive"] else ""
+            ts = q.get("source_ts_epoch")
+            result.append({
+                "name": name, "symbol": sym, "glyph": glyph, "pair": f"{sym}/USD",
+                "value": f"{q['price']:,.2f}",
+                "quote_currency": q.get("quote_currency") or "USD",
+                "pct": f"{sign}{q['pct']:.2f}%",
+                "positive": q["positive"],
+                "change_window": "vs prior UTC-day close",
+                "volume_24h": q.get("volume_24h"),
+                "source": "Yahoo Finance",
+                "source_timestamp": datetime.fromtimestamp(ts, tz=timezone.utc).isoformat() if ts else None,
+                "freshness": _evaluate_freshness(ts, q.get("market_state"), now_epoch, continuous=True),
+            })
+        else:
+            result.append({"name": name, "symbol": sym, "glyph": glyph, "pair": f"{sym}/USD",
+                           "value": "—", "quote_currency": "USD", "pct": "—", "positive": True,
+                           "change_window": "vs prior UTC-day close", "volume_24h": None,
+                           "source": "Yahoo Finance", "source_timestamp": None, "freshness": "unavailable"})
+    return result
+
+
+# ── US index futures (market-selector Phase C — 2026-10-25) ─────────────────────
+def _fetch_us_futures() -> list[dict]:
+    """US index futures (ES/NQ/YM) with honest freshness, kept SEPARATE from the
+    cash closes in _fetch_global_indices so a prior cash close is never shown as a
+    live futures quote (brief §3.3). Futures trade nearly 24h on CME Globex, so
+    session is treated as continuous: a fresh quote is 'live', a stale one
+    'delayed', never 'closed'. Reuses the existing _US_FUTURES_TICKERS + the shared
+    rich-quote path — NO new provider. A failed fetch yields an explicit
+    'unavailable' row, never a fabricated value."""
+    result = []
+    now_epoch = time.time()
+    for name, ticker in _US_FUTURES_TICKERS.items():
+        q = _yf_quote_rich(ticker)
+        if q:
+            sign = "+" if q["positive"] else ""
+            ts = q.get("source_ts_epoch")
+            result.append({
+                "name": name, "ticker": ticker, "instrument": "future",
+                "value": f"{q['price']:,.2f}",
+                "change": f"{sign}{q['change']:,.2f}",
+                "pct": f"{sign}{q['pct']:.2f}%",
+                "positive": q["positive"],
+                "source": "Yahoo Finance",
+                "source_timestamp": datetime.fromtimestamp(ts, tz=timezone.utc).isoformat() if ts else None,
+                "session": q.get("market_state"),
+                "timezone": q.get("timezone"),
+                "freshness": _evaluate_freshness(ts, q.get("market_state"), now_epoch, continuous=True),
+            })
+        else:
+            result.append({"name": name, "ticker": ticker, "instrument": "future",
+                           "value": "—", "change": "—", "pct": "—", "positive": True,
+                           "source": "Yahoo Finance", "source_timestamp": None,
+                           "session": None, "timezone": None, "freshness": "unavailable"})
+    return result
+
+
+# ── Global Markets Intelligence Brief (Phase 1, deterministic — 2026-10-20) ──────
+# Pure, deterministic summary of the freshness-enriched indices. NO LLM, NO
+# fabrication: it states what is observed and explicitly refuses to claim WHY
+# markets moved. Gated by settings.global_markets_freshness_enabled (same data
+# dependency) and cached.
+_BRIEF_REGIONS = {
+    "Americas":     ["Dow Jones", "S&P 500", "Nasdaq"],
+    "Europe":       ["FTSE 100", "DAX", "CAC 40"],
+    "Asia-Pacific": ["Nikkei 225", "Hang Seng", "Shanghai Composite", "KOSPI"],
+}
+# A row is eligible for mood/ranking only with one of these freshness states and a
+# real value. "closed" is eligible (its last official close is a valid comparable
+# figure) but its session is preserved so the UI never implies it is live.
+_BRIEF_ELIGIBLE_FRESHNESS = {"live", "delayed", "closed"}
+_BRIEF_MIN_COVERAGE = 5          # need ≥5 of 10 eligible, else "Uncertain"
+_BRIEF_MOOD_THRESHOLD = 0.70     # ≥70% up → Positive, ≥70% down → Negative
+
+
+def _pct_num(pct_str: str) -> float | None:
+    """Parse '+1.23%' → 1.23; None if not parseable (so it is excluded, never
+    silently treated as 0)."""
+    try:
+        return float(str(pct_str).replace("%", "").replace("+", "").strip())
+    except (ValueError, TypeError):
+        return None
+
+
+def _build_global_brief(indices: list[dict], calendar_events: list[dict] | None,
+                        india_implications: list[dict] | None = None) -> dict:
+    now_iso = datetime.now(timezone.utc).isoformat()
+    # Eligibility: real value + eligible freshness + parseable pct. Everything
+    # else is excluded from the summary and disclosed in coverage.
+    eligible = []
+    for i in indices:
+        if i.get("freshness") in _BRIEF_ELIGIBLE_FRESHNESS and i.get("value") not in (None, "—"):
+            p = _pct_num(i.get("pct"))
+            if p is not None:
+                eligible.append({**i, "_pct": p})
+
+    total = len(indices)
+    observed = len(eligible)
+    pos = sum(1 for e in eligible if e["_pct"] > 0)
+    neg = sum(1 for e in eligible if e["_pct"] < 0)
+    # Coverage breakdown by freshness, so the UI can show "N live, M closed, …".
+    from collections import Counter
+    fresh_breakdown = dict(Counter(i.get("freshness", "unknown") for i in indices))
+
+    # Mood — over ELIGIBLE observations only, with a hard minimum-coverage rule.
+    if observed < _BRIEF_MIN_COVERAGE:
+        mood_label = "Uncertain"
+        mood_reason = f"Only {observed} of {total} indices have a usable recent quote — too few to characterise global direction."
+    elif pos >= observed * _BRIEF_MOOD_THRESHOLD:
+        mood_label = "Positive"
+        mood_reason = f"{pos} of {observed} observed indices are advancing."
+    elif neg >= observed * _BRIEF_MOOD_THRESHOLD:
+        mood_label = "Negative"
+        mood_reason = f"{neg} of {observed} observed indices are declining."
+    else:
+        mood_label = "Mixed"
+        mood_reason = f"{pos} advancing and {neg} declining of {observed} observed — direction is uneven, so a single label would hide real differences."
+
+    # Regional leaders/laggards — comparable daily %-vs-prev-close, session kept.
+    regions = []
+    for region, names in _BRIEF_REGIONS.items():
+        members = [e for e in eligible if e["name"] in names]
+        if not members:
+            regions.append({"region": region, "observed": 0, "leader": None, "laggard": None,
+                            "note": "No eligible observations in this region right now."})
+            continue
+        lead = max(members, key=lambda e: e["_pct"])
+        lag  = min(members, key=lambda e: e["_pct"])
+        def _entry(e):
+            return {"name": e["name"], "pct": e.get("pct"), "session": e.get("session"),
+                    "source_timestamp": e.get("source_timestamp"), "freshness": e.get("freshness")}
+        regions.append({"region": region, "observed": len(members),
+                        "leader": _entry(lead), "laggard": _entry(lag)})
+
+    # India implications — populated by the isolated transmission-linkage query
+    # (services/global_transmission.py) passed in by the endpoint. Empty unless a
+    # human-APPROVED, cited relationship is triggered by a verified, timestamped
+    # global observation within its lag window. Zero approved relationships (the
+    # current state) ⇒ empty, by design — never fabricated.
+    india_implications = india_implications or []
+
+    # What to watch — real calendar events only. Empty ⇒ honest message, never a
+    # claim that no events exist.
+    watch = []
+    for ev in (calendar_events or [])[:6]:
+        watch.append({
+            "title": ev.get("title"),
+            "date": ev.get("date"),
+            "category": ev.get("category"),
+            "detail": ev.get("description"),
+        })
+
+    return {
+        "enabled": True,
+        "generated_at": now_iso,
+        "mood": {"label": mood_label, "reason": mood_reason,
+                 "observed": observed, "total": total, "positive": pos, "negative": neg,
+                 "coverage_by_freshness": fresh_breakdown},
+        "regions": regions,
+        "india_implications": india_implications,
+        "india_implications_note": "No supported transmission path is available from current data; causal links require the Phase 2 evidence workstream.",
+        "what_to_watch": watch,
+        "what_to_watch_note": None if watch else "No verified events available in the current calendar data.",
+        "cannot_conclude": "Index movements alone do not establish why markets moved. A causal explanation requires verified news or macroeconomic evidence.",
+    }
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────────────
@@ -727,11 +1005,98 @@ async def market_after_market():
 
 @router.get("/global")
 async def market_global():
+    from app.core.config import settings
+    fresh = bool(getattr(settings, "global_markets_freshness_enabled", False))
+    loop = asyncio.get_event_loop()
+    # Separate cache keys so toggling the flag never serves a mismatched shape.
+    if fresh:
+        data = await loop.run_in_executor(
+            None, lambda: _cached_sync("global_idx_fresh", 900, lambda: _fetch_global_indices(with_freshness=True))
+        )
+    else:
+        data = await loop.run_in_executor(
+            None, lambda: _cached_sync("global_idx", 900, _fetch_global_indices)
+        )
+    return {"indices": data}
+
+
+@router.get("/crypto")
+async def market_crypto():
+    """Crypto Markets — gated OFF by default (settings.crypto_markets_enabled).
+    When disabled, reports enabled:false and serves no assets, so nothing new is
+    public until the flag is turned on. Uses the existing Yahoo integration."""
+    from app.core.config import settings
+    if not bool(getattr(settings, "crypto_markets_enabled", False)):
+        return {"enabled": False, "assets": []}
     loop = asyncio.get_event_loop()
     data = await loop.run_in_executor(
-        None, lambda: _cached_sync("global_idx", 900, _fetch_global_indices)
+        None, lambda: _cached_sync("crypto_assets", 300, _fetch_crypto)
     )
-    return {"indices": data}
+    return {"enabled": True, "assets": data}
+
+
+@router.get("/futures")
+async def market_futures():
+    """US index futures (CME Globex: ES/NQ/YM) for the Global Markets selector —
+    shown SEPARATELY from cash closes so a prior cash close is never presented as
+    a live futures quote. Gated by the same flag as the freshness/brief work (off
+    by default); reuses existing tickers + the 15-min cache, no new provider. Only
+    the US universe has a wired futures feed today — other markets report none."""
+    from app.core.config import settings
+    if not bool(getattr(settings, "global_markets_freshness_enabled", False)):
+        return {"enabled": False, "market": "US", "futures": []}
+    loop = asyncio.get_event_loop()
+    data = await loop.run_in_executor(
+        None, lambda: _cached_sync("us_futures_rich", 900, _fetch_us_futures)
+    )
+    return {"enabled": True, "market": "US", "futures": data}
+
+
+@router.get("/global-brief")
+async def market_global_brief():
+    """Deterministic Global Markets Intelligence Brief — observed-data summary,
+    regional leaders/laggards, honest uncertainty. NO LLM, NO per-request
+    provider work beyond the already-cached index fetch. Gated by the same flag
+    as freshness (it needs that data) and off by default."""
+    from app.core.config import settings
+    if not bool(getattr(settings, "global_markets_freshness_enabled", False)):
+        return {"enabled": False}
+    loop = asyncio.get_event_loop()
+    # Reuse the SAME cached enriched-index fetch the /global (fresh) path uses —
+    # no duplicate provider calls. Calendar is a cheap DB read.
+    indices = await loop.run_in_executor(
+        None, lambda: _cached_sync("global_idx_fresh", 900, lambda: _fetch_global_indices(with_freshness=True))
+    )
+    calendar_events: list[dict] = []
+    india_implications: list[dict] = []
+    try:
+        from app.db.session import AsyncSessionLocal
+        from app.db.crud import get_calendar
+        from app.services.global_transmission import (
+            get_eligible_relationships, observed_global_triggers, derive_india_implications,
+        )
+        async with AsyncSessionLocal() as db:
+            rows = await get_calendar(db)
+            calendar_events = [
+                {"id": r.id, "category": r.category, "title": r.title, "date": r.date, "description": r.description}
+                for r in rows
+            ]
+            # India implications from the ISOLATED store only (never ig_edges).
+            # Empty unless an approved+cited relationship is triggered by a
+            # verified observation within its lag window. Both are currently
+            # empty by design → honest empty section.
+            rels = await get_eligible_relationships(db)
+        triggers = await observed_global_triggers()
+        india_implications = derive_india_implications(rels, triggers)
+    except Exception:
+        calendar_events = []
+        india_implications = []
+    # The brief itself is pure/deterministic; cache it so repeated page loads
+    # don't recompute. Keyed separately so a flag/contract change never serves a
+    # mismatched shape.
+    brief = _cached_sync("global_brief_v1", 900,
+                         lambda: _build_global_brief(indices, calendar_events, india_implications))
+    return brief
 
 
 @router.get("/calendar")

@@ -9,6 +9,7 @@ import dynamic from "next/dynamic";
 import { CountdownTimer }            from "@/components/market/CountdownTimer";
 import { MarketIntelligenceSidebar } from "@/components/market/MarketIntelligenceSidebar";
 import { OverviewTab }               from "@/components/market/tabs/OverviewTab";
+import { showsIndiaSidebar }         from "@/lib/marketTabs";
 import { API_BASE_URL as API } from "@/lib/api";
 
 // Non-default tabs are code-split — their JS (and the data fetches inside
@@ -23,8 +24,21 @@ const PreMarketTab     = dynamic(() => import("@/components/market/tabs/PreMarke
 const LiveMarketTab    = dynamic(() => import("@/components/market/tabs/LiveMarketTab").then(m => m.LiveMarketTab),       { loading: TabSkeleton });
 const AfterMarketTab   = dynamic(() => import("@/components/market/tabs/AfterMarketTab").then(m => m.AfterMarketTab),     { loading: TabSkeleton });
 const GlobalMarketsTab = dynamic(() => import("@/components/market/tabs/GlobalMarketsTab").then(m => m.GlobalMarketsTab), { loading: TabSkeleton });
+const CryptoMarketsTab = dynamic(() => import("@/components/market/tabs/CryptoMarketsTab").then(m => m.CryptoMarketsTab), { loading: TabSkeleton });
+// Global Markets multi-market selector (Phase C — 2026-10-25) — gated OFF by
+// default. When NEXT_PUBLIC_GLOBAL_MARKET_SELECTOR_ENABLED === "true" the Global
+// Markets tab renders the typed-registry selector view; otherwise it renders the
+// original GlobalMarketsTab unchanged (WIP + its tests preserved).
+const GlobalMarketsSelectorView = dynamic(() => import("@/components/market/tabs/GlobalMarketsSelectorView").then(m => m.GlobalMarketsSelectorView), { loading: TabSkeleton });
+const GLOBAL_SELECTOR_ENABLED = process.env.NEXT_PUBLIC_GLOBAL_MARKET_SELECTOR_ENABLED === "true";
 
-type TabId = "overview" | "pre-market" | "live-market" | "after-market" | "global-markets" | "calendar" | "sector-intelligence";
+type TabId = "overview" | "pre-market" | "live-market" | "after-market" | "global-markets" | "crypto" | "calendar" | "sector-intelligence";
+
+// Crypto Markets (enhancement 2026-10-20) — gated OFF by default. The tab only
+// appears when NEXT_PUBLIC_CRYPTO_MARKETS_ENABLED === "true"; the backend data
+// endpoint is independently gated (settings.crypto_markets_enabled). Both default
+// off, so nothing new is public until the licensing question is resolved.
+const CRYPTO_TAB_ENABLED = process.env.NEXT_PUBLIC_CRYPTO_MARKETS_ENABLED === "true";
 
 // Commodities is deliberately NOT a tab here — it's its own standalone page
 // (/commodities), not embedded in Market Intelligence. It briefly was during
@@ -36,6 +50,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "live-market",          label: "Live Market"         },
   { id: "after-market",         label: "After Market"        },
   { id: "global-markets",       label: "Global Markets"      },
+  ...(CRYPTO_TAB_ENABLED ? [{ id: "crypto" as TabId, label: "Crypto" }] : []),
   { id: "calendar",             label: "Economic Calendar"   },
   { id: "sector-intelligence",  label: "Sector Intelligence" },
 ];
@@ -233,7 +248,8 @@ export function MarketClient({
           {activeTab === "pre-market"        && <PreMarketTab/>}
           {activeTab === "live-market"       && <LiveMarketTab initialData={overview}/>}
           {activeTab === "after-market"      && <AfterMarketTab initialData={overview}/>}
-          {activeTab === "global-markets"    && <GlobalMarketsTab/>}
+          {activeTab === "global-markets"    && (GLOBAL_SELECTOR_ENABLED ? <GlobalMarketsSelectorView/> : <GlobalMarketsTab/>)}
+          {activeTab === "crypto"            && <CryptoMarketsTab/>}
           {activeTab === "calendar"          && (calendarContent ?? <TabSkeleton/>)}
           {activeTab === "sector-intelligence" && (sectorContent ?? <TabSkeleton/>)}
         </div>
@@ -248,8 +264,11 @@ export function MarketClient({
           confidence number and Companies In Focus already covers movers
           with real reasons, so this sidebar's Top Movers panel and its
           fake Confidence/Fear&Greed formula (/api/market/insights) would
-          only duplicate and contradict them. */}
-      {!["live-market", "commodities", "calendar", "sector-intelligence", "pre-market"].includes(activeTab) && (
+          only duplicate and contradict them. Also hidden on global-markets and
+          crypto (§2.5 — see lib/marketTabs.ts): this sidebar is India market
+          context (NSE movers, India news, India-derived Fear&Greed) and must
+          never appear as global or crypto content. */}
+      {showsIndiaSidebar(activeTab) && (
         <aside className="hidden xl:flex xl:flex-col gap-0 min-w-0 sticky top-[88px] self-start max-h-[calc(100vh-100px)] overflow-y-auto scrollbar-hide pb-16">
           <MarketIntelligenceSidebar
             insights={initialInsights}
