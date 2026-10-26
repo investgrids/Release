@@ -30,6 +30,7 @@ const Controls   = dynamic(() => import("reactflow").then(m => m.Controls),    {
 // EventSidebarCharts.tsx's own header comment for why.
 const SectorDonut         = dynamic(() => import("./EventSidebarCharts").then(m => m.SectorDonut),         { ssr: false });
 const MarketReactionChart = dynamic(() => import("./EventSidebarCharts").then(m => m.MarketReactionChart), { ssr: false });
+import { buildSourceDetail } from "./sourceDetail";
 
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -62,7 +63,7 @@ interface MacroRelease {
 }
 
 export interface EventDetail {
-  event: { id: string; slug?: string; title: string; description: string; source: string; event_type: string; event_date: string; enrichment_status: string };
+  event: { id: string; slug?: string; title: string; description: string; source: string; source_url?: string | null; event_type: string; event_date: string; enrichment_status: string };
   summary: { text: string; why_it_matters: string; key_bullets: string[]; immediate_impact: string; long_term_impact: string; risk_factors: string[]; opportunities: string[]; integrity_status?: string };
   impactScore: number | null;
   confidence: number | null;
@@ -365,7 +366,7 @@ function MacroDataCard({ macro }: { macro: MacroRelease }) {
 function buildEventFacts(data: EventDetail): { facts: EvidenceFact[]; interpretations: EvidenceFact[]; sources: string[] } {
   const facts: EvidenceFact[] = [];
   if (data.event.event_date) facts.push({ label: "Event date", detail: data.event.event_date });
-  if (data.event.source) facts.push({ label: "Source", detail: data.event.source });
+  if (data.event.source) facts.push({ label: "Source", detail: buildSourceDetail(data.event.source, data.event.source_url) });
   const macro = data.macroRelease;
   if (macro && macro.release_value !== null && macro.release_value !== undefined) {
     facts.push({ label: `${macro.metric} released`, detail: `${formatMacroValue(macro.release_value, macro.unit)}${macro.period ? ` (${macro.period})` : ""}` });

@@ -47,6 +47,11 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     ("events", "last_attempt_at",          "DATETIME"),
     ("events", "next_retry_at",            "DATETIME"),
     ("events", "last_failure_reason",      "VARCHAR(64)"),
+    # Structured original-source URL (2026-10-25). Nullable, no default: NULL is
+    # the correct read for every event that predates it. MUST also be mirrored in
+    # relax_events_score_columns' rebuild DDL + SELECT below (that rebuild runs
+    # AFTER this patch, so the column already exists when it copies rows).
+    ("events", "source_url",               "VARCHAR(1000)"),
     # Weekend Intelligence Phase 1A — MarketSnapshot revived as the
     # trading-session close baseline (see
     # WEEKEND_INTELLIGENCE_PHASE1_ARCHITECTURE.md §2/§27.J). The table
@@ -415,6 +420,7 @@ async def relax_events_score_columns(engine) -> None:
                         slug VARCHAR(256),
                         description TEXT,
                         source VARCHAR(128),
+                        source_url VARCHAR(1000),
                         event_type VARCHAR(64),
                         event_date DATETIME,
                         ai_summary JSON,
@@ -428,7 +434,7 @@ async def relax_events_score_columns(engine) -> None:
                     INSERT INTO events_rebuilt
                     SELECT id, title, summary, impact_score, confidence, sectors,
                            companies, category, published_at, slug, description,
-                           source, event_type, event_date, ai_summary,
+                           source, source_url, event_type, event_date, ai_summary,
                            enrichment_status, created_at, updated_at
                     FROM events
                 """))

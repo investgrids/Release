@@ -184,6 +184,24 @@ class Settings(BaseSettings):
     backup_remote_compress: bool = False
     # Hard ceiling for everything under automated/ in the backup bucket (Cloudflare R2's free tier is 10 GB). Retention drops the least valuable backups to stay under it. 0 = no ceiling.
     backup_remote_max_bytes: int = 0
+    # Global Markets enhancement (2026-10-20) — both default OFF so production
+    # behaviour is unchanged until the Yahoo-redistribution licensing question
+    # is resolved. When freshness is off, /api/market/global returns its exact
+    # legacy shape (no new fields). When crypto is off, /api/market/crypto
+    # reports disabled and serves no assets. See artifacts/global_markets_*.
+    global_markets_freshness_enabled: bool = False
+    crypto_markets_enabled: bool = False
+    # Candidate 4 G3 (2026-10-25) — wires the US 10Y par-yield source into
+    # observed_global_triggers(). Default OFF: when off, that function returns []
+    # exactly as before. Even when ON, zero approved global_transmission rows ⇒
+    # zero implications, so the flag alone surfaces nothing. Flipping this on, and
+    # seeding/approving any relationship, are separate activation approvals.
+    global_transmission_triggers_enabled: bool = False
+    # EIA (U.S. Energy Information Administration) API key for the public-domain
+    # Brent spot series (RBRTE), read from env EIA_API_KEY. Empty by default: when
+    # unset, Brent falls back to its prior source and nothing changes. Never logged,
+    # never returned in a response, never exposed via NEXT_PUBLIC_*.
+    eia_api_key: str = ""
 
     # ── Fyers (primary market data provider) ──────────────────────────────────
     # Get credentials at https://myapi.fyers.in/dashboard
@@ -221,6 +239,16 @@ class Settings(BaseSettings):
     event_enrichment_urgent_threshold: int = 7          # EventTriage.urgency >= this counts as urgent
     event_enrichment_aging_hours: int = 6               # a normal fresh event waiting longer than this outranks newly arrived normal events
     event_enrichment_stage_diagnostics_enabled: bool = True   # log-only per-stage failure attribution
+
+    # ── International event providers (Phase 1, 2026-10-25) ───────────────────
+    # Two independently-gated, additive ingestion providers, both OFF by
+    # default. OFF means the provider is never constructed and makes NO network
+    # calls (see tasks/ingest_tasks.py::_fetch_edgar_items/_fetch_ecb_items).
+    # EDGAR = US corporate material filings (public domain); ECB = official
+    # press/statistical RSS (free reuse w/ "Source: ECB"). Feed the existing
+    # Event→Impact→Companies→Story pipeline; local-only until explicitly enabled.
+    edgar_ingestion_enabled: bool = False
+    ecb_ingestion_enabled: bool = False
 
     # ── Fact Grounding (AI Article Pipeline fix, 2026-08-10) ─────────────────
     # Shadow/log-only by default: validate_fact_grounding() always RUNS and

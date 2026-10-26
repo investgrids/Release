@@ -1,9 +1,30 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { MarketClient } from "./MarketClient";
 import { FloatingAISearch } from "@/components/FloatingAISearch";
 import { API_BASE_URL as API } from "@/lib/api";
 import { CalendarContent } from "@/app/calendar/CalendarContent";
 import { SectorsContent } from "@/app/sectors/SectorsContent";
+
+// SEO (2026-10-20) — this route previously shipped no metadata. Matches the
+// site's existing per-page convention (see app/(knowledge)/about/page.tsx):
+// title + description + canonical + OpenGraph/Twitter. Factual, no fabricated claims.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
+const _MI_TITLE = "Market Intelligence — Global Markets, Sectors & Live Indian Market Data | MarketRipple";
+const _MI_DESC = "Live Indian market intelligence with global market context: pre-market, live and after-market views, global indices by region, economic calendar and sector intelligence — explained, not just listed.";
+
+export const metadata: Metadata = {
+  title: _MI_TITLE,
+  description: _MI_DESC,
+  alternates: { canonical: `${SITE_URL}/market-intelligence` },
+  openGraph: {
+    title: _MI_TITLE,
+    description: _MI_DESC,
+    url: `${SITE_URL}/market-intelligence`,
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — Market Intelligence" }],
+  },
+  twitter: { card: "summary_large_image", title: _MI_TITLE, description: _MI_DESC },
+};
 
 
 async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
