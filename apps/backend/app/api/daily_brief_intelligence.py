@@ -376,6 +376,17 @@ async def _get_watch_next() -> list[dict]:
 
 @router.get("/intelligence")
 async def get_daily_brief_intelligence():
+    # Tag every LLM call this request triggers (e.g. the opening-prediction
+    # verdict via build_opening_prediction) as the "daily_brief" journey, so
+    # ai_usage.usage_report attributes its cost to the brief rather than to
+    # other:<module>. A no-op when those calls are served from cache. Scoped to
+    # this request's task, so it never leaks to other callers of the same code.
+    from app.services import ai_usage
+    with ai_usage.operation("daily_brief"):
+        return await _get_daily_brief_intelligence()
+
+
+async def _get_daily_brief_intelligence():
     # Each of these opens its own DB session internally — AsyncSession
     # can't safely be shared across coroutines running concurrently here.
     session = classify_session()

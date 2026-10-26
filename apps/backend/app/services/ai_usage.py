@@ -410,6 +410,12 @@ async def rollup_and_prune(db, now: datetime | None = None) -> dict:
 
 # USD per 1M tokens (input, output). A model appears here ONLY when its rate is documented for the account actually used. Free-tier accounts are 0.0 with basis "free_tier".
 # Everything not listed is unpriced: cost is reported as unknown for it, never guessed.
+#
+# PRICES_VERSION: bump whenever any rate below changes, so a stored/exported
+# report stays interpretable after prices move. CURRENCY is explicit for the
+# same reason — a bare number is not self-describing.
+PRICES_VERSION = "2026-10-26.1"
+CURRENCY = "USD"
 _FREE = (0.0, 0.0, "free_tier")
 PRICES: dict[tuple[str, str], tuple[float, float, str]] = {
     ("requesty", "google/gemma-4-31b-it"): (0.0, 0.0, "requesty_list_price"),
@@ -519,9 +525,13 @@ async def usage_report(db, hours: int = 24, now: datetime | None = None) -> dict
     return {"window_hours": hours, "from_utc": start.isoformat(), "to_utc": _naive_utc(now).isoformat(),
             "ai_search": {"user_requests": block("api"), "internal_pipeline_calls": block("internal")},
             "features": feat_out, "models": model_out, "recorder": {**_stats, "queued_now": len(_queue)},
-            "gaps": ["Tokens are provider-reported only; attempts without usage are counted in *_unknown_usage, never as zero.",
+            "pricing": {"version": PRICES_VERSION, "currency": CURRENCY,
+                        "basis": "price table is USD per 1,000,000 tokens, at the provider account's documented rate",
+                        "scope": "estimated DIRECT provider API token cost only — excludes infrastructure/compute; an estimate from the price table, not a confirmed provider invoice"},
+            "gaps": [f"Cost is an ESTIMATE from price table version {PRICES_VERSION} ({CURRENCY}), not a confirmed provider invoice, and covers direct API token spend only — never infrastructure.",
+                     "Tokens are provider-reported only; attempts without usage are counted in *_unknown_usage, never as zero.",
                      "Skipped work (cooldown skips, ticks skipped for no capacity) is counted per feature under `skipped`; it is not an attempt and not a failure.",
-                     "Models without a documented price are excluded from cost (cost_unpriced_attempts)."]}
+                     "Models without a documented price are excluded from cost (cost_unpriced_attempts); free-tier accounts are priced at 0 with basis free_tier, which is distinct from unpriced."]}
 
 
 def _count(items) -> dict:
