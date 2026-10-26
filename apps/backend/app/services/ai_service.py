@@ -548,10 +548,13 @@ def get_ai_usage_stats() -> dict:
         "last_error_at":    _AI_USAGE["last_error_at"],
         "last_error":       _AI_USAGE["last_error"],
         "last_provider":    _AI_USAGE["last_provider"],
-        # All providers in the fallback chain (Gemini/Groq/OpenRouter free
-        # tier/Cerebras free tier) are free-tier — real spend is $0, not an
-        # estimate to fabricate.
-        "cost_usd":         0.0,
+        # Cost is deliberately NOT reported here: these are in-process counters
+        # that don't know per-model token splits, so any number would be
+        # fabricated (it used to hard-code 0.0). Real, per-journey priced cost
+        # lives in the DB-backed ai_usage.usage_report; the ops-overview
+        # endpoint injects that real figure as `cost_usd` for the dashboard.
+        "cost_source":      "not_priced_in_process",
+        "cost_report":      "ai_usage.usage_report (DB-backed, cost by journey)",
         # AI Search Reliability Fix 1 (2026-10-17): deadline-stopped/
         # deadline-cancelled tiers never create an ai_usage_attempt row (the
         # check happens before begin_attempt()), so without these two

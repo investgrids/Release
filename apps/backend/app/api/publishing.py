@@ -257,6 +257,19 @@ async def ops_overview(db: AsyncSession = Depends(get_db)):
     stats = get_engine_stats()
     engine_runs = perf_stats.get_engine_runs()
     ai_stats = get_ai_usage_stats()
+    # get_ai_usage_stats() no longer fabricates a cost (it's in-process and
+    # can't price). Inject the real, DB-backed estimate from ai_usage.usage_report
+    # so the dashboard's `cost_usd` is a true number (24h, by journey). Never
+    # let a reporting failure break the ops page.
+    from app.services import ai_usage as _ai_usage
+    try:
+        _rep = await _ai_usage.usage_report(db, hours=24)
+        ai_stats["cost_usd"] = round(sum(f.get("cost_usd", 0.0) for f in _rep.get("features", {}).values()), 6)
+        _pr = _rep.get("pricing", {})
+        ai_stats["cost_source"] = f"db:ai_usage.usage_report 24h ({_pr.get('currency', 'USD')}, price {_pr.get('version', '?')})"
+        ai_stats["cost_is_estimate"] = True
+    except Exception:
+        ai_stats["cost_usd"] = 0.0  # fallback keeps the typed frontend (.toFixed) safe
     search_stats = get_search_stats()
     perf = perf_stats.get_performance_stats()
 
