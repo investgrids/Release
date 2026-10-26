@@ -106,6 +106,32 @@ def _fetch_one_sync(defn: dict, brent_price: float | None = None) -> dict:
                          "positive": True, "high": "103.45", "low": "102.85"})
         return item
 
+    # Brent: prefer the appropriately-licensed EIA public-domain spot series (RBRTE)
+    # over Yahoo. EIA is a DAILY, lagged observation — surface source + as_of and a
+    # stale flag, never present it as a live tick, and show no intraday high/low.
+    # Falls through to the prior (yfinance) source only when EIA is unavailable
+    # (e.g. no EIA_API_KEY configured), so default behaviour is unchanged.
+    if defn["id"] == "brent":
+        from app.core.config import settings
+        if (getattr(settings, "eia_api_key", "") or "").strip():
+            from app.services.macro_rates.eia_brent_source import get_eia_brent_state
+            st = get_eia_brent_state()
+            if st.status == "live" and st.value is not None:
+                change = st.change if st.change is not None else 0.0
+                item.update({
+                    "price":    _fmt_price(st.value),
+                    "change":   f"{'+' if change >= 0 else ''}{change:,.2f}",
+                    "pct":      st.pct if st.pct is not None else 0.0,
+                    "positive": change >= 0,
+                    "high":     "—",   # EIA daily spot has no intraday range
+                    "low":      "—",
+                    "source":   st.source,
+                    "as_of":    st.latest_date.isoformat() if st.latest_date else None,
+                    "stale":    st.stale,
+                })
+                return item
+            # EIA configured but unavailable -> fall through to the prior source
+
     try:
         t    = yf.Ticker(defn["ticker"])
         info = t.fast_info

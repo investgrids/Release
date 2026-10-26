@@ -197,6 +197,11 @@ class Settings(BaseSettings):
     # zero implications, so the flag alone surfaces nothing. Flipping this on, and
     # seeding/approving any relationship, are separate activation approvals.
     global_transmission_triggers_enabled: bool = False
+    # EIA (U.S. Energy Information Administration) API key for the public-domain
+    # Brent spot series (RBRTE), read from env EIA_API_KEY. Empty by default: when
+    # unset, Brent falls back to its prior source and nothing changes. Never logged,
+    # never returned in a response, never exposed via NEXT_PUBLIC_*.
+    eia_api_key: str = ""
 
     # ── Fyers (primary market data provider) ──────────────────────────────────
     # Get credentials at https://myapi.fyers.in/dashboard
