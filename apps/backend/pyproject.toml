@@ -84,6 +84,19 @@ dev = [
 requires = ["setuptools>=67.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
+# The backend package is `app`. apps/backend also holds several non-package
+# top-level dirs (alembic, artifacts, benchmarks, scripts, tests), so
+# setuptools' flat-layout auto-discovery refuses to build with "Multiple
+# top-level packages discovered" — which broke `pip install -e ".[dev]"` in CI
+# (Tier 1). Declare the package explicitly so only `app` (and its subpackages)
+# is packaged; the Docker image build is unaffected (it copies the tree).
+[tool.setuptools.packages.find]
+# `app` has no __init__.py (it is a namespace-style package, like the rest of
+# this tree), so namespaces=true is required — plain find_packages would match
+# nothing and ship an empty package.
+namespaces = true
+include = ["app*"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
