@@ -18,6 +18,21 @@ interface Commodity {
   id: string; name: string; unit: string;
   price: string; change: string; pct: number; positive: boolean;
   high: string; low: string; chart: ChartPoint[];
+  // Per-item provenance (present today for Brent, sourced from the EIA RBRTE
+  // daily spot series — public domain, dated, not a live tick). Other commodities
+  // omit these and are covered by the yfinance attribution footer.
+  source?: string; as_of?: string | null; stale?: boolean;
+}
+
+// Date-only EIA observation ("2026-10-27") → "October 27, 2026", anchored to UTC
+// so the displayed day never shifts by the viewer's timezone.
+function fmtObsDate(iso?: string | null): string | null {
+  if (!iso) return null;
+  try {
+    const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T00:00:00Z` : iso);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
+  } catch { return null; }
 }
 interface InsightItem { text: string; impact: string }
 interface InsightGroup { impact: string; items: InsightItem[] }
@@ -90,6 +105,19 @@ function CommodityCard({ c }: { c: Commodity }) {
         <span>High: <span className="text-text-secondary">{c.high}</span></span>
         <span>Low: <span className="text-text-secondary">{c.low}</span></span>
       </div>
+      {/* Per-item source/observation-date/freshness — shown when the item carries
+          its own provenance (Brent/EIA). This is why Brent is NOT covered by the
+          blanket yfinance footer below: it is a dated EIA observation, not a
+          ~15-min-delayed futures tick. */}
+      {c.source && (
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-surface-border/5 pt-2 text-[10px] text-text-muted">
+          <span>Source: {c.source} (EIA)</span>
+          {fmtObsDate(c.as_of) && <span>· As of {fmtObsDate(c.as_of)}</span>}
+          <span className={`rounded px-1.5 py-0.5 font-bold uppercase tracking-wide ${c.stale ? "text-rose-400 bg-rose-500/10" : "text-amber-400 bg-amber-500/10"}`}>
+            {c.stale ? "Stale" : "Delayed"}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -299,7 +327,7 @@ export function CommoditiesContent({ headingLevel = "h1", initialData, faqs }: {
           </div>
 
           <p className="text-center text-[11px] text-text-muted">
-            Prices via yfinance · COMEX / NYMEX / ICE futures · Delayed ~15 min
+            Metals and most energy prices via yfinance (COMEX / NYMEX / ICE futures), ~15-min delayed. Brent crude via the U.S. Energy Information Administration public-domain daily spot series (RBRTE) — a dated observation shown with its own source and date above, not a live tick.
           </p>
 
           {faqs && faqs.length > 0 && (

@@ -5,6 +5,7 @@ import { Globe, ArrowUpRight, Lock } from "lucide-react";
 import Link from "next/link";
 import { API_BASE_URL as API } from "@/lib/api";
 import { MarketSelector } from "@/components/market/MarketSelector";
+import { BrentMacroCard } from "@/components/market/BrentMacroCard";
 import {
   getMarket,
   DEFAULT_MARKET_ID,
@@ -171,6 +172,11 @@ export function GlobalMarketsSelectorView() {
             <LimitationCard availability={market.sections.indexStrip} />
           </SectionShell>
         )}
+
+        {/* ── Global macro — EIA Brent (applies to every market) ───────────── */}
+        <SectionShell title="Global macro" sub="Brent crude — a global macro indicator (U.S. EIA daily spot, public domain); same observation across the app.">
+          <BrentMacroCard />
+        </SectionShell>
 
         {/* ── Futures (separate from cash) ─────────────────────────────────── */}
         <SectionShell title="Index futures" sub="Shown separately from cash — a prior cash close is never presented as a live futures quote.">
