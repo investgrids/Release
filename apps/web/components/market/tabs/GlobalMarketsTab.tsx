@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Globe } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
+import { BrentMacroCard } from "@/components/market/BrentMacroCard";
 
 // Single source of truth for the frontend's regional grouping — must cover all
 // ten configured indices exactly once (mirrors the backend _BRIEF_REGIONS).
@@ -203,6 +204,13 @@ export function GlobalMarketsTab() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Global macro context — EIA Brent crude (public-domain, daily observation).
+          Same canonical observation the Commodities page uses. */}
+      <div>
+        <p className="mb-2 text-[11px] uppercase tracking-wider text-text-muted">Global Macro</p>
+        <BrentMacroCard />
       </div>
 
       {/* Index grid */}
