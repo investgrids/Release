@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Coins, Layers, Zap, Gem, Droplets, Flame, Gauge, Globe, Shield, TrendingUp, Package, Bot, BarChart2 } from "lucide-react";
+import { Coins, Layers, Zap, Gem, Droplets, Flame, Gauge, Globe, Shield, TrendingUp, TrendingDown, Package, Bot, BarChart2 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 
 // Recharts split into its own lazy chunk (2026-08 performance audit) —
@@ -85,10 +85,11 @@ const INSIGHT_ICONS: ReactNode[] = [
 ];
 
 function CommodityCard({ c }: { c: Commodity }) {
+  const Trend = c.positive ? TrendingUp : TrendingDown;
   return (
-    <div className="flex flex-col rounded-[20px] border border-surface-border/10 bg-text-primary/[0.03] p-4 transition hover:-translate-y-0.5 hover:border-surface-border/20">
+    <div className="group flex flex-col rounded-[20px] border border-surface-border/10 bg-text-primary/[0.03] p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-surface-border/25 hover:shadow-md">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-text-primary/[0.06] shrink-0">
+        <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-text-primary/[0.06] shrink-0 transition duration-200 group-hover:bg-text-primary/[0.09]">
           {ICONS[c.id] ?? <BarChart2 className="h-5 w-5 text-text-secondary" />}
         </div>
         <div className="min-w-0">
@@ -96,14 +97,15 @@ function CommodityCard({ c }: { c: Commodity }) {
           <p className="text-[10px] text-text-muted">{c.unit}</p>
         </div>
       </div>
-      <p className="mt-3 text-2xl font-bold text-text-primary">{c.price}</p>
-      <p className={`mt-0.5 text-sm font-medium ${c.positive ? "text-emerald-400" : "text-rose-400"}`}>
-        {c.positive ? "▲" : "▼"} {c.change} ({c.pct > 0 ? "+" : ""}{c.pct.toFixed(2)}%)
-      </p>
+      <p className="mt-3 text-2xl font-bold tabular-nums leading-none text-text-primary">{c.price}</p>
+      <span className={`mt-2 inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-medium tabular-nums ${c.positive ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"}`}>
+        <Trend className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        {c.change} ({c.pct > 0 ? "+" : ""}{c.pct.toFixed(2)}%)
+      </span>
       <SparkLine data={c.chart} id={c.id} />
       <div className="mt-3 flex justify-between border-t border-surface-border/5 pt-3 text-[11px] text-text-muted">
-        <span>High: <span className="text-text-secondary">{c.high}</span></span>
-        <span>Low: <span className="text-text-secondary">{c.low}</span></span>
+        <span>High <span className="text-text-secondary tabular-nums">{c.high}</span></span>
+        <span>Low <span className="text-text-secondary tabular-nums">{c.low}</span></span>
       </div>
       {/* Per-item source/observation-date/freshness — shown when the item carries
           its own provenance (Brent/EIA). This is why Brent is NOT covered by the
@@ -184,7 +186,7 @@ function CommoditySection({
   commodities: Commodity[]; insights: InsightGroup; drivers: KeyDriver[]; degraded?: boolean;
 }) {
   return (
-    <div className="rounded-[24px] border border-violet-500/15 bg-surface-card/80 p-5">
+    <div className="rounded-[24px] border border-violet-500/15 bg-surface-card/80 p-5 shadow-sm">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2.5">
           <span className="text-text-secondary">{icon}</span>
@@ -238,8 +240,7 @@ export function CommoditiesContent({ headingLevel = "h1", initialData, faqs }: {
           (what crawlers see) had zero H1s until the fetch resolved client-side. */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.24em] text-sky-600 dark:text-sky-300">Market Data</p>
-          <Heading className="mt-1.5 text-4xl font-semibold tracking-tight text-text-primary">Commodities & Energy</Heading>
+          <Heading className="text-4xl font-semibold tracking-tight text-text-primary">Commodities & Energy</Heading>
           <p className="mt-1 text-sm text-text-secondary">
             Real-time prices · AI-powered insights ·{" "}
             <span className="text-text-muted">
