@@ -44,7 +44,7 @@ export function WeekendChanges({ items, count }: { items: WeekendNewSinceCloseIt
   if (items.length === 0) return null;
 
   return (
-    <section className="flex min-h-[360px] max-h-[400px] flex-col overflow-hidden [contain:layout] rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
+    <section className="flex min-h-[360px] max-h-[400px] flex-col overflow-hidden [contain:layout] mr-card rounded-2xl border p-5">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-[13px] font-black text-text-primary">What Changed Since Market Close</h2>
         <span className="text-[10px] font-bold text-text-muted">{count} total</span>

@@ -18,7 +18,7 @@ export function WeekendSummary({ snapshot }: { snapshot: WeekendIntelligenceSnap
   if (!text) return null;
 
   return (
-    <section className="flex min-h-[230px] max-h-[250px] flex-col overflow-hidden rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
+    <section className="flex min-h-[230px] max-h-[250px] flex-col overflow-hidden mr-card rounded-2xl border p-5">
       <div className="mb-3 flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-violet-500" aria-hidden="true" />
         <h2 className="text-[13px] font-black text-text-primary">Weekend Intelligence Summary</h2>

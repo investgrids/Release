@@ -31,7 +31,7 @@ export function WeekendCompanies({ companies }: { companies: WeekendCompanyRef[]
   if (companies.length === 0) return null;
 
   return (
-    <section className="flex min-h-[360px] max-h-[400px] flex-col overflow-hidden [contain:layout] rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
+    <section className="flex min-h-[360px] max-h-[400px] flex-col overflow-hidden [contain:layout] mr-card rounded-2xl border p-5">
       <h2 className="mb-3 text-[13px] font-black text-text-primary">Companies to Watch</h2>
       <ul className="flex-1 grid grid-cols-1 gap-2 overflow-y-auto">
         {companies.map((c) => {

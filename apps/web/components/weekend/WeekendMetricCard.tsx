@@ -52,7 +52,7 @@ export function WeekendMetricCard({
     // this shell must never gain a max-height/overflow cap or that
     // equalization breaks.
     <div
-      className="weekend-card-accent flex h-full min-h-[225px] flex-col overflow-hidden rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]"
+      className="weekend-card-accent flex h-full min-h-[225px] flex-col overflow-hidden mr-card rounded-2xl border p-5"
       style={{
         // @ts-expect-error -- CSS custom property
         "--card-accent": ACCENT_VAR[accent],

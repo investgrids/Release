@@ -49,7 +49,7 @@ export function WeekendUnavailable({ kind }: { kind: Kind }) {
   // job actually failing.
   const nextCheck = kind !== "error" ? nextCheckpointLabel() : null;
   return (
-    <div className="mx-auto flex max-w-lg flex-col items-center gap-4 rounded-2xl border border-surface-border/7 bg-surface-card px-6 py-14 text-center shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
+    <div className="mr-card mx-auto flex max-w-lg flex-col items-center gap-4 rounded-2xl border px-6 py-14 text-center">
       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/10">
         <Clock3 className="h-6 w-6 text-violet-400" aria-hidden="true" />
       </div>

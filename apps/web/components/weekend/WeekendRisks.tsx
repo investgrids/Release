@@ -36,7 +36,7 @@ export function WeekendRisks({ risks }: { risks: WeekendRisk[] }) {
   const hasMore = deduped.length > VISIBLE_LIMIT;
 
   return (
-    <section className="flex min-h-[230px] max-h-[250px] flex-col overflow-hidden [contain:layout] rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
+    <section className="flex min-h-[230px] max-h-[250px] flex-col overflow-hidden [contain:layout] mr-card rounded-2xl border p-5">
       <h2 className="mb-3 text-[13px] font-black text-text-primary">Key Risks For The Next Session</h2>
       <ul className="flex-1 space-y-3 overflow-y-auto">
         {visible.map((r, i) => {

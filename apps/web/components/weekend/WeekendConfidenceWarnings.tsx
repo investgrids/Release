@@ -35,7 +35,7 @@ export function WeekendConfidenceWarnings({ warnings }: { warnings: WeekendRisk[
   const hasMore = simplified.length > VISIBLE_LIMIT;
 
   return (
-    <section className="flex min-h-[230px] max-h-[250px] flex-col overflow-hidden [contain:layout] rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
+    <section className="flex min-h-[230px] max-h-[250px] flex-col overflow-hidden [contain:layout] mr-card rounded-2xl border p-5">
       <h2 className="mb-3 text-[13px] font-black text-text-primary">What Could Make This Outlook Wrong?</h2>
       <ul className="flex-1 space-y-2 overflow-y-auto">
         {visible.map((w, i) => (

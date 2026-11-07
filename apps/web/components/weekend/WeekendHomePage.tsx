@@ -11,6 +11,32 @@ import { WeekendConfidenceWarnings } from "./WeekendConfidenceWarnings";
 import { WeekendSummary } from "./WeekendSummary";
 import { WeekendHistoricalContext } from "./WeekendHistoricalContext";
 import { WeekendEvidenceSummary } from "./WeekendEvidenceSummary";
+import { Band, BAND } from "@/components/homepage/Band";
+import { safeJsonLd } from "@/lib/text";
+
+// Same verbatim FAQ copy as the weekday homepage (app/page.tsx's HOME_FAQS) —
+// duplicated here rather than cross-imported, so the weekend page stays its
+// own self-contained unit per this component's own module contract (one
+// fetch, presentation-only composition). Keep both copies in sync manually
+// if /faq changes; see app/page.tsx's own comment for the source of truth.
+const WEEKEND_FAQS: { q: string; a: string }[] = [
+  {
+    q: "What is MarketRipple?",
+    a: "MarketRipple is an AI-powered market intelligence platform focused on Indian equity markets. It continuously monitors market-moving events — from government policy announcements and RBI decisions to global macro developments — and uses artificial intelligence to analyse their impact on sectors, companies, and broader market themes.",
+  },
+  {
+    q: "Is MarketRipple free to use?",
+    a: "Yes — the current version of MarketRipple is completely free to use. All core features including the Events Engine, AI Search, Market Intelligence dashboard, Opportunity Radar, Stories, Sector Heatmap, Economic Calendar, Ripple Engine, and Company Intelligence pages are available at no cost.",
+  },
+  {
+    q: "Does MarketRipple require login or account creation?",
+    a: "No — MarketRipple currently requires no login or account creation. You can access all features immediately without registering.",
+  },
+  {
+    q: "What markets does MarketRipple cover?",
+    a: "MarketRipple's primary focus is Indian equity markets — stocks listed on the BSE and NSE. Coverage includes Nifty 50, Sensex, Nifty Bank, Nifty IT, mid-cap and small-cap segments, and sector-level indices, alongside global market context that influences Indian markets.",
+  },
+];
 
 /**
  * The Weekend Intelligence homepage — brief §2/§4 (Phase 1D) + the
@@ -21,14 +47,22 @@ import { WeekendEvidenceSummary } from "./WeekendEvidenceSummary";
  * to read), then presentation-only composition — no client-side
  * reranking, recalculation, or invented conclusions.
  *
- * Layout (redesign brief §4/§8/§32/§33/§34): hero + 4 primary metric
- * cards -> compact metadata strip -> 3-column main grid (what changed /
- * sectors / companies) -> 3-column secondary grid (risks / confidence
- * warnings / summary) -> opportunities (full width, secondary) ->
- * historical analogues (secondary) -> evidence footer. Any section with
- * no real data to show renders nothing — every section component below
- * already self-hides on empty input; this page never renders a hollow
- * card just because a backend array happens to exist.
+ * Layout (redesign brief §4/§8/§32/§33/§34, re-grouped into the same
+ * band language as the weekday homepage on 2026-11-07): hero + 4 primary
+ * metric cards -> compact metadata strip -> "Since Market Close" band
+ * (what changed / sectors / companies) -> "Risks & Confidence" band
+ * (risks / confidence warnings / summary) -> "Opportunities" band ->
+ * "Historical Context" band -> FAQ band. The hero (WeekendPrimaryMetrics)
+ * is deliberately left OUTSIDE the Band wrapper — it already carries its
+ * own real <h1> + eyebrow, and Band always renders its own heading, so
+ * wrapping it would create a second <h1> on the page. Only the Band
+ * wrapper and each child's own card class changed (mr-card's gradient
+ * recipe, picking up the Band's --band-tint); no child component's props,
+ * data bindings, or internal logic were touched — none of the owner
+ * corrections documented below were revisited. Any section with no real
+ * data to show renders nothing — every section component below already
+ * self-hides on empty input; this page never renders a hollow card just
+ * because a backend array happens to exist.
  *
  * `weekend-enter-stagger` (globals.css) staggers each top-level section's
  * paint-time reveal — pure CSS (opacity/transform only), reduced-motion
@@ -90,7 +124,8 @@ export async function WeekendHomePage() {
   const previous = currentIdx >= 0 ? versions[currentIdx + 1] : undefined;
 
   return (
-    <div className="weekend-enter-stagger space-y-4 pb-10 pt-6">
+    <div className="weekend-enter-stagger space-y-12 pb-16 pt-6 md:space-y-16">
+      {/* Hero — unwrapped (see module docstring): carries its own real <h1>. */}
       <WeekendPrimaryMetrics
         snapshot={snapshot}
         previousConfidence={previous?.production_confidence ?? null}
@@ -99,25 +134,65 @@ export async function WeekendHomePage() {
 
       <WeekendMetadataStrip snapshot={snapshot} />
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-[1.35fr_0.82fr_0.9fr]">
-        <div className="md:col-span-2 lg:col-span-1">
-          <WeekendChanges items={snapshot.new_since_close} count={snapshot.new_since_close_count} />
+      <Band id="weekend-changes" index="01" eyebrow="Since Market Close" title="What changed and what to watch"
+        tint={BAND.amber}>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-[1.35fr_0.82fr_0.9fr]">
+          <div className="md:col-span-2 lg:col-span-1">
+            <WeekendChanges items={snapshot.new_since_close} count={snapshot.new_since_close_count} />
+          </div>
+          <WeekendSectors sectors={snapshot.top_sectors} />
+          <WeekendCompanies companies={snapshot.top_companies} />
         </div>
-        <WeekendSectors sectors={snapshot.top_sectors} />
-        <WeekendCompanies companies={snapshot.top_companies} />
-      </div>
+      </Band>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-[1fr_1fr_1.15fr]">
-        <WeekendRisks risks={snapshot.market_risks} />
-        <WeekendConfidenceWarnings warnings={snapshot.confidence_warnings} />
-        <div className="md:col-span-2 lg:col-span-1">
-          <WeekendSummary snapshot={snapshot} />
+      <Band id="weekend-risks" index="02" eyebrow="Risks & Confidence" title="Risks and how confident this read is"
+        tint={BAND.rose}>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-[1fr_1fr_1.15fr]">
+          <WeekendRisks risks={snapshot.market_risks} />
+          <WeekendConfidenceWarnings warnings={snapshot.confidence_warnings} />
+          <div className="md:col-span-2 lg:col-span-1">
+            <WeekendSummary snapshot={snapshot} />
+          </div>
         </div>
-      </div>
+      </Band>
 
-      <WeekendOpportunities opportunities={snapshot.opportunities} />
+      <Band id="weekend-opportunities" index="03" eyebrow="Opportunities" title="Weekend opportunity signals"
+        tint={BAND.emerald}>
+        <WeekendOpportunities opportunities={snapshot.opportunities} />
+      </Band>
 
-      <WeekendHistoricalContext analogues={snapshot.historical_analogues} />
+      <Band id="weekend-history" index="04" eyebrow="Historical Context" title="Similar past weekends"
+        tint={BAND.cyan}>
+        <WeekendHistoricalContext analogues={snapshot.historical_analogues} />
+      </Band>
+
+      {/* FAQ (AEO/GEO, 2026-11-07) — same treatment and verbatim /faq copy as
+          the weekday homepage; see WEEKEND_FAQS above. */}
+      <Band id="faq" index="05" eyebrow="Frequently Asked" title="About MarketRipple"
+        href="/faq" hrefLabel="All FAQs" tint={BAND.violet}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {WEEKEND_FAQS.map((f) => (
+            <div key={f.q} className="mr-card rounded-2xl border bg-surface-card p-5">
+              <h3 className="font-display text-[15px] font-bold text-text-primary">{f.q}</h3>
+              <p className="mt-1.5 text-[13.5px] leading-relaxed text-text-secondary">{f.a}</p>
+            </div>
+          ))}
+        </div>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: safeJsonLd({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              mainEntity: WEEKEND_FAQS.map((f) => ({
+                "@type": "Question",
+                name: f.q,
+                acceptedAnswer: { "@type": "Answer", text: f.a },
+              })),
+            }),
+          }}
+        />
+      </Band>
     </div>
   );
 }
