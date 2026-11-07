@@ -556,3 +556,71 @@ select {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
+
+/* ── Homepage band colour system (7-band redesign) ──────────────────────────
+   A band sets --band-tint ("R G B"); everything inside inherits it. Falls back
+   to the brand violet outside a band. In @layer utilities so Tailwind variants
+   (hover:, dark:) work on them. */
+@layer utilities {
+  .band-tint-bg     { background-color: rgb(var(--band-tint, 99 102 241) / 0.05); }
+  .band-tint-bg-2   { background-color: rgb(var(--band-tint, 99 102 241) / 0.1); }
+  .band-tint-border { border-color: rgb(var(--band-tint, 99 102 241) / 0.18); }
+  .font-display     { font-family: var(--font-display), var(--font-geist), ui-sans-serif, system-ui, sans-serif; }
+}
+
+/* Accent card — 3px band-coloured top bar, a subtle two-stop gradient
+   surface (card ends up visibly distinct from the section background, which
+   was the bug fixed 2026-11-01), tinted border + soft tinted shadow, gentle
+   lift on hover. Still OPAQUE and zero-blur: a gradient costs the same single
+   paint as a flat colour — no backdrop-filter, no extra compositing layer. A
+   request for real glassmorphism (backdrop-filter: blur) is tracked
+   separately pending a measured performance check — see the homepage todo
+   list; this codebase deliberately removed backdrop-filter from 34 cards
+   previously for GPU budget, so it isn't re-added without measuring first. */
+.mr-card {
+  position: relative;
+  overflow: hidden;
+  background-image: linear-gradient(145deg, rgb(var(--surface-card)) 0%, rgb(var(--band-tint, 99 102 241) / 0.06) 140%);
+  border-color: rgb(var(--band-tint, 99 102 241) / 0.2);
+  box-shadow: 0 1px 2px rgb(var(--text-primary) / 0.04), 0 12px 32px -16px rgb(var(--band-tint, 99 102 241) / 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+:root[data-theme="dark"] .mr-card {
+  background-image: linear-gradient(145deg, rgb(var(--surface-card)) 0%, rgb(var(--band-tint, 99 102 241) / 0.1) 140%);
+}
+.mr-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: rgb(var(--band-tint, 99 102 241));
+}
+.mr-card:hover {
+  transform: translateY(-2px);
+  border-color: rgb(var(--band-tint, 99 102 241) / 0.35);
+  box-shadow: 0 1px 2px rgb(var(--text-primary) / 0.04), 0 18px 40px -16px rgb(var(--band-tint, 99 102 241) / 0.45);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mr-card { transition: none; }
+  .mr-card:hover { transform: none; }
+}
+
+/* ── Glassmorphism, applied deliberately narrowly (2026-11-01) ───────────────
+   This codebase removed backdrop-filter blur from 34 large card surfaces
+   previously for GPU budget — full-card blur was re-requested, so rather than
+   reverse that measured decision blind, real blur is applied ONLY to small,
+   fixed-size chrome (pill links, status chips): their blurred pixel area is a
+   few hundred px², not a whole card, so the compositor cost is negligible even
+   repeated a dozen times down the page. Large surfaces keep the opaque
+   .mr-card gradient instead — see that rule's own comment. Progressive
+   enhancement: browsers without backdrop-filter get a slightly more opaque
+   flat fallback via @supports, never a transparent unreadable chip. */
+.mr-glass {
+  background: rgb(var(--surface-card) / 0.55);
+  -webkit-backdrop-filter: blur(10px) saturate(160%);
+  backdrop-filter: blur(10px) saturate(160%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.15), 0 1px 2px rgb(var(--text-primary) / 0.04);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .mr-glass { background: rgb(var(--surface-card) / 0.92); }
+}
