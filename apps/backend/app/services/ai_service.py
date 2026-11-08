@@ -679,10 +679,16 @@ def get_nvidia_metrics() -> dict:
 # logs to 404 on 100% of attempts (24/24 in one 8-min window) while every
 # sibling slug on the identical account/key succeeds or 429s normally, so
 # this is a stale/renamed slug, not a quota or account issue.
+# 2026-11-08: switched from the :free variants to these same models' paid
+# slugs — confirmed to exist on OpenRouter (GET /api/v1/models) before this
+# change. The :free pool is a separate, shared, global rate-limited tier
+# that ignores account balance entirely; these paid slugs draw on the
+# account's actual OpenRouter credit instead, which is what was sitting
+# unused while :free calls kept 429ing under capacity.
 _OR_HIGH_QUALITY = [
-    "nvidia/nemotron-3-ultra-550b-a55b:free",       # 550B — largest free model
-    "nvidia/nemotron-3-super-120b-a12b:free",        # 120B — NVIDIA quality
-    "google/gemma-4-31b-it:free",                   # 31B  — Google quality
+    "nvidia/nemotron-3-ultra-550b-a55b",       # 550B — largest model, paid
+    "nvidia/nemotron-3-super-120b-a12b",       # 120B — NVIDIA quality, paid
+    "google/gemma-4-31b-it",                   # 31B  — Google quality, paid
 ]
 
 # ── Tier 1.5: Mistral La Plateforme — verified live 2026-07-22
@@ -865,8 +871,14 @@ _GROQ_REASONING_EFFORT: dict[str, str] = {
 # attempts (every time this tier was reached) while the 3 remaining models
 # below just hit the genuine account-wide quota (429) normally — same
 # stale-slug pattern as _OR_HIGH_QUALITY above, not a quota issue.
+# 2026-11-08: gemma-4-26b switched to its paid slug (same reasoning as
+# _OR_HIGH_QUALITY above). cohere/north-mini-code and the nemotron-3-nano-omni
+# reasoning model have NO paid variant on OpenRouter at all (confirmed via
+# GET /api/v1/models) — they stay on :free deliberately; removing the suffix
+# would 404 every call, repeating the exact stale-slug failure mode already
+# documented above for openai/gpt-oss-20b:free.
 _OR_SMALL = [
-    "google/gemma-4-26b-a4b-it:free",
+    "google/gemma-4-26b-a4b-it",
     "cohere/north-mini-code:free",
     "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
 ]
