@@ -364,6 +364,21 @@ class Settings(BaseSettings):
     # machinery DORMANT, activation is a later, separate decision.
     article_v2_canary_public_write_enabled: bool = False
 
+    # Workstream A — AIPE materiality gate (2026-10-24). Two modes:
+    #   "shadow"  (default) — the gate computes the publication tier for every
+    #             event that reaches the create path and LOGS/COUNTS the ones it
+    #             WOULD suppress, but changes NOTHING about what V1 publishes.
+    #             This is the measure-first observation window.
+    #   "enforce" — routine/non-material events (publication_tier EVENT_ONLY or
+    #             REJECT) no longer create new standalone articles; they are
+    #             recorded as coverage (SKIPPED_NOT_MATERIAL) instead. Updates to
+    #             existing articles are never affected.
+    # Any other value is treated as "shadow" (fail-safe: never silently
+    # suppresses). Enforcement is a separate owner decision AFTER reviewing the
+    # shadow counts and false-positive spot-check — a passing test suite is not
+    # sufficient to flip this.
+    aipe_materiality_gate_mode: str = "shadow"
+
     class Config:
         # 2026-09-26 security hotfix: never read a .env file when running
         # on Railway (or any platform that sets RAILWAY_ENVIRONMENT, which

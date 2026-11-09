@@ -384,6 +384,29 @@ async def mark_skipped_already_generated_today(db: AsyncSession, *, event_id: st
         log.error("coverage.mark_skipped_already_generated_failed", error=str(exc), event_id=event_id)
 
 
+async def mark_skipped_not_material(db: AsyncSession, *, event_id: str | None) -> None:
+    """Workstream A (2026-10-24): the AIPE materiality gate judged this event's
+    headline routine/non-substantive (publication_tier EVENT_ONLY/REJECT) and
+    enforcement is ON, so no NEW article was created for it. Like the two skipped
+    states above this is an explicit, auditable NON-FAILURE terminal reason --
+    generation was deliberately not attempted, not attempted-and-failed. The
+    event stays available as coverage; only standalone article creation is
+    suppressed. Never overwrites a row that already PUBLISHED or was covered by
+    an existing article."""
+    if not event_id:
+        return
+    try:
+        row = (await db.execute(
+            select(EventCoverage).where(EventCoverage.event_id == event_id)
+        )).scalar_one_or_none()
+        if row and row.coverage_status not in ("PUBLISHED", "COVERED_BY_EXISTING_ARTICLE"):
+            row.coverage_status = "SKIPPED_NOT_MATERIAL"
+            row.last_checked_at = _now()
+            await db.commit()
+    except Exception as exc:
+        log.error("coverage.mark_skipped_not_material_failed", error=str(exc), event_id=event_id)
+
+
 async def mark_failed(db: AsyncSession, *, event_id: str | None, reason: str) -> None:
     """Records that coverage was attempted and didn't succeed — generation
     failure, validation rejection, or a publish-cycle exception. Without
@@ -462,6 +485,7 @@ async def funnel_counts(db: AsyncSession, hours: int = 24) -> dict[str, Any]:
     failed = 0
     skipped_daily_cap = 0
     skipped_already_generated = 0
+    skipped_not_material = 0
     uncovered_critical = 0
     for r in recent:
         by_tier[r.priority] = by_tier.get(r.priority, 0) + 1
@@ -475,6 +499,8 @@ async def funnel_counts(db: AsyncSession, hours: int = 24) -> dict[str, Any]:
             skipped_daily_cap += 1
         elif r.coverage_status == "SKIPPED_ALREADY_GENERATED_TODAY":
             skipped_already_generated += 1
+        elif r.coverage_status == "SKIPPED_NOT_MATERIAL":
+            skipped_not_material += 1
         if is_must_cover(r.priority) and r.coverage_status not in ("PUBLISHED", "COVERED_BY_EXISTING_ARTICLE"):
             uncovered_critical += 1
 
@@ -493,6 +519,10 @@ async def funnel_counts(db: AsyncSession, hours: int = 24) -> dict[str, Any]:
         # than folded into it.
         "skipped_daily_cap": skipped_daily_cap,
         "skipped_already_generated_today": skipped_already_generated,
+        # Workstream A (2026-10-24): routine/non-material events the materiality
+        # gate kept from becoming new articles (only counted while the gate is
+        # ENFORCED; in shadow mode nothing is marked, see publisher.py).
+        "skipped_not_material": skipped_not_material,
         "uncovered_critical_or_high": uncovered_critical,
         "possibly_truncated": truncated,
         "generated_at": _now().isoformat(),
