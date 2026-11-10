@@ -1780,6 +1780,8 @@ async function LatestIntelligenceRow() {
   return (
     <div className="mr-card rounded-2xl border bg-surface-card p-5">
       <CardHeader title="Latest Intelligence Articles" href="/newsroom" />
+      <div className="relative isolate">
+      <div aria-hidden className="mr-glass-backdrop pointer-events-none absolute -inset-4 -z-10" />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((a: any) => {
           const publishedLabel = a.published_at
@@ -1787,7 +1789,7 @@ async function LatestIntelligenceRow() {
             : null;
           const typeCls = ARTICLE_TYPE_COLOR[a.article_type as string] ?? ARTICLE_TYPE_COLOR.default;
           return (
-            <Link key={a.slug} href={`/newsroom/article/${a.slug}`} className="group flex flex-col rounded-xl border band-tint-border band-tint-bg p-3.5 transition-colors hover:border-surface-border/20 hover:bg-text-primary/[0.04]">
+            <Link key={a.slug} href={`/newsroom/article/${a.slug}`} className="mr-glass-card group flex flex-col rounded-xl p-3.5">
               <div className="flex items-center justify-between gap-2">
                 <span className={`w-fit rounded-full border px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wider ${typeCls}`}>
                   {(a.article_type ?? "intelligence").replace(/_/g, " ")}
@@ -1821,6 +1823,7 @@ async function LatestIntelligenceRow() {
             </Link>
           );
         })}
+      </div>
       </div>
     </div>
   );

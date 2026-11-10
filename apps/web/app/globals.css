@@ -624,3 +624,52 @@ select {
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .mr-glass { background: rgb(var(--surface-card) / 0.92); }
 }
+
+/* Full glass card, owner-requested for the Latest Intelligence row only
+   (2026-11-10): four small cards, measured before shipping. Not a general
+   card recipe — large surfaces stay on .mr-card (see above). */
+.mr-glass-card {
+  background: rgb(var(--surface-card) / 0.5);
+  -webkit-backdrop-filter: blur(14px) saturate(170%);
+  backdrop-filter: blur(14px) saturate(170%);
+  border: 1px solid rgb(255 255 255 / 0.55);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.7),
+    0 1px 2px rgb(var(--text-primary) / 0.04),
+    0 10px 28px -14px rgb(var(--band-tint, 99 102 241) / 0.4);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+:root[data-theme="dark"] .mr-glass-card {
+  background: rgb(var(--surface-card) / 0.35);
+  border-color: rgb(255 255 255 / 0.1);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 10px 28px -14px rgb(var(--band-tint, 99 102 241) / 0.55);
+}
+.mr-glass-card:hover {
+  transform: translateY(-2px);
+  border-color: rgb(var(--band-tint, 99 102 241) / 0.45);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.7),
+    0 16px 36px -14px rgb(var(--band-tint, 99 102 241) / 0.5);
+}
+:root[data-theme="dark"] .mr-glass-card:hover {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    0 16px 36px -14px rgb(var(--band-tint, 99 102 241) / 0.65);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .mr-glass-card { background: rgb(var(--surface-card) / 0.9); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mr-glass-card { transition: none; }
+  .mr-glass-card:hover { transform: none; }
+}
+/* Soft colour behind the glass so the blur has something to show. Radial
+   gradients, not blurred elements: zero filter cost. */
+.mr-glass-backdrop {
+  background:
+    radial-gradient(38% 60% at 12% 30%, rgb(var(--band-tint, 99 102 241) / 0.28), transparent 70%),
+    radial-gradient(34% 55% at 88% 70%, rgb(56 189 248 / 0.22), transparent 70%),
+    radial-gradient(30% 50% at 55% 10%, rgb(167 139 250 / 0.18), transparent 70%);
+}
