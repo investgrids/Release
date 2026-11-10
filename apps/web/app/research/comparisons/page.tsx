@@ -15,6 +15,7 @@ import { API_BASE_URL as API } from "@/lib/api";
 export const metadata: Metadata = {
   title: "AI Company Comparisons — Trending & By Sector",
   description: "Browse AI-generated, evidence-based comparisons between NSE-listed companies — trending pairs and comparisons organized by sector.",
+  alternates: { canonical: "/research/comparisons" },
 };
 
 interface ComparisonItem {

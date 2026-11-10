@@ -927,6 +927,7 @@ def _list_row(a: IntelligenceArticle) -> dict:
     return {
         "id":                a.id,
         "slug":              a.slug,
+        "canonical_url":     a.canonical_url,
         "article_type":      a.article_type,
         "story_id":          a.story_id,
         "story_version":     a.story_version,

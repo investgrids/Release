@@ -9,6 +9,7 @@ export const metadata: Metadata = {
     description: "Standalone tools built directly on MarketRipple's own real data.",
     siteName: "MarketRipple",
   },
+  alternates: { canonical: "/tools" },
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {

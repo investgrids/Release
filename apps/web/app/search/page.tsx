@@ -11,6 +11,9 @@ export async function generateMetadata(
   return {
     title: q ? `"${q}" — Search` : "Search",
     description: "Search MarketRipple's AI-generated market intelligence — articles, companies, sectors, and themes.",
+    // Every ?q= variant is a thin near-duplicate; internal search results are never indexed.
+    robots: { index: false, follow: true },
+    alternates: { canonical: "/search" },
   };
 }
 

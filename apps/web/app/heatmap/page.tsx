@@ -4,6 +4,7 @@ import { TrendingUp, LayoutGrid, Layers, MousePointerClick, RefreshCw, Thermomet
 
 export const metadata: Metadata = {
   title: "Market Heatmap",
+  alternates: { canonical: "/heatmap" },
 };
 
 export default function HeatmapPage() {

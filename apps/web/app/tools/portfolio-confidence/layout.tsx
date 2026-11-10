@@ -14,6 +14,7 @@ export const metadata: Metadata = {
     title: "Portfolio Intelligence Brief",
     description: "What's happening across the companies you own — right now.",
   },
+  alternates: { canonical: "/tools/portfolio-confidence" },
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {

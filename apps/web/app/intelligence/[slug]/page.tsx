@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
@@ -25,6 +26,22 @@ async function fetchArticle(slug: string) {
     if (!r.ok) return null;
     return r.json();
   } catch { return null; }
+}
+
+// Same article as /newsroom/article/{slug} (looked up by id or slug), so this URL is an
+// alternate surface: never indexed, canonical points at the article's real URL.
+export async function generateMetadata(
+  { params }: { params: Promise<{ slug: string }> }
+): Promise<Metadata> {
+  const { slug } = await params;
+  const robots = { index: false, follow: true };
+  const art = await fetchArticle(slug);
+  if (!art) return { title: "Not Found", robots };
+  return {
+    title: art.seo_title || art.headline,
+    robots,
+    alternates: { canonical: art.canonical_url || `/newsroom/article/${art.slug || slug}` },
+  };
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

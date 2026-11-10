@@ -4,6 +4,7 @@ import { TrendingUp, LineChart, Layers, Globe, Banknote, Bookmark } from "lucide
 
 export const metadata: Metadata = {
   title: "Market Breadth",
+  alternates: { canonical: "/market-breadth" },
 };
 
 export default function MarketBreadthPage() {

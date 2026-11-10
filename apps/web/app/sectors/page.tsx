@@ -3,6 +3,7 @@ import { SectorsContent } from "./SectorsContent";
 
 export const metadata: Metadata = {
   title: "Sectors — NSE Sectoral Performance",
+  alternates: { canonical: "/sectors" },
 };
 
 export default function SectorsPage() {

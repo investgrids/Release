@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { fetchAPI } from "@/lib/api";
+
+export const metadata: Metadata = {
+  title: "AI Market Wrap",
+  alternates: { canonical: "/ai-wrap" },
+};
 import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
 import { Sparkles, BarChart2, Landmark, Globe, TrendingUp, ClipboardList } from "lucide-react";
 
