@@ -37,7 +37,7 @@ const LEGAL_JSONLD = {
     "MarketRipple's Privacy Policy, Terms of Service, AI Disclaimer, Risk Disclosure, and Cookie Information.",
   url: `${SITE_URL}/legal`,
   isPartOf: { "@type": "WebSite", name: "MarketRipple", url: SITE_URL },
-  dateModified: "2026-08-11",
+  dateModified: "2026-11-10",
 };
 
 // ── Section navigation ─────────────────────────────────────────────────────────
@@ -131,7 +131,7 @@ export default function LegalPage() {
         <p className="mt-3 max-w-2xl text-[15px] leading-7 text-text-secondary">
           MarketRipple is operated and governed under Indian law. Please read these
           documents carefully before using the platform. Last updated:{" "}
-          <span className="font-medium text-text-secondary">August 2026</span>.
+          <span className="font-medium text-text-secondary">November 2026</span>.
         </p>
 
         {/* Section nav */}
@@ -182,7 +182,7 @@ export default function LegalPage() {
               items={[
                 "No personal accounts: MarketRipple does not require registration, login, or the submission of any personal details such as name, email address, or phone number.",
                 "Anonymous usage analytics: We collect aggregated, anonymised data about which pages are visited, which features are used most, and general traffic patterns. This data cannot be linked to any individual.",
-                "No personal behavioural cookies: We do not deploy cookies that track individual browsing behaviour across websites or build personal profiles.",
+                "Advertising cookies set by Google: MarketRipple shows ads through Google AdSense. Google and its partners may set cookies on your browser to serve and measure those ads, as described under Advertising below. MarketRipple itself does not set advertising cookies or build personal profiles.",
               ]}
             />
           </Sub>
@@ -214,7 +214,19 @@ export default function LegalPage() {
               items={[
                 "Market data is sourced from providers including yfinance and financial data APIs. These providers have their own data policies, which you can review on their respective websites.",
                 "AI analysis is powered by models accessed through OpenRouter (currently free-tier models). OpenRouter's privacy policy governs how query data is handled on their infrastructure.",
-                "We do not sell, share, or transfer any user data to third parties for advertising or marketing purposes.",
+                "Advertising is served by Google AdSense. Google's own privacy policy governs the data Google collects when it serves ads on this site.",
+                "We do not sell, share, or transfer any user data we hold to third parties for advertising or marketing purposes.",
+              ]}
+            />
+          </Sub>
+
+          <Sub title="Advertising">
+            <BulletList
+              items={[
+                "Third-party vendors, including Google, use cookies to serve ads based on your prior visits to this website or other websites.",
+                "Google's use of advertising cookies enables it and its partners to serve ads to you based on your visit to this site and/or other sites on the internet.",
+                "You may opt out of personalised advertising by visiting Google's Ads Settings (adssettings.google.com). You can also opt out of some third-party vendors' use of cookies for personalised advertising at www.aboutads.info.",
+                "To learn how Google uses information from sites that use its services, see the page \"How Google uses information from sites or apps that use our services\" (policies.google.com/technologies/partner-sites).",
               ]}
             />
           </Sub>
@@ -544,11 +556,12 @@ export default function LegalPage() {
 
           <p className="mt-4 text-[13px] leading-6 text-text-secondary">
             MarketRipple does not set any cookies of its own — the platform
-            requires no login and stores no session state server-side. The
-            only cookies used are Google Analytics&apos; first-party analytics
-            cookies, and only once you accept them via the cookie banner
-            shown on your first visit. We do not use cookies for advertising,
-            retargeting, or tracking you across other websites.
+            requires no login and stores no session state server-side. Two
+            kinds of third-party cookies may be used: Google Analytics&apos;
+            first-party analytics cookies, only once you accept them via the
+            cookie banner shown on your first visit, and Google&apos;s
+            advertising cookies, which Google uses to serve the ads shown on
+            this site.
           </p>
 
           <div className="mt-5 space-y-3">
@@ -568,13 +581,18 @@ export default function LegalPage() {
 
             <div className="rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-4">
               <h3 className="text-[13px] font-semibold text-text-primary">
-                No Advertising or Retargeting Cookies
+                Advertising Cookies (Google AdSense)
               </h3>
               <p className="mt-1.5 text-[13px] leading-6 text-text-secondary">
-                MarketRipple does not deploy third-party advertising cookies,
-                retargeting pixels, social media tracking cookies, or any other
-                cookies designed to monitor your behaviour across other
-                websites or build a personal advertising profile.
+                Ads on MarketRipple are served by Google AdSense. Google and
+                its partners may set cookies to serve ads, limit how often you
+                see them, and measure their performance, including ads based
+                on your visits to this and other websites. These cookies are
+                set by Google, not by MarketRipple, and are not controlled by
+                the analytics consent banner above. You can turn off
+                personalised ads at Google&apos;s Ads Settings
+                (adssettings.google.com). MarketRipple does not use
+                retargeting pixels or social media tracking cookies.
               </p>
             </div>
 
@@ -620,7 +638,7 @@ export default function LegalPage() {
       <div className="mt-10 rounded-xl border border-surface-border/8 bg-text-primary/[0.02] p-5">
         <p className="text-[12px] leading-6 text-text-muted">
           These legal documents were last updated in{" "}
-          <span className="text-text-secondary">August 2026</span>. For questions
+          <span className="text-text-secondary">November 2026</span>. For questions
           regarding any of the above, write to{" "}
           <a
             href="mailto:support@marketripple.in"

@@ -181,7 +181,7 @@ const SECTIONS = [
     questions: [
       {
         q: "Does MarketRipple store my personal data?",
-        a: "No. Because MarketRipple currently requires no login or account creation, we do not collect any personally identifiable information. Usage analytics are collected in anonymous, aggregated form only — for example, which pages are visited most frequently or which search queries are most common — and cannot be linked back to any individual. No names, email addresses, phone numbers, device fingerprints, or tracking cookies that identify individuals are stored. If account features are introduced in future, a clear and explicit privacy policy update will accompany them.",
+        a: "No. Because MarketRipple currently requires no login or account creation, we do not collect any personally identifiable information. Usage analytics are collected in anonymous, aggregated form only — for example, which pages are visited most frequently or which search queries are most common — and cannot be linked back to any individual. MarketRipple stores no names, email addresses, phone numbers, or device fingerprints. Ads on the site are served by Google AdSense, and Google may set its own advertising cookies to serve them; see the Advertising section of our Privacy Policy for details and how to opt out of personalised ads. If account features are introduced in future, a clear and explicit privacy policy update will accompany them.",
       },
       {
         q: "What technology powers MarketRipple?",
