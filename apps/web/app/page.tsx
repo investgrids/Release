@@ -1844,20 +1844,7 @@ async function LatestIntelligenceRow() {
 // used here; see final report for why /api/market/session was chosen
 // over /api/mie/state's equivalent field).
 // ═══════════════════════════════════════════════════════════════════════════════
-export default async function HomePage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ preview?: string }>;
-}) {
-  // PREVIEW-ONLY (redesign worktree, remove before merge): ?preview=weekday
-  // forces the weekday homepage so the new Band-1 hero can be reviewed on a
-  // weekend/holiday when the live site would otherwise serve WeekendHomePage.
-  const sp = (await searchParams) ?? {};
-  // Query param wins; else the local-only HOMEPAGE_PREVIEW env flag.
-  const preview = sp.preview ?? process.env.HOMEPAGE_PREVIEW;
-  if (preview === "weekday") return <WeekdayHomePage />;
-  if (preview === "weekend") return <WeekendHomePage />;
-
+export default async function HomePage() {
   const session = await getSession();
   if (isWeekendSession(session as any)) {
     return <WeekendHomePage />;
