@@ -337,7 +337,7 @@ async function TickerStrip() {
           return (
             <div key={c.label} className={`rounded-2xl border p-4 transition hover:-translate-y-0.5 ${tileCls(up)}`}>
               <p className="text-[12px] font-extrabold uppercase tracking-[0.1em] text-text-secondary">{c.label}</p>
-              <p className="font-display mt-1.5 text-[22px] font-extrabold leading-none tabular-nums text-text-primary">{c.value}</p>
+              <p className="mt-1.5 text-[20px] font-bold leading-none tabular-nums text-text-primary">{c.value}</p>
               <p className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-extrabold tabular-nums ${chipCls(up)}`}>
                 {up ? "▲" : "▼"} {c.change}
               </p>
@@ -354,7 +354,7 @@ async function TickerStrip() {
           <span className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-text-muted">Currency</span>
           <span className="flex items-baseline gap-2">
             <span className="text-[12px] font-bold text-text-secondary">USD/INR</span>
-            <span className="font-display text-[18px] font-extrabold tabular-nums text-text-primary">₹{usdinr.value}</span>
+            <span className="text-[16px] font-bold tabular-nums text-text-primary">₹{usdinr.value}</span>
             <span className={`text-[12px] font-extrabold tabular-nums ${usdinr.positive ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"}`}>
               {usdinr.positive ? "▲" : "▼"} {usdinr.change_str ?? usdinr.change}
             </span>
@@ -784,7 +784,7 @@ async function HomepageIntelligenceHero() {
               previous trading day's weekday alone; composes the real
               session enum with the real day-label derived above. */}
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <h2 className="font-display text-[20px] font-extrabold leading-tight text-text-primary md:text-[24px]">
+            <h2 className="text-[17px] font-bold leading-tight tracking-tight text-text-primary md:text-[19px]">
               {heroTitle}
             </h2>
             {/* Freshness contract (backend-computed) — visible only in the
@@ -878,9 +878,9 @@ async function HomepageIntelligenceHero() {
               )}
             </div>
             {focusSector ? (
-              <p className="mt-2 text-[17px] font-black leading-snug text-text-primary">Overweight {focusSector}</p>
+              <p className="mt-2 text-[15px] font-bold leading-snug text-text-primary">Overweight {focusSector}</p>
             ) : macroTheme ? (
-              <p className="mt-2 text-[17px] font-black leading-snug text-text-primary">{macroTheme}</p>
+              <p className="mt-2 text-[15px] font-bold leading-snug text-text-primary">{macroTheme}</p>
             ) : null}
             <p className="mt-2 text-[12.5px] leading-relaxed text-text-secondary">{todaysSummary}</p>
             <Link href={ev ? `/events/${ev.slug || ev.id}` as any : "/events"}
@@ -1193,7 +1193,7 @@ async function LiveIntelligenceSection() {
     <div>
       <div className="mb-3 flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-violet-500" />
-        <h3 className="font-display text-[17px] font-bold text-text-primary">Ripple Signals</h3>
+        <h3 className="text-[13px] font-black text-text-primary">Ripple Signals</h3>
         <span className="text-[13px] text-text-secondary">— what changed and why it matters</span>
       </div>
       {items.length === 0 ? (
@@ -1356,7 +1356,7 @@ async function TopMoversCard() {
   return (
     <div className="mr-card flex h-full flex-col rounded-2xl border bg-surface-card p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-display text-[17px] font-bold text-text-primary">Top Gainers &amp; Losers</h3>
+        <h3 className="text-[13px] font-black text-text-primary">Top Gainers &amp; Losers</h3>
         {adv != null && dec != null && (
           <span className="text-[12px] font-semibold text-text-secondary">
             <span className="text-emerald-700 dark:text-emerald-300">{adv} up</span>
@@ -1446,7 +1446,7 @@ async function IpoTrackerCard() {
   return (
     <div className="mr-card flex h-full flex-col rounded-2xl border bg-surface-card p-5">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-display text-[17px] font-bold text-text-primary">IPO Tracker</h3>
+        <h3 className="text-[13px] font-black text-text-primary">IPO Tracker</h3>
         <Link href="/ipo-hub" className="flex items-center gap-1 text-[12.5px] font-semibold text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">
           View All <ChevronRight className="h-3 w-3" />
         </Link>
@@ -1830,7 +1830,7 @@ export default async function HomePage() {
 
 function WeekdayHomePage() {
   return (
-    <div className="space-y-12 py-6 pb-16 md:space-y-16">
+    <div className="space-y-8 py-6 pb-12 md:space-y-10">
 
       {/* Independence Day banner — scoped to 2026-08-15, see component. */}
       <IndependenceDayBanner />

@@ -12,31 +12,7 @@ import { WeekendSummary } from "./WeekendSummary";
 import { WeekendHistoricalContext } from "./WeekendHistoricalContext";
 import { WeekendEvidenceSummary } from "./WeekendEvidenceSummary";
 import { Band, BAND } from "@/components/homepage/Band";
-import { safeJsonLd } from "@/lib/text";
 
-// Same verbatim FAQ copy as the weekday homepage (app/page.tsx's HOME_FAQS) —
-// duplicated here rather than cross-imported, so the weekend page stays its
-// own self-contained unit per this component's own module contract (one
-// fetch, presentation-only composition). Keep both copies in sync manually
-// if /faq changes; see app/page.tsx's own comment for the source of truth.
-const WEEKEND_FAQS: { q: string; a: string }[] = [
-  {
-    q: "What is MarketRipple?",
-    a: "MarketRipple is an AI-powered market intelligence platform focused on Indian equity markets. It continuously monitors market-moving events — from government policy announcements and RBI decisions to global macro developments — and uses artificial intelligence to analyse their impact on sectors, companies, and broader market themes.",
-  },
-  {
-    q: "Is MarketRipple free to use?",
-    a: "Yes — the current version of MarketRipple is completely free to use. All core features including the Events Engine, AI Search, Market Intelligence dashboard, Opportunity Radar, Stories, Sector Heatmap, Economic Calendar, Ripple Engine, and Company Intelligence pages are available at no cost.",
-  },
-  {
-    q: "Does MarketRipple require login or account creation?",
-    a: "No — MarketRipple currently requires no login or account creation. You can access all features immediately without registering.",
-  },
-  {
-    q: "What markets does MarketRipple cover?",
-    a: "MarketRipple's primary focus is Indian equity markets — stocks listed on the BSE and NSE. Coverage includes Nifty 50, Sensex, Nifty Bank, Nifty IT, mid-cap and small-cap segments, and sector-level indices, alongside global market context that influences Indian markets.",
-  },
-];
 
 /**
  * The Weekend Intelligence homepage — brief §2/§4 (Phase 1D) + the
@@ -124,7 +100,7 @@ export async function WeekendHomePage() {
   const previous = currentIdx >= 0 ? versions[currentIdx + 1] : undefined;
 
   return (
-    <div className="weekend-enter-stagger space-y-12 pb-16 pt-6 md:space-y-16">
+    <div className="weekend-enter-stagger space-y-8 pb-12 pt-6 md:space-y-10">
       {/* Hero — unwrapped (see module docstring): carries its own real <h1>. */}
       <WeekendPrimaryMetrics
         snapshot={snapshot}
@@ -166,33 +142,6 @@ export async function WeekendHomePage() {
         <WeekendHistoricalContext analogues={snapshot.historical_analogues} />
       </Band>
 
-      {/* FAQ (AEO/GEO, 2026-11-07) — same treatment and verbatim /faq copy as
-          the weekday homepage; see WEEKEND_FAQS above. */}
-      <Band id="faq" index="05" eyebrow="Frequently Asked" title="About MarketRipple"
-        href="/faq" hrefLabel="All FAQs" tint={BAND.violet}>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {WEEKEND_FAQS.map((f) => (
-            <div key={f.q} className="mr-card rounded-2xl border bg-surface-card p-5">
-              <h3 className="font-display text-[15px] font-bold text-text-primary">{f.q}</h3>
-              <p className="mt-1.5 text-[13.5px] leading-relaxed text-text-secondary">{f.a}</p>
-            </div>
-          ))}
-        </div>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: safeJsonLd({
-              "@context": "https://schema.org",
-              "@type": "FAQPage",
-              mainEntity: WEEKEND_FAQS.map((f) => ({
-                "@type": "Question",
-                name: f.q,
-                acceptedAnswer: { "@type": "Answer", text: f.a },
-              })),
-            }),
-          }}
-        />
-      </Band>
     </div>
   );
 }

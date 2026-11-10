@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Plus_Jakarta_Sans } from "next/font/google";
+import { Geist } from "next/font/google";
 import "./globals.css";
 
 import { SiteHeader }        from "@/components/SiteHeader";
@@ -25,14 +25,6 @@ import { cn } from "@/lib/utils";
 // Without it preloaded, every price re-rendered when the late file arrived
 // (measured CLS 0.16 on /companies, all from ₹ price rows).
 const geist = Geist({ subsets: ["latin", "latin-ext"], variable: "--font-geist", display: "swap" });
-
-// Display face for headings/large numbers (`.font-display` in globals.css).
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  weight: ["600", "700", "800"],
-  display: "swap",
-  variable: "--font-display",
-});
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
@@ -85,7 +77,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // suppressHydrationWarning: browser extensions (dark-mode tools, password
     // managers) often inject attributes on <html> between SSR and hydration,
     // causing a harmless but noisy hydration mismatch warning.
-    <html lang="en-IN" className={cn("font-sans", geist.variable, jakarta.variable)} suppressHydrationWarning>
+    <html lang="en-IN" className={cn("font-sans", geist.variable)} suppressHydrationWarning>
       <head>
         {/* Google AdSense. A plain server-rendered async script in <head> (not next/script, which injects after load) because AdSense's site verification looks for it in the page source. */}
         <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4678095524898812" crossOrigin="anonymous" />
