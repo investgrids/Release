@@ -356,6 +356,26 @@ describe("Newsroom article page — legacy-history containment patch (2026-09-01
   });
 });
 
+describe("Newsroom article page — Workstream C search_indexable (2026-11-10)", () => {
+  it("emits noindex, follow when the backend marks the article search_indexable=false", async () => {
+    mockFetchFor(baseInsight("policy_intelligence", { search_indexable: false }));
+    const metadata = await generateMetadata({ params: Promise.resolve({ slug: "test-slug" }) });
+    expect(metadata.robots).toEqual({ index: false, follow: true });
+  });
+
+  it("leaves robots at the site default when search_indexable=true", async () => {
+    mockFetchFor(baseInsight("policy_intelligence", { search_indexable: true }));
+    const metadata = await generateMetadata({ params: Promise.resolve({ slug: "test-slug" }) });
+    expect(metadata.robots).toBeUndefined();
+  });
+
+  it("leaves robots at the site default when the field is absent (older backend)", async () => {
+    mockFetchFor(baseInsight("policy_intelligence"));
+    const metadata = await generateMetadata({ params: Promise.resolve({ slug: "test-slug" }) });
+    expect(metadata.robots).toBeUndefined();
+  });
+});
+
 describe("Newsroom article page — Article V2-F2 Public Article Experience (2026-09-14)", () => {
   // A minimal, realistic V2 article: one company (no impact/reason/
   // timeframe — see publication_translator.py's own field disposition),

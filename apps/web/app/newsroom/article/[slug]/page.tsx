@@ -135,6 +135,7 @@ interface InsightDetail {
   is_evergreen?: boolean;
   confidence_score?: number;
   canonical_url?: string;
+  search_indexable?: boolean;
   json_ld?: Record<string, unknown>;
   published_at?: string;
   last_updated?: string;
@@ -331,6 +332,8 @@ export async function generateMetadata(
     alternates: {
       canonical: article.canonical_url || `/newsroom/article/${slug}`,
     },
+    // Only an explicit false noindexes; a missing field keeps today's default.
+    ...(article.search_indexable === false ? { robots: { index: false, follow: true } } : {}),
   };
 }
 

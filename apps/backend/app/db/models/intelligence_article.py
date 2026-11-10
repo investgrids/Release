@@ -66,6 +66,17 @@ class IntelligenceArticle(Base):
     update_history   = Column(JSON, nullable=False, default=list)
     # [{"at": ISO, "version": n, "reason": "new data", "summary": "..."}]
 
+    # Workstream C (2026-11-10) -- AdSense "Low value content" remediation.
+    # Default True so every existing + future row keeps today's indexable
+    # behavior unless explicitly backfilled False by
+    # scripts/backfill_search_indexable_2026_11_10.py, which flips it only
+    # for articles independently confirmed to have zero GSC search
+    # visibility in the trailing 90 days (see that script's docstring for
+    # the exact evidence). This is purely an indexability signal (noindex,
+    # follow) -- it never hides, deletes, or alters the article's own
+    # content; internal links to it keep working exactly as before.
+    search_indexable = Column(Boolean, nullable=False, default=True)
+
     # ── Core content ──────────────────────────────────────────────────────────
     headline          = Column(String(512), nullable=False)
     executive_summary = Column(Text, nullable=True)

@@ -143,6 +143,12 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     ("marketripple_score_snapshots", "pillar_coverage_message", "TEXT"),
     ("marketripple_score_snapshots", "market_behaviour_inputs", "JSON"),
     ("marketripple_score_snapshots", "peer_group", "VARCHAR(48)"),
+    # Workstream C (2026-11-10) -- AdSense "Low value content" remediation.
+    # intelligence_articles already existed (real production table) before
+    # this column did. DEFAULT 1 (true) so every existing row keeps today's
+    # indexable behavior; only the backfill script flips confirmed-zero-
+    # visibility rows to False.
+    ("intelligence_articles", "search_indexable", "BOOLEAN NOT NULL DEFAULT 1"),
 ]
 
 

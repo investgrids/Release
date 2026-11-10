@@ -183,7 +183,7 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     // artifacts/company_redesign_final_reaudit.md §5/§12 and its
     // follow-up reconciliation.
     safeJson<{ companies?: Array<{ symbol: string }>; total_pages?: number }>(`${API}/api/companies/?page_size=60&page=1&live=false`, {}),
-    safeJson<{ items?: Array<{ slug: string; article_type?: string; canonical_url?: string; last_updated?: string; published_at?: string; hero_image_url?: string | null }> }>(`${API}/api/insights/?limit=100`, {}),
+    safeJson<{ items?: Array<{ slug: string; article_type?: string; canonical_url?: string; last_updated?: string; published_at?: string; hero_image_url?: string | null; search_indexable?: boolean }> }>(`${API}/api/insights/?limit=100`, {}),
     // SEO Phase 2, §2.2 — comparison research pages.
     safeJson<{ items?: Array<{ slug: string; last_updated?: string; published_at?: string }> }>(`${API}/api/insights/?article_type=comparison_intelligence&limit=100`, {}),
     // Historical Memory pages — real dated events, ids are already
@@ -269,6 +269,8 @@ async function buildEntries(): Promise<SitemapEntry[]> {
   // articles (confirmed live: their own canonical tag disagreed with this).
   const insightRoutes: SitemapEntry[] = (insights.items ?? [])
     .filter(a => a.article_type !== "comparison_intelligence")
+    // A noindexed page in the sitemap is a contradictory signal to Google.
+    .filter(a => a.search_indexable !== false)
     .map(a => ({
       url: a.canonical_url || `${base}/newsroom/article/${a.slug}`,
       lastModified: a.last_updated ?? a.published_at ?? now,

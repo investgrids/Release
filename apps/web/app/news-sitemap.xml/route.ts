@@ -29,6 +29,7 @@ interface InsightItem {
   seo_title?: string;
   published_at?: string;
   canonical_url?: string;
+  search_indexable?: boolean;
 }
 
 function escapeXml(s: string): string {
@@ -49,6 +50,7 @@ export async function GET() {
 
   const cutoff = Date.now() - NEWS_WINDOW_MS;
   const fresh = items.filter(a => {
+    if (a.search_indexable === false) return false;
     if (!a.published_at) return false;
     const t = new Date(a.published_at).getTime();
     return !Number.isNaN(t) && t >= cutoff;

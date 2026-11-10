@@ -239,6 +239,11 @@ def _list_row(a: IntelligenceArticle, hero_image_url: str | None = None) -> dict
         # signal to Google since the day that "fix" shipped. Moved here so
         # both list and detail (which builds on this) return the real value.
         "canonical_url":      a.canonical_url,
+        # Workstream C (2026-11-10) -- backend-computed indexability signal,
+        # same pattern as companies/[symbol]'s fetchIndexable and events'
+        # data.indexable: the frontend reads this and sets robots:
+        # {index:false, follow:true} when False, never hides content.
+        "search_indexable":   a.search_indexable,
     }
 
 
