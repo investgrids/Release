@@ -20,7 +20,7 @@ import { WeekendHomePage } from "@/components/weekend/WeekendHomePage";
 import { API_BASE_URL as API } from "@/lib/api";
 import { isWeekendSession } from "@/lib/weekendSession";
 import { compareScoresDesc, impactToStyle } from "@/lib/scoring";
-import { cleanText, truncateForQuery, safeJsonLd } from "@/lib/text";
+import { cleanText, truncateForQuery } from "@/lib/text";
 import { calendarCategoryLabel } from "@/lib/economicCalendarCategory";
 import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
 import { deriveHomepageFreshness, type MieStoryLike } from "@/lib/homepageFreshness";
@@ -58,30 +58,6 @@ export const metadata: Metadata = {
   },
   twitter: { card: "summary_large_image", title: HOME_TITLE, description: HOME_DESCRIPTION, images: [HOME_OG_IMAGE] },
 };
-
-// Real, verbatim copy of the first four "Getting Started" answers from the
-// live /faq page (app/(knowledge)/faq/page.tsx) — never a fabricated or
-// paraphrased answer. Kept in sync manually; if /faq's copy changes, update
-// here too. Backs both the visible homepage FAQ band and its FAQPage JSON-LD,
-// which must describe exactly what the page shows (AEO/GEO requirement).
-const HOME_FAQS: { q: string; a: string }[] = [
-  {
-    q: "What is MarketRipple?",
-    a: "MarketRipple is an AI-powered market intelligence platform focused on Indian equity markets. It continuously monitors market-moving events — from government policy announcements and RBI decisions to global macro developments — and uses artificial intelligence to analyse their impact on sectors, companies, and broader market themes.",
-  },
-  {
-    q: "Is MarketRipple free to use?",
-    a: "Yes — the current version of MarketRipple is completely free to use. All core features including the Events Engine, AI Search, Market Intelligence dashboard, Opportunity Radar, Stories, Sector Heatmap, Economic Calendar, Ripple Engine, and Company Intelligence pages are available at no cost.",
-  },
-  {
-    q: "Does MarketRipple require login or account creation?",
-    a: "No — MarketRipple currently requires no login or account creation. You can access all features immediately without registering.",
-  },
-  {
-    q: "What markets does MarketRipple cover?",
-    a: "MarketRipple's primary focus is Indian equity markets — stocks listed on the BSE and NSE. Coverage includes Nifty 50, Sensex, Nifty Bank, Nifty IT, mid-cap and small-cap segments, and sector-level indices, alongside global market context that influences Indian markets.",
-  },
-];
 
 // The AI-generated morning brief (and, less often, real event data) lists
 // market indices and macro instruments in the same companies_affected /
@@ -1927,37 +1903,6 @@ function WeekdayHomePage() {
           <Suspense fallback={<Sk h={280} />}><KeyRisksCard /></Suspense>
           <Suspense fallback={<Sk h={280} />}><WatchTomorrowCard /></Suspense>
         </div>
-      </Band>
-
-      {/* 08 — FAQ (AEO/GEO, 2026-11-01): a visible FAQ whose text exactly
-          matches the FAQPage JSON-LD below — Google and AI answer engines
-          require the schema to describe what's actually on the page. Copy is
-          a verbatim subset of the real /faq page, not new or paraphrased
-          claims. */}
-      <Band id="faq" index="08" eyebrow="Frequently Asked" title="About MarketRipple"
-        href="/faq" hrefLabel="All FAQs" tint={BAND.violet}>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {HOME_FAQS.map((f) => (
-            <div key={f.q} className="mr-card rounded-2xl border bg-surface-card p-5">
-              <h3 className="font-display text-[15px] font-bold text-text-primary">{f.q}</h3>
-              <p className="mt-1.5 text-[13.5px] leading-relaxed text-text-secondary">{f.a}</p>
-            </div>
-          ))}
-        </div>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: safeJsonLd({
-              "@context": "https://schema.org",
-              "@type": "FAQPage",
-              mainEntity: HOME_FAQS.map((f) => ({
-                "@type": "Question",
-                name: f.q,
-                acceptedAnswer: { "@type": "Answer", text: f.a },
-              })),
-            }),
-          }}
-        />
       </Band>
 
       {/* Background: 5-min story-hash poller + SSE session gate */}
