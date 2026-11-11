@@ -161,7 +161,23 @@ async def _detect_anomalies(db: AsyncSession, limit: int = 1) -> list[dict]:
     # Strongest clusters first; each one independently meets the same
     # >= _MIN_CLUSTER_COMPANIES bar — a second cluster is never a weaker claim.
     candidates.sort(key=lambda c: len(c[1]["tickers"]), reverse=True)
-    return [await _anomaly_item(sector, bucket) for sector, bucket in candidates[:max(1, limit)]]
+    # Sector tags are aliases of each other more often than not ("IT" vs
+    # "Technology" — live 2026-11-11: Technology's 4 tickers were 3/4 inside
+    # IT's 6). A cluster sharing >= half its companies with one already
+    # chosen is the same real-world signal under another name, not a second one.
+    return [await _anomaly_item(sector, bucket) for sector, bucket in _distinct_clusters(candidates, limit)]
+
+
+def _distinct_clusters(candidates: list[tuple[str, dict]], limit: int) -> list[tuple[str, dict]]:
+    """Strongest-first candidates -> up to `limit`, skipping alias duplicates."""
+    chosen: list[tuple[str, dict]] = []
+    for sector, bucket in candidates:
+        if len(chosen) >= max(1, limit):
+            break
+        if any(len(bucket["tickers"] & b["tickers"]) * 2 >= len(bucket["tickers"]) for _, b in chosen):
+            continue
+        chosen.append((sector, bucket))
+    return chosen
 
 
 async def _anomaly_item(sector: str, bucket: dict) -> dict:

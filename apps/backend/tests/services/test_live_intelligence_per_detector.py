@@ -46,3 +46,13 @@ async def test_default_stays_one_per_detector_for_signal_publisher():
          patch.object(li, "_detect_policy_ripple", new=AsyncMock(return_value=None)):
         await li.get_live_intelligence(None, None)
     assert seen == {"anomaly": 1, "theme": 1}
+
+
+def test_alias_sector_clusters_are_not_shown_twice():
+    # Mirrors the live 2026-11-11 case: "Technology" was mostly the same companies as "IT".
+    it = {"tickers": {"CYIENT", "HCLTECH", "INFY", "KPITTECH", "PERSISTENT", "TCS"}}
+    tech = {"tickers": {"HCLTECH", "INFY", "TCS", "WIPRO"}}
+    pharma = {"tickers": {"SUNPHARMA", "CIPLA", "DRREDDY"}}
+    chosen = li._distinct_clusters([("IT", it), ("Technology", tech), ("Pharma", pharma)], limit=2)
+    assert [s for s, _ in chosen] == ["IT", "Pharma"]
+    assert [s for s, _ in li._distinct_clusters([("IT", it), ("Technology", tech)], limit=2)] == ["IT"]
