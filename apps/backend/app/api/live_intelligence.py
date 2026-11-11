@@ -18,7 +18,7 @@ from app.services.aipe.signal_publisher import slug_for_item
 router = APIRouter()
 log = structlog.get_logger(__name__)
 
-_CACHE_KEY = "live_intelligence:feed:v1"
+_CACHE_KEY = "live_intelligence:feed:v2"   # v2: up to 2 clusters + 2 themes (2026-11-11)
 _CACHE_TTL = 300  # 5 min — matches MIE's own refresh cadence; each rebuild
                    # costs a real graph traversal + several DB queries, not
                    # something to redo on every homepage/opportunity-radar hit.
@@ -37,7 +37,7 @@ async def live_intelligence_feed(db: AsyncSession = Depends(get_db)):
         .limit(1)
     )).scalars().first()
 
-    items = await li.get_live_intelligence(db, article)
+    items = await li.get_live_intelligence(db, article, per_detector=2)
 
     # P0-B (2026-09-01) -- read-only. Each detected signal's permanent
     # /intelligence/signal/{slug} page (homepage audit, Priority 1) still

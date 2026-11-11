@@ -80,6 +80,12 @@ def _change_pct_to_impact(change_pct: float | None) -> str | None:
 
 
 async def _detect_anomaly(db: AsyncSession) -> dict | None:
+    """Single strongest cluster (signal publisher contract) — see _detect_anomalies."""
+    found = await _detect_anomalies(db, limit=1)
+    return found[0] if found else None
+
+
+async def _detect_anomalies(db: AsyncSession, limit: int = 1) -> list[dict]:
     """Real sector event-clustering: N>=3 distinct real companies whose own
     sector genuinely matches, with real, recently-triaged, meaningfully-
     urgent events in that sector within a real time window. This is a
@@ -152,9 +158,13 @@ async def _detect_anomaly(db: AsyncSession) -> dict | None:
                     bucket["latest"] = r.triaged_at
 
     candidates = [(s, b) for s, b in by_sector.items() if len(b["tickers"]) >= _MIN_CLUSTER_COMPANIES]
-    if not candidates:
-        return None
-    sector, bucket = max(candidates, key=lambda c: len(c[1]["tickers"]))
+    # Strongest clusters first; each one independently meets the same
+    # >= _MIN_CLUSTER_COMPANIES bar — a second cluster is never a weaker claim.
+    candidates.sort(key=lambda c: len(c[1]["tickers"]), reverse=True)
+    return [await _anomaly_item(sector, bucket) for sector, bucket in candidates[:max(1, limit)]]
+
+
+async def _anomaly_item(sector: str, bucket: dict) -> dict:
 
     try:
         from app.services.historical_memory_service import find_similar_events
@@ -272,15 +282,22 @@ def _companies_for_chain(chain: list[dict]) -> list[str]:
 
 
 async def _detect_early_theme(db: AsyncSession, exclude: str | None = None) -> dict | None:
+    """Single top rising theme (signal publisher contract) — see _detect_early_themes."""
+    found = await _detect_early_themes(db, exclude=exclude, limit=1)
+    return found[0] if found else None
+
+
+async def _detect_early_themes(db: AsyncSession, exclude: str | None = None, limit: int = 1) -> list[dict]:
     """A real rising-momentum theme, cross-referenced against a real
     Opportunity row's score when one exists for it (never invented)."""
     themes = (await db.execute(
         select(ThemeState).where(ThemeState.momentum == "rising").order_by(ThemeState.score.desc())
     )).scalars().all()
     themes = [t for t in themes if t.theme != exclude]
-    if not themes:
-        return None
-    theme = themes[0]
+    return [await _theme_item(db, theme) for theme in themes[:max(1, limit)]]
+
+
+async def _theme_item(db: AsyncSession, theme) -> dict:
 
     # Batch E consumer migration, 2026-08-24 — dispatches on
     # settings.opportunity_read_source. V2 branch matches only public
@@ -394,27 +411,34 @@ async def _detect_historical_match(article) -> dict | None:
     }
 
 
-async def get_live_intelligence(db: AsyncSession, article=None) -> list[dict]:
+async def get_live_intelligence(db: AsyncSession, article=None, per_detector: int = 1) -> list[dict]:
     """Assembles the feed — each detector is independently best-effort; one
-    failing (e.g. no cluster found today) never blocks the others."""
+    failing (e.g. no cluster found today) never blocks the others.
+
+    per_detector (2026-11-11): the homepage feed asks for up to 2 sector
+    clusters and 2 rising themes so Ripple Signals can show 4 real items
+    instead of padding with "recurring, not today" fallbacks. Every extra
+    item clears the same real thresholds. The signal publisher keeps the
+    default of 1, so this does NOT mint extra durable signal pages."""
     items: list[dict] = []
 
-    for fn in (_detect_anomaly, _detect_policy_ripple):
-        try:
-            item = await fn(db)
-            if item:
-                items.append(item)
-        except Exception as exc:
-            log.warning("live_intelligence.detector_fail", detector=fn.__name__, exc=str(exc)[:160])
+    try:
+        items.extend(await _detect_anomalies(db, limit=per_detector))
+    except Exception as exc:
+        log.warning("live_intelligence.detector_fail", detector="_detect_anomalies", exc=str(exc)[:160])
+    try:
+        item = await _detect_policy_ripple(db)
+        if item:
+            items.append(item)
+    except Exception as exc:
+        log.warning("live_intelligence.detector_fail", detector="_detect_policy_ripple", exc=str(exc)[:160])
 
     try:
         exclude = None
         if article:
             positive = [s for s in (article.sectors_affected or []) if s.get("impact") == "positive"]
             exclude = positive[0]["name"] if positive else None
-        item = await _detect_early_theme(db, exclude=exclude)
-        if item:
-            items.append(item)
+        items.extend(await _detect_early_themes(db, exclude=exclude, limit=per_detector))
     except Exception as exc:
         log.warning("live_intelligence.detector_fail", detector="early_theme", exc=str(exc)[:160])
 

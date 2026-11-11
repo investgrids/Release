@@ -154,7 +154,7 @@ export function SiteHeader() {
               flat image can't read a CSS var), so light/dark variants swap
               via the pure-CSS theme-light-only/theme-dark-only classes
               (globals.css) rather than a JS theme check. */}
-          <Link href="/" className="flex shrink-0 items-center mr-4">
+          <Link href="/" className="flex shrink-0 items-center mr-2 2xl:mr-4">
             <Image
               src="/marketripple-mark.png"
               alt="MarketRipple"
@@ -190,7 +190,9 @@ export function SiteHeader() {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden lg:flex items-center gap-0.5">
+          {/* Desktop nav from xl (1280px): at 1024–1279 the 8 items + right-side
+              controls overflowed the viewport, so those widths use the drawer. */}
+          <nav className="hidden xl:flex items-center gap-0.5">
             {NAV_PRIMARY.map(item => {
               const hasSub = !!item.sub?.length;
               const menuOpen = openMenu === item.label;
@@ -202,7 +204,7 @@ export function SiteHeader() {
                     key={item.href}
                     href={item.href as any}
                     onClick={() => { trackNavClick(item.label); if (!isActive(item.href)) start(); }}
-                    className={`rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-all whitespace-nowrap ${
+                    className={`rounded-full px-2.5 py-1.5 text-[13px] font-medium transition-all whitespace-nowrap 2xl:px-3 ${
                       activeHere ? "bg-text-primary/10 text-text-primary" : "text-text-secondary hover:bg-text-primary/5 hover:text-text-primary"
                     }`}
                   >
@@ -215,7 +217,7 @@ export function SiteHeader() {
                 <div key={item.label} className="relative">
                   <button
                     onClick={() => { trackNavClick(item.label); setOpenMenu(o => o === item.label ? null : item.label); }}
-                    className={`flex items-center gap-1 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-all whitespace-nowrap ${
+                    className={`flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[13px] font-medium transition-all whitespace-nowrap 2xl:px-3 ${
                       menuOpen || activeHere ? "bg-text-primary/10 text-text-primary" : "text-text-secondary hover:bg-text-primary/5 hover:text-text-primary"
                     }`}
                   >
@@ -254,7 +256,7 @@ export function SiteHeader() {
           <div className="ml-auto flex items-center gap-2 shrink-0">
             {/* Nifty value */}
             {nifty && (
-              <div className="hidden lg:flex items-center gap-2 rounded-xl border border-surface-border/6 bg-text-primary/[0.03] px-3 py-1.5">
+              <div className="hidden min-[1700px]:flex items-center gap-2 rounded-xl border border-surface-border/6 bg-text-primary/[0.03] px-3 py-1.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">NIFTY</span>
                 <span className="text-[13px] font-bold tabular-nums text-text-primary">{nifty.value}</span>
                 <span className={`text-[11px] font-semibold tabular-nums ${nifty.positive ? "text-emerald-400" : "text-rose-400"}`}>{nifty.change}</span>
@@ -356,7 +358,7 @@ export function SiteHeader() {
             {/* Mobile menu toggle */}
             <button
               onClick={() => setMobile(o => !o)}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-surface-border/8 bg-text-primary/[0.03] text-text-secondary lg:hidden"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-surface-border/8 bg-text-primary/[0.03] text-text-secondary xl:hidden"
             >
               {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
             </button>
@@ -411,7 +413,7 @@ export function SiteHeader() {
       {/* Mobile nav drawer — accordion: tap a hub to expand its sub-items,
           instead of the old flat list with no grouping. */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
+        <div className="fixed inset-0 z-40 xl:hidden">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobile(false)} />
           <nav className="absolute left-0 top-[68px] w-72 bg-surface-card border-r border-surface-border/8 h-[calc(100vh-68px)] p-4 flex flex-col gap-1 overflow-y-auto">
             {NAV_PRIMARY.map(item => {

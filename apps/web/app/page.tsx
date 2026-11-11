@@ -1187,7 +1187,9 @@ async function LiveIntelligenceSection() {
   // fallback signals at the PRESENTATION layer only — the backend feed and
   // every other consumer keep them. Real detections and historical matches
   // (clearly labelled as analogues in the card) stay.
-  const items = all.filter((it) => !it.is_fallback);
+  // One row of up to 4 (2026-11-11): the feed now carries up to 2 sector
+  // clusters + 2 rising themes + a historical match, all real detections.
+  const items = all.filter((it) => !it.is_fallback).slice(0, 4);
 
   return (
     <div>
