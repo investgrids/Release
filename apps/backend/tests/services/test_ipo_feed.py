@@ -69,3 +69,13 @@ async def test_serves_stale_copy_when_upstream_fails(monkeypatch):
     monkeypatch.setitem(f._cache, "at", time.time() - f._TTL_S - 5)
     r = await f.get_ipos()
     assert r["stale"] is True and r["ipos"][0]["id"] == "a"
+
+
+def test_past_mainboard_issues_labelled_equity_are_kept_as_mainboard():
+    # Live NSE public-past-issues shape (2026-11-11): mainboard IPOs carry securityType "Equity", not "EQ".
+    # Before the fix they were all dropped, so the homepage showed "0 mainboard".
+    past = [{"companyName": "MK Jewels Limited", "ipoEndDate": "30-OCT-2026", "ipoStartDate": "28-OCT-2026", "issuePrice": "   162", "listingDate": "04-NOV-2026", "priceRange": "Rs.153 to Rs.162", "securityType": "Equity", "symbol": "MKJEWELS"},
+            {"companyName": "A REIT", "ipoEndDate": "30-OCT-2026", "ipoStartDate": "28-OCT-2026", "issuePrice": "100", "listingDate": "04-NOV-2026", "priceRange": "Rs.100", "securityType": "REIT", "symbol": "AREIT"}]
+    by = {i["symbol"]: i for i in f.build([], [], past, TODAY)}
+    assert set(by) == {"MKJEWELS"}
+    assert by["MKJEWELS"]["type"] == "Mainboard" and by["MKJEWELS"]["issuePrice"] == 162 and (by["MKJEWELS"]["priceMin"], by["MKJEWELS"]["priceMax"]) == (153, 162)

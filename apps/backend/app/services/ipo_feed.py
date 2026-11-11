@@ -35,7 +35,10 @@ _TTL_S = 600            # fresh for 10 minutes
 _STALE_MAX_S = 6 * 3600  # serve a stale copy for up to 6 hours if NSE is unreachable
 _PAST_DAYS = 120
 _PAST_LIMIT = 120
-_BOARD = {"EQ": "Mainboard", "SME": "SME", "BE": None}   # BE = trade-for-trade series, used by both boards, so the board is left unstated; other series are bonds/NCDs/rights, not IPOs
+# NSE's public-past-issues labels mainboard IPOs securityType "Equity" (not "EQ"; verified 2026-11-11 against
+# the live endpoint: SME 784, Equity 577, DEBT 118, InvIT 8, REIT 6) — without "EQUITY" every mainboard listing was
+# silently dropped and the homepage showed "0 mainboard". DEBT/InvIT/REIT stay excluded (not equity IPOs).
+_BOARD = {"EQ": "Mainboard", "EQUITY": "Mainboard", "SME": "SME", "BE": None}   # BE = trade-for-trade series, used by both boards, so the board is left unstated; other series are bonds/NCDs/rights, not IPOs
 
 _cache: dict = {"at": 0.0, "data": None, "archive": {}}
 _lock = asyncio.Lock()
