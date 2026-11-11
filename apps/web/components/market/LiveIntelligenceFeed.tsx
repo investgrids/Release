@@ -19,7 +19,7 @@
  */
 
 import Link from "next/link";
-import { Radio, Sparkles } from "lucide-react";
+import { Radio } from "lucide-react";
 import { useLiveFeed } from "@/hooks/useMarketIntelligence";
 import { scoreToColor } from "@/lib/scoring";
 
@@ -31,18 +31,18 @@ function timeLabel(iso: string): string {
   }
 }
 
-export function LiveIntelligenceFeed({ compact = false, limit = 5 }: { compact?: boolean; limit?: number }) {
+export function LiveIntelligenceFeed({ limit = 5 }: { compact?: boolean; limit?: number }) {
   const entries = useLiveFeed(limit, { criticalHighOnly: true });
 
   return (
-    <div className={`flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card ${compact ? "p-4" : "p-5"}`}>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-y-1">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-3.5 w-3.5 shrink-0 text-violet-400" />
-          <h3 className="whitespace-nowrap text-[11px] font-black uppercase tracking-[0.04em] text-text-primary">Live Activity</h3>
-        </div>
-        <span className="flex items-center gap-1.5 text-[10px] font-semibold text-text-muted">
-          <Radio className="h-3 w-3 text-emerald-400" />
+    // Same card shell + header as its homepage siblings (page.tsx's
+    // CardHeader: 13px black title; .mr-card surface) — 2026-11-11, owner
+    // feedback that this widget looked different from the cards around it.
+    <div className="flex h-full flex-col mr-card rounded-2xl border bg-surface-card p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-[13px] font-black text-text-primary">Live Activity</h3>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+          <Radio className="h-3 w-3" />
           Live
         </span>
       </div>

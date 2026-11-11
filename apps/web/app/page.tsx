@@ -329,8 +329,11 @@ async function TickerStrip() {
         <span className="font-semibold text-text-secondary">{statusLabel}{asOf ? ` · as of ${asOf} IST` : ""}</span>
       </div>
 
-      {/* Equity indices only */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* Indices + USD/INR in one row (2026-11-11, owner request). USD/INR is
+          a currency, not an equity index: it carries its own "Currency" tag
+          and a neutral tile (a rising USD/INR is a weaker rupee, so green/red
+          tile colour would mislead); only the ▲/▼ chip shows the move. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {cells.map((c: any) => {
           const chart = ((c.chart as any[] | undefined) ?? []).map((p: any) => p.value).filter((v: any) => typeof v === "number");
           const up = c.positive !== false;
@@ -345,22 +348,19 @@ async function TickerStrip() {
             </div>
           );
         })}
-      </div>
-
-      {/* Currency indicator — shown separately from equity indices (USD/INR is
-          a currency, not an equity index). */}
-      {usdinr && (
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border band-tint-border band-tint-bg px-4 py-3">
-          <span className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-text-muted">Currency</span>
-          <span className="flex items-baseline gap-2">
-            <span className="text-[12px] font-bold text-text-secondary">USD/INR</span>
-            <span className="text-[16px] font-bold tabular-nums text-text-primary">₹{usdinr.value}</span>
-            <span className={`text-[12px] font-extrabold tabular-nums ${usdinr.positive ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"}`}>
+        {usdinr && (
+          <div className="rounded-2xl border band-tint-border band-tint-bg p-4 transition hover:-translate-y-0.5">
+            <p className="flex items-center gap-1.5 text-[12px] font-extrabold uppercase tracking-[0.1em] text-text-secondary">
+              USD/INR
+              <span className="rounded-full bg-text-primary/[0.06] px-1.5 py-px text-[9.5px] font-bold tracking-wide text-text-muted">Currency</span>
+            </p>
+            <p className="mt-1.5 text-[20px] font-bold leading-none tabular-nums text-text-primary">₹{usdinr.value}</p>
+            <p className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-extrabold tabular-nums ${chipCls(!!usdinr.positive)}`}>
               {usdinr.positive ? "▲" : "▼"} {usdinr.change_str ?? usdinr.change}
-            </span>
-          </span>
-        </div>
-      )}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -656,12 +656,6 @@ async function HomepageIntelligenceHero() {
   const liveEventCount = ex.event?.top_events?.length ?? 0;
   const opportunityCount = (radar as any)?.total ?? 0;
 
-  // A risk card that just says "—" tells the user nothing — an explicit,
-  // honest statement that no negative-impact sector cleared the bar today
-  // is real information, not a gap. Never invents a specific risk that
-  // isn't backed by a real negative sector.
-  const highestRiskDisplay = highestRisk ?? "No major verified market risk detected today";
-
   // Homepage hero freshness/session-label decision (2026-10-15 fix) —
   // extracted to lib/homepageFreshness.ts so it's unit-testable (the bug this
   // fixes — "Tuesday's Pre-Market Intelligence" shown on a Wednesday morning
@@ -775,8 +769,8 @@ async function HomepageIntelligenceHero() {
 
   return (
     <div className="mr-card rounded-2xl border bg-surface-card p-6 md:p-7">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
           <p className="flex items-center gap-2 text-[12.5px] font-bold uppercase tracking-[0.16em] text-violet-400">
             <Sparkles className="h-3.5 w-3.5" /> {greeting()}
           </p>
@@ -806,61 +800,55 @@ async function HomepageIntelligenceHero() {
         {/* Three DISTINCT measurements, explicitly separated (2026-11-01) so
             the model's self-rating is never read as a probability of the
             outlook, and the AI outlook is not conflated with the raw count of
-            detected signals. */}
-        <div className="text-right">
-          <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-text-muted">Model Outlook</p>
-          {/* Source-alignment fix (2026-10-15): the verdict below is sourced
-              from mieStory, unchanged -- see this file's top-level comment
-              on marketConfPct. When MIE itself is not from today, that must
-              be said explicitly here, right next to the number, regardless
-              of whether the heading above reads "Today's" because the Brief
-              is current. Fresh intelligence must never make stale
-              intelligence appear fresh. Silent (no badge) when there's no
-              verdict at all (mieVerdictFreshness === "unavailable") -- that
-              case already renders no MIE-specific claim to qualify. */}
-          {mieVerdictFreshness === "previous_session" && (
-            <p
-              className="text-[8.5px] font-semibold uppercase tracking-wide text-amber-500"
-              title={`Based on ${mieVerdictDayLabel ?? "the previous session"}'s MIE assessment — not a current forecast.`}
-            >
-              Previous session{mieVerdictDayLabel ? ` (${mieVerdictDayLabel})` : ""}
-            </p>
-          )}
-          <span className={`mr-glass mt-1 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[13px] font-bold ${outlook.cls}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${outlook.dot}`} /> {outlook.label}
-          </span>
-          {marketConfPct != null && (
-            <div className="mt-2">
-              <p className="text-[10px] font-semibold text-text-muted" title="The model's own self-reported certainty in its narrative — not a probability of the outlook, and not a verified score.">
-                Model self-rating <span className="font-normal text-text-muted/80">· not a probability</span>
+            detected signals. Laid out as one row of stat tiles (2026-11-11,
+            owner feedback) so they fill the header instead of a narrow
+            right-aligned stack leaving an empty gap.
+
+            Source-alignment fix (2026-10-15): the verdict is sourced from
+            mieStory, unchanged. When MIE itself is not from today that is
+            said explicitly next to it — fresh intelligence must never make
+            stale intelligence appear fresh. CD3-D (D5): the % is a bare LLM
+            self-report, always labelled as such, never a verified score. */}
+        <div className="grid w-full grid-cols-1 divide-y rounded-xl border band-tint-border bg-surface-card/70 sm:grid-cols-3 sm:divide-x sm:divide-y-0 lg:w-auto lg:min-w-[540px]">
+          <div className="px-4 py-3">
+            <p className="text-[10.5px] font-bold uppercase tracking-wide text-text-muted">Model outlook</p>
+            <span className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[13px] font-bold ${outlook.cls}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${outlook.dot}`} /> {outlook.label}
+            </span>
+            {mieVerdictFreshness === "previous_session" && (
+              <p
+                className="mt-1.5 text-[10.5px] font-semibold text-amber-600 dark:text-amber-400"
+                title={`Based on ${mieVerdictDayLabel ?? "the previous session"}'s MIE assessment — not a current forecast.`}
+              >
+                Previous session{mieVerdictDayLabel ? ` (${mieVerdictDayLabel})` : ""} · not a current forecast
               </p>
-              <div className="mt-1 flex items-center justify-end gap-1.5">
-                <div className="h-1.5 w-16 overflow-hidden rounded-full bg-text-primary/[0.08]">
-                  <div className="h-full rounded-full bg-accent-violet" style={{ width: `${marketConfPct}%` }} />
-                </div>
-                <span className="text-[12.5px] font-bold tabular-nums text-text-primary">{marketConfPct}%</span>
-              </div>
-            </div>
-          )}
-          {/* CD3-D (D5): mieStory.confidence is a bare LLM self-report
-              (same underlying field LiveMarketTab's AI Confidence Meter
-              already discloses as MEASUREMENT_LABEL.self_reported_
-              certainty) -- rendering it here as an unqualified "65%" would
-              authorize it as a verified score, which it isn't. */}
-          {marketConfPct != null && (
-            <p className="mt-0.5 text-[8px] text-text-muted" title="The model's own self-reported certainty in its market narrative -- not a verified score">
+            )}
+          </div>
+          <div className="px-4 py-3">
+            <p className="text-[10.5px] font-bold uppercase tracking-wide text-text-muted" title="The model's own self-reported certainty in its narrative — not a probability of the outlook, and not a verified score.">
               {MEASUREMENT_LABEL.self_reported_certainty}
             </p>
-          )}
-          {mieVerdictFreshness === "previous_session" && (
-            <p className="mt-0.5 text-[8px] font-medium text-amber-500">Not a current forecast.</p>
-          )}
-          <p className="mt-2 text-[11px] text-text-muted">
-            <span className="font-semibold">Signals detected:</span>{" "}
-            <span className="font-bold text-emerald-600 dark:text-emerald-300">{positiveSectors.length} positive</span>
-            {" · "}
-            <span className="font-bold text-rose-600 dark:text-rose-300">{negativeSectors.length} negative</span>
-          </p>
+            {marketConfPct != null ? (
+              <>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <span className="text-[18px] font-bold leading-none tabular-nums text-text-primary">{marketConfPct}%</span>
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-text-primary/[0.08]">
+                    <div className="h-full rounded-full bg-accent-violet" style={{ width: `${marketConfPct}%` }} />
+                  </div>
+                </div>
+                <p className="mt-1.5 text-[10.5px] text-text-muted">Not a probability</p>
+              </>
+            ) : (
+              <p className="mt-1.5 text-[13px] text-text-muted">Not available</p>
+            )}
+          </div>
+          <div className="px-4 py-3">
+            <p className="text-[10.5px] font-bold uppercase tracking-wide text-text-muted">Signals detected</p>
+            <p className="mt-1.5 flex items-baseline gap-3 text-[13px]">
+              <span><span className="text-[18px] font-bold leading-none tabular-nums text-emerald-600 dark:text-emerald-300">{positiveSectors.length}</span> <span className="text-text-muted">positive</span></span>
+              <span><span className="text-[18px] font-bold leading-none tabular-nums text-rose-600 dark:text-rose-300">{negativeSectors.length}</span> <span className="text-text-muted">negative</span></span>
+            </p>
+          </div>
         </div>
       </div>
 
@@ -909,11 +897,12 @@ async function HomepageIntelligenceHero() {
               sector, sourced deterministically (never an LLM guess). A
               sector with no qualifying evidence says so honestly rather
               than forcing an explanation. */}
+          {/* Hidden entirely when there's no history yet (2026-11-11, owner
+              feedback) — an empty "check back tomorrow" box was filler. */}
+          {changes.length > 0 && (
           <div className="rounded-[16px] border band-tint-border band-tint-bg p-4">
             <p className="mb-2 text-[10.5px] font-bold uppercase tracking-[0.14em] text-text-muted">Since Previous Session</p>
-            {changes.length === 0 ? (
-              <p className="text-[12.5px] text-text-muted">Not enough history yet — check back tomorrow.</p>
-            ) : (
+            {(
               <div className="divide-y divide-surface-border/6">
                 {changes.map((c, i) => {
                   const up = c.direction === "up";
@@ -949,19 +938,30 @@ async function HomepageIntelligenceHero() {
               </div>
             )}
           </div>
+          )}
 
-          {/* Closing strip — Opportunity + Risk as one compact row instead
-              of two separate cards. */}
+          {/* Closing strip — Opportunity + Risk as one compact row. Each half
+              renders only with a real item, and the strip disappears when
+              both are empty (2026-11-11, owner feedback: "No second
+              opportunity" / "No major verified market risk" placeholders were
+              filler — and an empty risk list from the pipeline is not proof
+              that no risk exists, so it isn't asserted). */}
+          {(secondaryOpportunity || highestRisk) && (
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-[14px] border band-tint-border band-tint-bg px-4 py-3">
+            {secondaryOpportunity && (
             <div className="flex items-baseline gap-1.5">
               <span className="text-[10.5px] font-bold uppercase tracking-wide text-emerald-400">Opportunity</span>
-              <span className="text-[12px] font-bold text-text-primary">{secondaryOpportunity ?? "No second opportunity signal today"}</span>
+              <span className="text-[12px] font-bold text-text-primary">{secondaryOpportunity}</span>
             </div>
+            )}
+            {highestRisk && (
             <div className="flex items-baseline gap-1.5">
               <span className="text-[10.5px] font-bold uppercase tracking-wide text-rose-400">Risk</span>
-              <span className="text-[12px] font-bold text-text-primary">{highestRiskDisplay}</span>
+              <span className="text-[12px] font-bold text-text-primary">{highestRisk}</span>
             </div>
+            )}
           </div>
+          )}
 
           {/* What To Watch Next — fills the left column's remaining
               whitespace below Opportunity/Risk. Renders nothing (not a
